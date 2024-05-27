@@ -1,0 +1,7 @@
+% layout 'default';
+% if (my $msg = flash 'message') {
+  <b><%= $msg %></b><br>
+% }
+Welcome <%= session 'user' %>.<br>
+%= link_to Logout => 'logout'
+
