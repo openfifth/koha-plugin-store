@@ -1,0 +1,1 @@
+# koha-plugin-store
