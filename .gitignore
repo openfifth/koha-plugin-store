@@ -1,0 +1,4 @@
+*.swp
+database.*
+node_modules/
+.vscode
