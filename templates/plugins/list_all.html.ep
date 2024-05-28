@@ -1,0 +1,22 @@
+% layout 'default';
+% title 'All plugins';
+<table id="plugins_list">
+<thead><tr><th>ID</th><th>Name</th><th>Author</th><th>Last updated</th></tr></thead>
+<tbody>
+% for my $i (@$plugins) {
+    <tr>
+        <td><%= $i->{id} %></td>
+        <td><%= $i->{name} %></td>
+        <td><%= $i->{author} %></td>
+        <td><%= $i->{timestamp} %></td>
+    </tr>
+% }
+</tbody>
+</table>
+<script>
+    let table = $('#plugins_list').dataTable({
+        order: [],
+        lengthMenu: [10, 20, 50, 100, { label: 'All', value: -1 }],
+        pageLength: -1,
+    });
+</script>
