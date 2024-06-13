@@ -29,6 +29,7 @@ sub startup ($self) {
     # $r->get('/logout')->to('login#logout');
 
     $r->get('/plugins')->to('plugins#list_all');
+    $r->options('/plugins')->to('plugins#list_all');
 
 }
 
