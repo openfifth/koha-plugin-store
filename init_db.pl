@@ -11,7 +11,9 @@ $dbh->do(
     CREATE TABLE plugins (
         id INTEGER PRIMARY KEY,   -- PK
         name TEXT UNIQUE,         -- Plugin name
+        description TEXT,         -- Plugin description
         author TEXT,              -- Author of the plugin
+        thumbnail TEXT,           -- Thumbnail image
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 }
@@ -30,6 +32,8 @@ $dbh->do(
 }
 );
 
-$dbh->do( q{INSERT INTO plugins ( id, name, author ) values ( 1, 'Acquisitions 2.0', 'PTFS-Europe') });
-$dbh->do( q{INSERT INTO plugins ( id, name, author ) values ( 2, 'Coverflow', 'Bywater Solutions' ) });
+$dbh->do( q{INSERT INTO plugins ( name, description, author, thumbnail ) values ( 'Acquisitions 2.0', 'Replaces the built-in Acquisitions module with a newer, more user-friendly, version.', 'PTFS-Europe', 'acq2.png') });
+$dbh->do( q{INSERT INTO plugins ( name, description, author, thumbnail ) values ( 'Coverflow', 'Provides the option of showing a coverflow carousel in the OPAC through a pre-configured report.', 'Bywater Solutions', 'coverflow.png' ) });
+$dbh->do( q{INSERT INTO plugins ( name, description, author, thumbnail ) values ( 'Event Management', 'This plugin makes it easy for you to create, manage and advertise events to your target audiences.', 'LMS Cloud', NULL ) });
+
 $dbh->do( q{INSERT INTO versions( plugin_id, plugin_version, koha_version ) values( 1, 'v3.1.1', '24.05' ) });

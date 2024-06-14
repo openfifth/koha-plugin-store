@@ -29,6 +29,8 @@ sub fetch_all {
     foreach my $plugin ( @{$plugins}) {
         $plugin->{versions} =
           $self->sqlite->db->query('select koha_version,plugin_version from versions where plugin_id ='.$plugin->{id})->hashes->to_array;
+
+        $plugin->{thumbnail} ||= 'no_img.jpg';
     }
 
     return $plugins;
