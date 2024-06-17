@@ -1,0 +1,22 @@
+<div class="mt-4">
+  <ul class="list-group">
+  % if ( logged_in_user ) {
+    %= t a => link_to '/new-plugin' => (class => 'list-group-item list-group-item-action text-success ' . (current_route eq 'new-plugins' ? 'active' : '' )) => begin
+      <i class='bx bx-plus'></i> New Plugin
+    % end
+    %= t a => link_to '/my-plugins' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'myplugins' ? 'active' : '' )) => begin
+      <i class='bx bx-list-ol'></i> My Plugins
+    % end
+    %= t a => link_to '/logout' => (class => 'list-group-item list-group-item-action text-danger') => begin
+      <i class='bx bx-log-out'></i> Log Out
+    % end
+  % } else{
+    %= t a => link_to '/login' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'login' ? 'active' : '' )) => begin
+      <i class='bx bx-log-in'></i> Log In
+    % end
+    %= t a => link_to '/register' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'register' ? 'active' : '' )) => begin
+      <i class='bx bx-user-plus'></i> Register
+    % end
+  % }
+  </ul>
+</div>

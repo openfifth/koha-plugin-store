@@ -1,0 +1,23 @@
+% my $users = users;
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Username</th>
+      <th>Email</th>
+      <th>Password</th>
+    </td>
+  </thead>
+  <tbody>
+    % for my $item (@{ $users }) {
+    <tr>
+      %= t td => $item->{id}
+      %= t td => $item->{username}
+      %= t td => $item->{email}
+      %= t td => $item->{password}
+    </tr>
+  % }
+  </tbody>
+</table>
+

@@ -1,0 +1,2 @@
+  %= include 'partial/nav_items'
+  %= include 'partial/auth_menu'

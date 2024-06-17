@@ -1,0 +1,10 @@
+% title "Unauthorized";
+% layout 'default';
+
+% content_for 'sidebar' => begin
+  %= include 'partial/side_menu'
+% end
+
+<h2 class="text-danger"><%= title %></h2>
+<p class="text-danger">You are not authorized to access this page.</p>
+

@@ -1,0 +1,26 @@
+% title 'Register';
+% layout 'default';
+
+% content_for 'sidebar' => begin
+  %= include 'partial/side_menu'
+% end
+
+<h2><%= title %></h2>
+
+<p>
+%= form_for 'register' => (method => 'POST') => begin
+  <div class="mb-3">
+    <input required type="text" class="form-control" name="email" id="email" placeholder="Email address">
+  </div>
+  <div class="mb-3">
+    <input required type="text" class="form-control" name="username" id="username" aria-describedby="usernameHelp" placeholder="Username">
+  </div>
+  <div class="mb-3">
+    <input required type="password" class="form-control" name="password" id="password" placeholder="Password">
+  </div>
+  <button type="submit" class="btn btn-primary">Submit</button>
+  %= link_to 'Cancel' => '/', (class => 'btn btn-default text-danger')
+% end
+</p>
+
+

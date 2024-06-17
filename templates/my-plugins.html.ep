@@ -1,0 +1,16 @@
+% title "My Plugins";
+% layout 'default';
+
+% content_for 'sidebar' => begin
+  %= include 'partial/side_menu'
+% end
+
+<h2><%= title %></h2>
+% if(scalar @{$my_plugins}){
+%= include 'partial/table/plugins', plugins => $my_plugins;
+% } else{
+  <p>You don't have any plugins yet!</p>
+  <a href="new-plugin">Submit your first plugin here</a>
+% }
+
+

@@ -1,0 +1,25 @@
+% title "New plugin";
+% layout 'default';
+
+% content_for 'sidebar' => begin
+  %= include 'partial/side_menu'
+% end
+
+<h2><%= title %></h2>
+
+<p>
+%= form_for 'new-plugin' => (method => 'POST') => begin
+  <div class="mb-3">
+    <input required type="text" class="form-control" id="plugin_repo" placeholder="Plugin repository">
+  </div>
+  <div class="mb-3">
+    <input required type="checkbox" class="form-check-input" id="author_confirm">
+    <label class="form-check-label" for="author_confirm">I am the author of this plugin
+  </div>
+  <div class="mb-3">
+    <input required type="checkbox" class="form-check-input" id="tos">
+    <label class="form-check-label" for="tos">I agree to the <a href="#">terms of service</a></label>
+  </div>
+  <button type="submit" class="btn btn-primary">Submit</button>
+% end
+</p>

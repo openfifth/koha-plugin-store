@@ -1,0 +1,23 @@
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Title</th>
+      <th>Description</th>
+      <th>Author</th>
+      <th>User ID</th>
+    </td>
+  </thead>
+  <tbody>
+    % for my $item (@{ $plugins }) {
+    <tr>
+      %= t td => $item->{id}
+      %= t td => $item->{name}
+      %= t td => $item->{description}
+      %= t td => $item->{author}
+      %= t td => $item->{user_id}
+    </tr>
+  % }
+  </tbody>
+</table>
+

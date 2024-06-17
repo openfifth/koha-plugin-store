@@ -1,0 +1,26 @@
+% title 'Login';
+% layout 'default';
+
+% content_for 'sidebar' => begin
+  %= include 'partial/side_menu'
+% end
+
+<h2><%= title %></h2>
+
+% if (my $param = stash 'invalid_login') {
+  <p class="text-danger">Invalid login</p>
+% }
+
+<p>
+%= form_for 'login' => (method => 'POST') => begin
+  <div class="mb-3">
+    <input required type="text" class="form-control" name="username" id="username" placeholder="Username">
+  </div>
+  <div class="mb-3">
+    <input required type="password" class="form-control" name="password" id="password" placeholder="Password">
+  </div>
+  <button type="submit" class="btn btn-primary">Submit</button>
+% end
+</p>
+
+<p>Or <%= link_to register => 'register' %> for an account.</p>

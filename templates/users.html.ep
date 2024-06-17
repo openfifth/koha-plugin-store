@@ -1,0 +1,12 @@
+% my $users = users;
+% title "Users";
+% layout 'default';
+
+% content_for 'sidebar' => begin
+  %= include 'partial/side_menu'
+% end
+
+<h2><%= title %></h2>
+%= include 'partial/table/users'
+
+
