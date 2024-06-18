@@ -1,12 +1,12 @@
   <div>
     <ul class="list-group">
-      %= t a => link_to '/' => (class => 'list-group-item list-group-item-action ' . (current_route eq '' ? 'active' : '' )) => begin
+      %= link_to '/' => (class => 'list-group-item list-group-item-action ' . (current_route eq '' ? 'active' : '' )) => begin
         <i class='bx bx-home'></i> Home
       % end
-      %= t a => link_to '/users' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'users' ? 'active' : '' )) => begin
+      %= link_to '/users' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'users' ? 'active' : '' )) => begin
         <i class='bx bx-user'></i> Users
       % end
-      %= t a => link_to '/plugins' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'plugins' ? 'active' : '' )) => begin
+      %= link_to '/plugins' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'plugins' ? 'active' : '' )) => begin
         <i class='bx bx-list-ul'></i> All Plugins
       % end
     </ul>

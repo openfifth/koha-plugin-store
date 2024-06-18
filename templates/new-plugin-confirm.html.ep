@@ -14,10 +14,10 @@
 % if (scalar @{$errors}) {
   <h3 class="text-danger">Errors found:</h2>
   % foreach my $error ( @{$errors} ) {
-      %= t p => t li => (class => 'text-danger') => $error
+        %= t li => (class => 'text-danger') => $error
   % }
   %= t p => 'Please correct the errors above and submit the plugin again'
-  %= t a => link_to '/new-plugin' => (class => 'btn btn-primary') => begin
+  %= link_to '/new-plugin' => (class => 'btn btn-primary') => begin
   Return
   % end
 % }
@@ -28,7 +28,7 @@
     <tbody>
       <tr>
       %= t td => 'Name'
-      %= t td => $latest_release->{name}
+      %= t td => link_to $latest_release->{name} => $latest_release->{html_url}
       </tr>
       <tr>
       %= t td => 'Published at'
@@ -36,7 +36,7 @@
       </tr>
       <tr>
       %= t td => 'Author'
-      %= t td => $latest_release->{author}->{login}
+      %= t td => link_to $latest_release->{author}->{login} => $latest_release->{author}->{html_url}
       </tr>
       <tr>
       %= t td => begin

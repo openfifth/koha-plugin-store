@@ -22,10 +22,10 @@
         </div>
         % if ( logged_in_user ) {
         <div class="navbar-header float-right text-white">
-          %= t a => link_to '/my-plugins' => (class => 'link-underline link-underline-opacity-0 text-white') => begin
+          %= link_to '/my-plugins' => (class => 'link-underline link-underline-opacity-0 text-white') => begin
             <i class='bx bx-user'></i> <%= logged_in_user->{username} %>
           % end
-          %= t a => link_to '/logout' => (class => 'link-underline link-underline-opacity-0 text-danger') => begin
+          %= link_to '/logout' => (class => 'link-underline link-underline-opacity-0 text-danger') => begin
             <i class='bx bx-log-out'></i> Log Out
           % end
         </div>
