@@ -1,7 +1,7 @@
 <div class="mt-4">
   <ul class="list-group">
   % if ( logged_in_user ) {
-    %= link_to '/new-plugin' => (class => 'list-group-item list-group-item-action text-success ' . (current_route eq 'new-plugins' ? 'active' : '' )) => begin
+    %= link_to '/new-plugin' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'newplugin' ? 'active' : '' )) => begin
       <i class='bx bx-plus'></i> New Plugin
     % end
     %= link_to '/my-plugins' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'myplugins' ? 'active' : '' )) => begin
