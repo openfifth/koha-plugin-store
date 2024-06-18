@@ -1,0 +1,62 @@
+% title "Confirm new plugin";
+% layout 'default';
+% my $errors = stash 'errors';
+% my $latest_release = stash 'latest_release';
+% my $kpz_asset = stash 'kpz_asset';
+
+
+% content_for 'sidebar' => begin
+  %= include 'partial/side_menu'
+% end
+
+<h2><%= title %></h2>
+
+% if (scalar @{$errors}) {
+  <h3 class="text-danger">Errors found:</h2>
+  % foreach my $error ( @{$errors} ) {
+      %= t p => t li => (class => 'text-danger') => $error
+  % }
+  %= t p => 'Please correct the errors above and submit the plugin again'
+  %= t a => link_to '/new-plugin' => (class => 'btn btn-primary') => begin
+  Return
+  % end
+% }
+
+% if ($latest_release && $kpz_asset) {
+  <h3>Latest release details:</h3>
+  <table class="table">
+    <tbody>
+      <tr>
+      %= t td => 'Name'
+      %= t td => $latest_release->{name}
+      </tr>
+      <tr>
+      %= t td => 'Published at'
+      %= t td => $latest_release->{published_at}
+      </tr>
+      <tr>
+      %= t td => 'Author'
+      %= t td => $latest_release->{author}->{login}
+      </tr>
+      <tr>
+      %= t td => begin
+        <i class='bx bx-package'></i> .kpz asset name
+      % end 
+      %= t td => $kpz_asset->{name}
+      </tr>
+      <tr>
+
+      %= t td => begin
+        <i class='bx bx-package'></i> .kpz asset download count
+      % end 
+      %= t td => $kpz_asset->{download_count}
+      </tr>
+    </tbody>
+  </table>
+
+  %= t p => (class => 'text-success') => 'Everything appears to be in order!'
+  %= t p => form_for 'new-plugin-confirm' => (method => 'POST') => begin
+    <button type="submit" class="btn btn-primary">Continue</button>
+  % end
+
+% }

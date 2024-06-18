@@ -87,6 +87,7 @@ sub startup ($self) {
             $c->render($template);
         }
     );
+    $r->post('/new-plugin')->to('plugins#new_plugin');
 
     #TODO: Use OpenAPI mojolicious plugin?
     $r->get('/api/plugins')->to('plugins#list_all');
