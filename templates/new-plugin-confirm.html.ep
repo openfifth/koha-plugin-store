@@ -28,7 +28,7 @@
     <tbody>
       <tr>
       %= t td => 'Name'
-      %= t td => link_to $latest_release->{name} => $latest_release->{html_url}
+      %= t td => link_to $latest_release->{name} => $latest_release->{html_url} => (target => '_blank')
       </tr>
       <tr>
       %= t td => 'Published at'
@@ -36,7 +36,7 @@
       </tr>
       <tr>
       %= t td => 'Author'
-      %= t td => link_to $latest_release->{author}->{login} => $latest_release->{author}->{html_url}
+      %= t td => link_to $latest_release->{author}->{login} => $latest_release->{author}->{html_url} => (target => '_blank')
       </tr>
       <tr>
       %= t td => begin
