@@ -14,6 +14,11 @@ Koha plugin store project consisting of 2 distinct components:
   - Provides REST API to be consumed by core Koha
   - Automatically manage latest version releases for each plugin
 
+- Notes
+  - A `my_app.conf` file is required. Follow the example from `my_app.conf.example`
+  - The `kpz_packages` directory is used to store `.kpz` files download from github.
+  - To install cpan dependencies, run `cpanm --installdeps . ` at the project root dir.
+
 # Client
 - VueJS App
 - Relevant repo/branch [here](https://github.com/PTFS-Europe/koha/tree/plugin_store)
