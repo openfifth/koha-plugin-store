@@ -1,0 +1,4 @@
+{
+  # Github user access token
+  github_user_access_token => "YOUR_TOKEN_HERE",
+};

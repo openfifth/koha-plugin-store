@@ -12,8 +12,6 @@ has site_name => sub {
 
 sub startup ($self) {
 
-    $self->secrets( ['Mojolicious rocks'] );
-
     $self->helper(
         logged_in_user => sub {
             my ( $c, $user ) = @_;

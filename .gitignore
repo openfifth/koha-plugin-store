@@ -1,4 +1,5 @@
 *.swp
 database.*
+*.conf
 node_modules/
 .vscode
