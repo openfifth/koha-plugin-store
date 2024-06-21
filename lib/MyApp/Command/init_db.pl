@@ -12,7 +12,8 @@ $dbh->do(
     q{
     CREATE TABLE plugins (
         id INTEGER PRIMARY KEY AUTOINCREMENT,   -- PK
-        name TEXT UNIQUE,                       -- Plugin name
+        plugin_class TEXT UNIQUE,               -- Unique plugin class
+        name TEXT UNIQUE,                       -- Unique plugin name
         description TEXT,                       -- Plugin description
         author TEXT,                            -- Author of the plugin
         thumbnail TEXT,                         -- Thumbnail image
@@ -52,13 +53,13 @@ $dbh->do(
 
 # Plugins data
 $dbh->do(
-q{INSERT INTO plugins ( name, description, author, thumbnail, user_id ) values ( 'Acquisitions 2.0', 'Replaces the built-in Acquisitions module with a newer, more user-friendly, version.', 'PTFS-Europe', 'acq2.png', 1) }
+q{INSERT INTO plugins ( name, plugin_class, description, author, thumbnail, user_id ) values ( 'Acquisitions 2.0', 'Koha::Plugin::Acquire', 'Replaces the built-in Acquisitions module with a newer, more user-friendly, version.', 'PTFS-Europe', 'acq2.png', 1) }
 );
 $dbh->do(
-q{INSERT INTO plugins ( name, description, author, thumbnail, user_id ) values ( 'Coverflow', 'Provides the option of showing a coverflow carousel in the OPAC through a pre-configured report.', 'Bywater Solutions', 'coverflow.png', 2) }
+q{INSERT INTO plugins ( name, plugin_class, description, author, thumbnail, user_id ) values ( 'Coverflow', 'Koha::Plugin::Com::ByWaterSolutions::CoverFlow', 'Provides the option of showing a coverflow carousel in the OPAC through a pre-configured report.', 'Bywater Solutions', 'coverflow.png', 2) }
 );
 $dbh->do(
-q{INSERT INTO plugins ( name, description, author, thumbnail, user_id ) values ( 'Event Management', 'This plugin makes it easy for you to create, manage and advertise events to your target audiences.', 'LMS Cloud', NULL, 1 ) }
+q{INSERT INTO plugins ( name, plugin_class, description, author, thumbnail, user_id ) values ( 'Event Management', 'Koha::Plugin::Com::LMSCloud::EventManagement', 'This plugin makes it easy for you to create, manage and advertise events to your target audiences.', 'LMS Cloud', NULL, 1 ) }
 );
 
 # Versions data
