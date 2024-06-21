@@ -1,4 +1,3 @@
-% my $plugins = plugins;
 % title "Koha Plugin Store";
 % layout 'default';
 

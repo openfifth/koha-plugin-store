@@ -4,6 +4,8 @@ use Mojo::SQLite;
 
 use KohaPluginStore::Model::Users;
 use KohaPluginStore::Model::Plugins;
+use KohaPluginStore::Schema;
+use KohaPluginStore::Model::DB;
 
 has site_name => sub {
     my $app = shift;
@@ -12,13 +14,15 @@ has site_name => sub {
 
 sub startup ($self) {
 
+    $self->{_dbh} = KohaPluginStore::Model::DB->new();
+
     $self->helper(
         logged_in_user => sub {
             my ( $c, $user ) = @_;
             $user ||= $c->stash->{user} || $c->session->{user};
             return unless $user;
-            return KohaPluginStore::Model::Users->new( sqlite => $c->app->sqlite )
-              ->fetch($user->{username}) || undef;
+            return KohaPluginStore::Model::Users->new()->search( { username => $user->{username} } )->first
+              || undef;
         }
     );
 
@@ -26,67 +30,18 @@ sub startup ($self) {
         sqlite => sub { state $sql = Mojo::SQLite->new('sqlite:database.db') }
     );
 
-    $self->helper(
-        users => sub {
-            my $c = shift;
-            state $users =
-              KohaPluginStore::Model::Users->new( sqlite => $c->app->sqlite )
-              ->fetch_all();
-        }
-    );
-    $self->helper(
-        plugins => sub {
-            my $c = shift;
-            state $plugins =
-            KohaPluginStore::Model::Plugins->new( sqlite => $c->app->sqlite )
-              ->fetch_all();
-        }
-    );
-
-    $self->helper(
-        plugins => sub {
-            my $c = shift;
-            state $plugins =
-                KohaPluginStore::Model::Plugins->new( sqlite => $c->app->sqlite )
-                ->fetch_all();
-        }
-    );
-
     my $r = $self->routes;
-    # $r->any('/')->to('login#index')->name('index');
 
-    # my $logged_in = $r->under('/')->to('login#logged_in');
-    # $logged_in->get('/protected')->to('login#protected');
-
-
-    $r->any('/')->to( template => 'index' );
-    $r->any('/plugins')->to( template => 'plugins');
-    $r->any('/users')->to( template => 'users' );
+    $r->any('/')->to('site#index');
+    $r->any('/plugins')->to('plugins#index');
+    $r->any('/users')->to('users#index');
     $r->get('/login')->to( template => 'login' );
-    $r->post('/login')->to( 'login#login' );
+    $r->post('/login')->to('site#login');
     $r->get('/register')->to( template => 'register' );
-    $r->post('/register')->to('login#register');
-    $r->get('/logout')->to('login#logout');
-
-    $r->get(
-        '/my-plugins' => sub {
-            my $c        = shift;
-            my $template = $c->session->{user} ? 'my-plugins' : 'unauthorized';
-            $c->stash(
-                my_plugins =>
-                  KohaPluginStore::Model::Plugins->new( sqlite => $c->app->sqlite )->fetch_all( $c->session->{user}->{id} )
-            );
-            $c->render($template);
-        }
-    );
-
-    $r->get(
-        '/new-plugin' => sub {
-            my $c        = shift;
-            my $template = $c->session->{user} ? 'new-plugin' : 'unauthorized';
-            $c->render($template);
-        }
-    );
+    $r->post('/register')->to('site#register');
+    $r->get('/logout')->to('site#logout');
+    $r->get('/my-plugins')->to('plugins#my_plugins');
+    $r->get('/new-plugin')->to('plugins#add_form');
     $r->post('/new-plugin')->to('plugins#new_plugin');
     $r->post('/new-plugin-confirm')->to('plugins#new_plugin_confirm');
 

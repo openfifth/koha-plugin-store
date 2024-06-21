@@ -11,11 +11,11 @@
   <tbody>
     % for my $item (@{ $plugins }) {
     <tr>
-      %= t td => $item->{id}
-      %= t td => $item->{name}
-      %= t td => $item->{description}
-      %= t td => $item->{author}
-      %= t td => $item->{user_id}
+      %= t td => $item->id
+      %= t td => $item->name
+      %= t td => $item->description
+      %= t td => $item->author
+      %= t td => $item->user_id
     </tr>
   % }
   </tbody>

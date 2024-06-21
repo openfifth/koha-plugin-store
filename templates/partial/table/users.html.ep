@@ -1,5 +1,3 @@
-% my $users = users;
-
 <table class="table">
   <thead>
     <tr>
@@ -12,10 +10,10 @@
   <tbody>
     % for my $item (@{ $users }) {
     <tr>
-      %= t td => $item->{id}
-      %= t td => $item->{username}
-      %= t td => $item->{email}
-      %= t td => $item->{password}
+      %= t td => $item->id
+      %= t td => $item->username
+      %= t td => $item->email
+      %= t td => $item->password
     </tr>
   % }
   </tbody>

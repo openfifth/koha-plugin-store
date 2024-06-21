@@ -2,27 +2,18 @@ package KohaPluginStore::Model::Users;
 
 use strict;
 use warnings;
-use experimental qw(signatures);
-
-use Mojo::Util qw(secure_compare);
-
+use base 'KohaPluginStore::Model::Base';
 use Mojo::Base -base;
 
+use Data::Structure::Util qw( unbless );
 use Passwords ();
 
-has 'sqlite';
+has '_dbh';
 
-sub fetch_all {
-    my $self = shift;
-
-    #TOOD: Like Koha REST API:
-    #TODO: We need embedding
-    #TODO: We need paging and sorting
-    #TODO: We need searching
-
-    my $users = $self->sqlite->db->select('users')->hashes->to_array;
-
-    return $users;
+sub new {
+    my ( $class, $params ) = @_;
+    my $self = $class->SUPER::new();
+    return $self;
 }
 
 sub add_user {
@@ -36,23 +27,13 @@ sub add_user {
 sub check_password {
     my ( $self, $username, $password ) = @_;
     return undef unless $password;
-    my $user = $self->sqlite->db->select(
-        'users' => ['password'],
-        { username => $username },
-    )->hash;
+    my $user = $self->search({ username => $username } )->first;
     return undef unless $user;
-    return Passwords::password_verify( $password, $user->{password}, );
+    return Passwords::password_verify( $password, $user->password, );
 }
 
-sub fetch {
-    my ( $self, $username ) = @_;
-
-    my $sql = <<'  SQL';
-    select id, email, username
-    from users
-    where username=?
-  SQL
-    return $self->sqlite->db->query( $sql, $username )->hash;
+sub _type {
+    return 'User';
 }
 
 1;

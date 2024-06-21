@@ -23,7 +23,7 @@
         % if ( logged_in_user ) {
         <div class="navbar-header float-right text-white">
           %= link_to '/my-plugins' => (class => 'link-underline link-underline-opacity-0 text-white') => begin
-            <i class='bx bx-user'></i> <%= logged_in_user->{username} %>
+            <i class='bx bx-user'></i> <%= logged_in_user->username %>
           % end
           %= link_to '/logout' => (class => 'link-underline link-underline-opacity-0 text-danger') => begin
             <i class='bx bx-log-out'></i> Log Out

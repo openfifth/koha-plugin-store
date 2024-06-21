@@ -1,5 +1,4 @@
-% my $plugins = plugins;
-% title "Plugins";
+% title "Users";
 % layout 'default';
 
 % content_for 'sidebar' => begin
@@ -7,5 +6,6 @@
 % end
 
 <h2><%= title %></h2>
-%= include 'partial/table/plugins', plugins => $plugins
+%= include 'partial/table/users'
+
 
