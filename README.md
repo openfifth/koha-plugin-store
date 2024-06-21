@@ -18,7 +18,10 @@ Koha plugin store project consisting of 2 distinct components:
   - A `koha_plugin_store.conf` file is required. Follow the example from `koha_plugin_store.conf.example`
   - The `kpz_packages` directory is used to store `.kpz` files download from github.
   - To install cpan dependencies, run `cpanm --installdeps . ` at the project root dir.
-  - To init database for development run `perl lib/MyApp/Command/init_db.pl` at the project root dir.
+
+- Commands
+  - Create database schema: run `perl lib/MyApp/Command/create_db_schema.pl`
+  - Add test data: `perl lib/MyApp/Command/add_test_data.pl`
 
 # Client
 - VueJS App
