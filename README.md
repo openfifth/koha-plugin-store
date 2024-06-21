@@ -15,9 +15,10 @@ Koha plugin store project consisting of 2 distinct components:
   - Automatically manage latest version releases for each plugin
 
 - Notes
-  - A `my_app.conf` file is required. Follow the example from `my_app.conf.example`
+  - A `koha_plugin_store.conf` file is required. Follow the example from `koha_plugin_store.conf.example`
   - The `kpz_packages` directory is used to store `.kpz` files download from github.
   - To install cpan dependencies, run `cpanm --installdeps . ` at the project root dir.
+  - To init database for development run `perl lib/MyApp/Command/init_db.pl` at the project root dir.
 
 # Client
 - VueJS App
@@ -35,11 +36,4 @@ Koha plugin store project consisting of 2 distinct components:
 ![new version release](https://github.com/ammopt/koha-plugin-store/blob/main/new-version-release.jpg?raw=true)
 
 ## Launch server
-- morbo script/my_app
-
-## Run tests
-- prove -l -v t/login.t
-
-## Install dependencies
-- sudo cpanm Mojo::SQLite
-- npm install
+- morbo script/koha_plugin_store
