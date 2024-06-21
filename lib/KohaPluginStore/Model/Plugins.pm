@@ -1,4 +1,4 @@
-package MyApp::Model::Plugins;
+package KohaPluginStore::Model::Plugins;
 
 use strict;
 use warnings;

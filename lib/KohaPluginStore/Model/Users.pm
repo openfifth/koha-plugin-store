@@ -1,4 +1,4 @@
-package MyApp::Model::Users;
+package KohaPluginStore::Model::Users;
 
 use strict;
 use warnings;

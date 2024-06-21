@@ -1,9 +1,9 @@
-package MyApp;
+package KohaPluginStore;
 use Mojo::Base 'Mojolicious', -signatures;
 use Mojo::SQLite;
 
-use MyApp::Model::Users;
-use MyApp::Model::Plugins;
+use KohaPluginStore::Model::Users;
+use KohaPluginStore::Model::Plugins;
 
 has site_name => sub {
     my $app = shift;
@@ -17,7 +17,7 @@ sub startup ($self) {
             my ( $c, $user ) = @_;
             $user ||= $c->stash->{user} || $c->session->{user};
             return unless $user;
-            return MyApp::Model::Users->new( sqlite => $c->app->sqlite )
+            return KohaPluginStore::Model::Users->new( sqlite => $c->app->sqlite )
               ->fetch($user->{username}) || undef;
         }
     );
@@ -30,7 +30,7 @@ sub startup ($self) {
         users => sub {
             my $c = shift;
             state $users =
-              MyApp::Model::Users->new( sqlite => $c->app->sqlite )
+              KohaPluginStore::Model::Users->new( sqlite => $c->app->sqlite )
               ->fetch_all();
         }
     );
@@ -38,7 +38,7 @@ sub startup ($self) {
         plugins => sub {
             my $c = shift;
             state $plugins =
-            MyApp::Model::Plugins->new( sqlite => $c->app->sqlite )
+            KohaPluginStore::Model::Plugins->new( sqlite => $c->app->sqlite )
               ->fetch_all();
         }
     );
@@ -47,7 +47,7 @@ sub startup ($self) {
         plugins => sub {
             my $c = shift;
             state $plugins =
-                MyApp::Model::Plugins->new( sqlite => $c->app->sqlite )
+                KohaPluginStore::Model::Plugins->new( sqlite => $c->app->sqlite )
                 ->fetch_all();
         }
     );
@@ -74,7 +74,7 @@ sub startup ($self) {
             my $template = $c->session->{user} ? 'my-plugins' : 'unauthorized';
             $c->stash(
                 my_plugins =>
-                  MyApp::Model::Plugins->new( sqlite => $c->app->sqlite )->fetch_all( $c->session->{user}->{id} )
+                  KohaPluginStore::Model::Plugins->new( sqlite => $c->app->sqlite )->fetch_all( $c->session->{user}->{id} )
             );
             $c->render($template);
         }
