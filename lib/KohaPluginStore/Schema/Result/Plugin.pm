@@ -34,6 +34,11 @@ __PACKAGE__->table("plugins");
   data_type: 'text'
   is_nullable: 1
 
+=head2 repo_url
+
+  data_type: 'text'
+  is_nullable: 1
+
 =head2 name
 
   data_type: 'text'
@@ -72,6 +77,8 @@ __PACKAGE__->add_columns(
   "id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
   "plugin_class",
+  { data_type => "text", is_nullable => 1 },
+  "repo_url",
   { data_type => "text", is_nullable => 1 },
   "name",
   { data_type => "text", is_nullable => 1 },
@@ -129,6 +136,18 @@ __PACKAGE__->add_unique_constraint("name_unique", ["name"]);
 
 __PACKAGE__->add_unique_constraint("plugin_class_unique", ["plugin_class"]);
 
+=head2 C<repo_url_unique>
+
+=over 4
+
+=item * L</repo_url>
+
+=back
+
+=cut
+
+__PACKAGE__->add_unique_constraint("repo_url_unique", ["repo_url"]);
+
 =head1 RELATIONS
 
 =head2 release
@@ -167,8 +186,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 12:29:03
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:hj3gHF3qmKJPW6EV/CPYTQ
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 12:58:38
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:ykwzaIK19fB1uZ2U/pwBaQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
