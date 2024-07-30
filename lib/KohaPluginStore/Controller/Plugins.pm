@@ -31,8 +31,9 @@ sub add_form {
 sub edit_form {
     my $c = shift;
 
-    my $plugin_id = $c->param('id');
+    return $c->render( text => 'Unauthorized', status => 401 ) unless $c->session->{user};
 
+    my $plugin_id = $c->param('id');
     my $plugin = KohaPluginStore::Model::Plugins->new()->find(
         {
             id => $plugin_id,
@@ -40,6 +41,7 @@ sub edit_form {
     );
 
     return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
+    return $c->render( text => 'Unauthorized', status => 401 ) unless $c->session->{user}->{id} == $plugin->user_id;
 
     $c->stash( plugin => $plugin );
     $c->render('plugins/edit');
