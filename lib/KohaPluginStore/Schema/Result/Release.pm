@@ -1,12 +1,12 @@
 use utf8;
-package KohaPluginStore::Schema::Result::Version;
+package KohaPluginStore::Schema::Result::Release;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
 
 =head1 NAME
 
-KohaPluginStore::Schema::Result::Version
+KohaPluginStore::Schema::Result::Release
 
 =cut
 
@@ -15,11 +15,11 @@ use warnings;
 
 use base 'DBIx::Class::Core';
 
-=head1 TABLE: C<versions>
+=head1 TABLE: C<releases>
 
 =cut
 
-__PACKAGE__->table("versions");
+__PACKAGE__->table("releases");
 
 =head1 ACCESSORS
 
@@ -30,7 +30,12 @@ __PACKAGE__->table("versions");
   is_foreign_key: 1
   is_nullable: 0
 
-=head2 plugin_version
+=head2 name
+
+  data_type: 'text'
+  is_nullable: 1
+
+=head2 version
 
   data_type: 'text'
   is_nullable: 1
@@ -55,7 +60,9 @@ __PACKAGE__->add_columns(
     is_foreign_key    => 1,
     is_nullable       => 0,
   },
-  "plugin_version",
+  "name",
+  { data_type => "text", is_nullable => 1 },
+  "version",
   { data_type => "text", is_nullable => 1 },
   "koha_version",
   { data_type => "text", is_nullable => 1 },
@@ -93,8 +100,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-06-21 12:46:40
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:5UkbPvfeFYYSSPVfOO+Dmw
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 12:29:03
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:0xVs0VhZoZA/UuA6bOoB6A
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

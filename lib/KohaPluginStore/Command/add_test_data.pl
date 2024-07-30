@@ -14,9 +14,9 @@ $dbh->do(
 q{INSERT INTO plugins ( name, plugin_class, description, author, thumbnail, user_id ) values ( 'Event Management', 'Koha::Plugin::Com::LMSCloud::EventManagement', 'This plugin makes it easy for you to create, manage and advertise events to your target audiences.', 'LMS Cloud', NULL, 1 ) }
 );
 
-# Versions data
+# Releases data
 $dbh->do(
-q{INSERT INTO versions( plugin_id, plugin_version, koha_version ) values( 1, 'v3.1.1', '24.05' ) }
+q{INSERT OR IGNORE INTO releases( plugin_id, name, version, koha_max_version ) values( 1, 'v3.1.1','3.1.1', '24.05' ) }
 );
 
 # Users data:

@@ -21,14 +21,15 @@ $dbh->do(
 }
 );
 
-# Versions schema
-$dbh->do(q{DROP TABLE IF EXISTS versions});
+# Releases schema
+$dbh->do(q{DROP TABLE IF EXISTS releases});
 $dbh->do(
     q{
-    CREATE TABLE versions (
+    CREATE TABLE releases (
         plugin_id INTEGER PRIMARY KEY AUTOINCREMENT, --id from the plugins table
-        plugin_version TEXT,                         -- version of the plugin
-        koha_version TEXT,                           -- major Koha version (e.g. '24.05')
+        name TEXT,                                   -- release name
+        version TEXT,                                -- release version
+        koha_max_version TEXT,                       -- major Koha version (e.g. '24.05')
         date_released DATETIME,                      -- Date time this plugin version was released
         FOREIGN KEY(plugin_id) REFERENCES plugins(id) ON DELETE CASCADE
     );

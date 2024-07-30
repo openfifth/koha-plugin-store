@@ -33,16 +33,17 @@ sub list_all ($c) {
     my @plugins = map { my %h = $_->get_columns; \%h } KohaPluginStore::Model::Plugins->new()->search;
 
     foreach my $plugin (@plugins) {
-        my @versions =
+        my @releases =
             map { my %h = $_->get_columns; \%h }
-            $c->app->{_dbh}->resultset('Version')->search( { plugin_id => $plugin->{id} } );
+            $c->app->{_dbh}->resultset('Release')->search( { plugin_id => $plugin->{id} } );
 
-        foreach my $version (@versions) {
+        foreach my $release (@releases) {
             push(
-                @{ $plugin->{versions} },
+                @{ $plugin->{releases} },
                 {
-                    koha_version   => $version->{koha_version},
-                    plugin_version => $version->{plugin_version}
+                    koha_max_version => $release->{koha_max_version},
+                    version => $release->{version},
+                    name => $release->{name}
                 }
             );
         }

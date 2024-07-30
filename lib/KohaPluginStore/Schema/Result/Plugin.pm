@@ -131,6 +131,21 @@ __PACKAGE__->add_unique_constraint("plugin_class_unique", ["plugin_class"]);
 
 =head1 RELATIONS
 
+=head2 release
+
+Type: might_have
+
+Related object: L<KohaPluginStore::Schema::Result::Release>
+
+=cut
+
+__PACKAGE__->might_have(
+  "release",
+  "KohaPluginStore::Schema::Result::Release",
+  { "foreign.plugin_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 user
 
 Type: belongs_to
@@ -151,24 +166,9 @@ __PACKAGE__->belongs_to(
   },
 );
 
-=head2 version
 
-Type: might_have
-
-Related object: L<KohaPluginStore::Schema::Result::Version>
-
-=cut
-
-__PACKAGE__->might_have(
-  "version",
-  "KohaPluginStore::Schema::Result::Version",
-  { "foreign.plugin_id" => "self.id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
-
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-06-21 12:46:40
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Bx3XB6efUqe92Uc7KebpUw
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 12:29:03
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:hj3gHF3qmKJPW6EV/CPYTQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
