@@ -26,6 +26,14 @@ sub search {
     return $self->{_dbh}->resultset($self->_type)->search($query, $search_params);
 }
 
+sub find {
+    my ( $self, $query, $params ) = @_;
+
+    my $search_params =
+        $params ? { %{ $self->default_query_params }, %{$params} } : { %{ $self->default_query_params } };
+    return $self->{_dbh}->resultset( $self->_type )->find( $query, $search_params );
+}
+
 sub as_hash {
     my ( $self, $row ) = @_;
 
