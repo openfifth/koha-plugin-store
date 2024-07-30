@@ -27,7 +27,8 @@ $dbh->do(q{DROP TABLE IF EXISTS releases});
 $dbh->do(
     q{
     CREATE TABLE releases (
-        plugin_id INTEGER PRIMARY KEY AUTOINCREMENT, --id from the plugins table
+        id INTEGER PRIMARY KEY AUTOINCREMENT,        -- release id
+        plugin_id INTEGER,                           -- id from the plugins table
         name TEXT,                                   -- release name
         version TEXT,                                -- release version
         koha_max_version TEXT,                       -- major Koha version (e.g. '24.05')

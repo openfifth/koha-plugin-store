@@ -23,12 +23,17 @@ __PACKAGE__->table("releases");
 
 =head1 ACCESSORS
 
-=head2 plugin_id
+=head2 id
 
   data_type: 'integer'
   is_auto_increment: 1
-  is_foreign_key: 1
   is_nullable: 0
+
+=head2 plugin_id
+
+  data_type: 'integer'
+  is_foreign_key: 1
+  is_nullable: 1
 
 =head2 name
 
@@ -53,13 +58,10 @@ __PACKAGE__->table("releases");
 =cut
 
 __PACKAGE__->add_columns(
+  "id",
+  { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
   "plugin_id",
-  {
-    data_type         => "integer",
-    is_auto_increment => 1,
-    is_foreign_key    => 1,
-    is_nullable       => 0,
-  },
+  { data_type => "integer", is_foreign_key => 1, is_nullable => 1 },
   "name",
   { data_type => "text", is_nullable => 1 },
   "version",
@@ -74,13 +76,13 @@ __PACKAGE__->add_columns(
 
 =over 4
 
-=item * L</plugin_id>
+=item * L</id>
 
 =back
 
 =cut
 
-__PACKAGE__->set_primary_key("plugin_id");
+__PACKAGE__->set_primary_key("id");
 
 =head1 RELATIONS
 
@@ -96,12 +98,17 @@ __PACKAGE__->belongs_to(
   "plugin",
   "KohaPluginStore::Schema::Result::Plugin",
   { id => "plugin_id" },
-  { is_deferrable => 0, on_delete => "CASCADE", on_update => "NO ACTION" },
+  {
+    is_deferrable => 0,
+    join_type     => "LEFT",
+    on_delete     => "CASCADE",
+    on_update     => "NO ACTION",
+  },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 12:58:38
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:B70AXbpFC7aGmRm/1CBpoQ
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 15:44:37
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:2MRRl9aM6+2gpUgZh/yUlA
 
 sub object_class {
     'KohaPluginStore::Model::Release';
