@@ -31,8 +31,6 @@ sub add_form {
 sub edit_form {
     my $c = shift;
 
-    return $c->render( text => 'Unauthorized', status => 401 ) unless $c->session->{user};
-
     my $plugin_id = $c->param('id');
     my $plugin = KohaPluginStore::Model::Plugin->new()->find(
         {

@@ -30,6 +30,8 @@ sub startup ($self) {
         sqlite => sub { state $sql = Mojo::SQLite->new('sqlite:database.db') }
     );
 
+    $self->_add_routes_authorization();
+
     my $r = $self->routes;
 
     $r->any('/')->to('site#index');
@@ -40,9 +42,9 @@ sub startup ($self) {
     $r->get('/register')->to( template => 'register' );
     $r->post('/register')->to('site#register');
     $r->get('/logout')->to('site#logout');
-    $r->get('/my-plugins')->to('plugins#my_plugins');
-    $r->get('/new-plugin')->to('plugins#add_form');
-    $r->get('/plugins/edit/:id')->to('plugins#edit_form');
+    $r->get('/my-plugins')->requires( user_authenticated => 1 )->to('plugins#my_plugins');
+    $r->get('/new-plugin')->requires( user_authenticated => 1 )->to('plugins#add_form');
+    $r->get('/plugins/edit/:id')->requires( user_authenticated => 1 )->to('plugins#edit_form');
     $r->post('/new-plugin')->to('plugins#new_plugin');
     $r->post('/new-plugin-confirm')->to('plugins#new_plugin_confirm');
 
@@ -50,6 +52,22 @@ sub startup ($self) {
     $r->get('/api/plugins')->to('plugins#list_all');
     $r->options('/api/plugins')->to('plugins#list_all');
 
+}
+
+sub _add_routes_authorization {
+	my $self = shift;
+
+    $self->routes->add_condition(
+    	user_authenticated => sub {
+    	my ( $r, $c ) = @_;
+
+        if ( defined(  $c->session->{user}->{id} ) ) {
+            return 1;
+        }
+
+        #TODO: This is currently returning 404. It'd be cool if we could return 401 instead
+        return;
+    })
 }
 
 1;
