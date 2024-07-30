@@ -42,6 +42,7 @@ sub startup ($self) {
     $r->get('/logout')->to('site#logout');
     $r->get('/my-plugins')->to('plugins#my_plugins');
     $r->get('/new-plugin')->to('plugins#add_form');
+    $r->get('/plugins/edit/:id')->to('plugins#edit_form');
     $r->post('/new-plugin')->to('plugins#new_plugin');
     $r->post('/new-plugin-confirm')->to('plugins#new_plugin_confirm');
 

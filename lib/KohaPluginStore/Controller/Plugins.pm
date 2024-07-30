@@ -28,6 +28,23 @@ sub add_form {
     $c->render($template);
 }
 
+sub edit_form {
+    my $c = shift;
+
+    my $plugin_id = $c->param('id');
+
+    my $plugin = KohaPluginStore::Model::Plugins->new()->find(
+        {
+            id => $plugin_id,
+        }
+    );
+
+    return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
+
+    $c->stash( plugin => $plugin );
+    $c->render('plugins/edit');
+}
+
 sub list_all ($c) {
 
     my @plugins = map { my %h = $_->get_columns; \%h } KohaPluginStore::Model::Plugins->new()->search;
@@ -132,6 +149,7 @@ sub new_plugin_confirm ($c) {
         return $c->render( text => 'Unauthorized', status => 401 );
     }
 
+    #TODO: Add repo_url here
     my $new_plugin = KohaPluginStore::Model::Plugins->new()->create( {
         name => $name,
         description => $description,
