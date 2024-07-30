@@ -42,9 +42,9 @@ $dbh->do(
     q{
     CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL,
+        username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        email TEXT NOT NULL
+        email UNIQUE  NOT NULL
     );
 }
 );
