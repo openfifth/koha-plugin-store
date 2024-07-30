@@ -26,10 +26,6 @@ sub startup ($self) {
         }
     );
 
-    $self->helper(
-        sqlite => sub { state $sql = Mojo::SQLite->new('sqlite:database.db') }
-    );
-
     $self->_add_routes_authorization();
 
     my $r = $self->routes;
