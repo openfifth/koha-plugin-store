@@ -1,9 +1,5 @@
 % title "Confirm new plugin";
 % layout 'default';
-% my $errors = stash 'errors';
-% my $latest_release = stash 'latest_release';
-% my $kpz_asset = stash 'kpz_asset';
-
 
 % content_for 'sidebar' => begin
   %= include 'partial/side_menu'
