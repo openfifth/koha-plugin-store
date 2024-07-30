@@ -2,6 +2,7 @@
 % layout 'default';
 % my $errors = stash 'errors';
 % my $latest_release = stash 'latest_release';
+% my $plugin_metadata = stash 'plugin_metadata';
 % my $kpz_asset = stash 'kpz_asset';
 
 
@@ -20,6 +21,30 @@
   %= link_to '/new-plugin' => (class => 'btn btn-primary') => begin
   Return
   % end
+% }
+
+% if ($plugin_metadata) {
+  <h3>Plugin metadata:</h3>
+  <table class="table">
+    <tbody>
+      <tr>
+      %= t td => 'Name'
+      %= t td => $plugin_metadata->{name} 
+      </tr>
+      <tr>
+      %= t td => 'Description'
+      %= t td => $plugin_metadata->{description} 
+      </tr>
+      <tr>
+      %= t td => 'Author'
+      %= t td => $plugin_metadata->{author} 
+      </tr>
+      <tr>
+      %= t td => 'Repository'
+      %= t td => link_to $plugin_metadata->{repo_url}  => $plugin_metadata->{repo_url}  => (target => '_blank')
+      </tr>
+    </tbody>
+  </table>
 % }
 
 % if ($latest_release && $kpz_asset) {
@@ -57,6 +82,10 @@
   %= t p => (class => 'text-success') => 'Everything appears to be in order!'
   %= t p => form_for 'new-plugin-confirm' => (method => 'POST') => begin
     <input type="hidden" name="kpz_download" value="<%= $kpz_asset->{browser_download_url} %>"></button>
+    <input type="hidden" name="plugin_metadata_name" value="<%= $plugin_metadata->{name} %>"></button>
+    <input type="hidden" name="plugin_metadata_repo_url" value="<%= $plugin_metadata->{repo_url} %>"></button>
+    <input type="hidden" name="plugin_metadata_description" value="<%= $plugin_metadata->{description} %>"></button>
+    <input type="hidden" name="plugin_metadata_author" value="<%= $plugin_metadata->{author} %>"></button>
     <button type="submit" class="btn btn-primary">Continue</button>
   % end
 
