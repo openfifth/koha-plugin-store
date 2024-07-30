@@ -40,7 +40,7 @@ __PACKAGE__->table("releases");
   data_type: 'text'
   is_nullable: 1
 
-=head2 koha_version
+=head2 koha_max_version
 
   data_type: 'text'
   is_nullable: 1
@@ -64,7 +64,7 @@ __PACKAGE__->add_columns(
   { data_type => "text", is_nullable => 1 },
   "version",
   { data_type => "text", is_nullable => 1 },
-  "koha_version",
+  "koha_max_version",
   { data_type => "text", is_nullable => 1 },
   "date_released",
   { data_type => "datetime", is_nullable => 1 },
@@ -100,8 +100,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 12:29:03
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:0xVs0VhZoZA/UuA6bOoB6A
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 12:58:38
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:B70AXbpFC7aGmRm/1CBpoQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
