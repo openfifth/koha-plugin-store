@@ -8,12 +8,12 @@
     </td>
   </thead>
   <tbody>
-    % for my $item (@{ $users }) {
+    % for my $user (@{ $users }) {
     <tr>
-      %= t td => $item->id
-      %= t td => $item->username
-      %= t td => $item->email
-      %= t td => $item->password
+      %= t td => $user->id
+      %= t td => $user->username
+      %= t td => $user->email
+      %= t td => $user->password
     </tr>
   % }
   </tbody>
