@@ -150,16 +150,16 @@ __PACKAGE__->add_unique_constraint("repo_url_unique", ["repo_url"]);
 
 =head1 RELATIONS
 
-=head2 release
+=head2 releases
 
-Type: might_have
+Type: has_many
 
 Related object: L<KohaPluginStore::Schema::Result::Release>
 
 =cut
 
-__PACKAGE__->might_have(
-  "release",
+__PACKAGE__->has_many(
+  "releases",
   "KohaPluginStore::Schema::Result::Release",
   { "foreign.plugin_id" => "self.id" },
   { cascade_copy => 0, cascade_delete => 0 },
