@@ -116,6 +116,8 @@ __PACKAGE__->has_many(
 # Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 13:05:16
 # DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:daRTqAPxcaDr5sh2eVtNCg
 
+sub object_class {
+    'KohaPluginStore::Model::User';
+}
 
-# You can replace this text with custom code or comments, and it will be preserved on regeneration
 1;

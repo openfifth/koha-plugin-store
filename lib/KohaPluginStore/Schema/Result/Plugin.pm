@@ -186,9 +186,11 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 12:58:38
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:ykwzaIK19fB1uZ2U/pwBaQ
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 15:44:37
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:5o0j/rtmSokRc+q6cFyrVg
 
+sub object_class {
+    'KohaPluginStore::Model::Plugin';
+}
 
-# You can replace this text with custom code or comments, and it will be preserved on regeneration
 1;

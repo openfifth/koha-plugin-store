@@ -1,11 +1,12 @@
 package KohaPluginStore::Controller::Site;
 use Mojo::Base 'Mojolicious::Controller', -signatures;
+use KohaPluginStore::Model::User;
 
 sub index {
     my $c = shift;
 
-    my @users = KohaPluginStore::Model::Users->new()->search;
-    my @plugins = KohaPluginStore::Model::Plugins->new()->search;
+    my @users = KohaPluginStore::Model::User->new()->search;
+    my @plugins = KohaPluginStore::Model::Plugin->new()->search;
     $c->stash( plugins => \@plugins );
     $c->stash( users   => \@users );
     $c->render;
@@ -15,8 +16,9 @@ sub login {
     my $c        = shift;
     my $username = $c->param('username');
     my $password = $c->param('password');
+
     if (
-        KohaPluginStore::Model::Users->new->check_password(
+        KohaPluginStore::Model::User::check_password(
             $username, $password
         )
       )
@@ -39,7 +41,7 @@ sub register {
     warn Mojo::Util::dumper $user;
     unless (
         eval {
-            KohaPluginStore::Model::Users->new()->create($user);
+            KohaPluginStore::Model::User->new()->create($user);
             1;
         }
       )
@@ -60,9 +62,10 @@ sub logout {
 sub _log_in_user {
     my $c = shift;
     my $username = shift;
-    my $user = KohaPluginStore::Model::Users->new->search(
-        { username => $username } )->first;
+    my $user = KohaPluginStore::Model::User->new->find(
+        { username => $username } );
     $c->session->{user} =
-        KohaPluginStore::Model::Users->new()->as_hash($user);
+        KohaPluginStore::Model::User->new()->as_hash($user);
+
 }
 1;

@@ -1,12 +1,13 @@
 package KohaPluginStore::Controller::Users;
 use Mojo::Base 'Mojolicious::Controller', -signatures;
 
-use KohaPluginStore::Model::Users;
+use KohaPluginStore::Model::User;
 
 sub index {
     my $c = shift;
 
-    my @users = KohaPluginStore::Model::Users->new()->search;
+    my @users = KohaPluginStore::Model::User->new()->search();
+
     $c->stash( users => \@users );
     $c->render;
 }

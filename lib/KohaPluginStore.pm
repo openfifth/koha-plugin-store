@@ -2,8 +2,8 @@ package KohaPluginStore;
 use Mojo::Base 'Mojolicious', -signatures;
 use Mojo::SQLite;
 
-use KohaPluginStore::Model::Users;
-use KohaPluginStore::Model::Plugins;
+use KohaPluginStore::Model::User;
+use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Schema;
 use KohaPluginStore::Model::DB;
 
@@ -21,7 +21,7 @@ sub startup ($self) {
             my ( $c, $user ) = @_;
             $user ||= $c->stash->{user} || $c->session->{user};
             return unless $user;
-            return KohaPluginStore::Model::Users->new()->search( { username => $user->{username} } )->first
+            return KohaPluginStore::Model::User->new()->find( { username => $user->{username} } )
               || undef;
         }
     );

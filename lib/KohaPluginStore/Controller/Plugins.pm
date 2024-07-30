@@ -1,12 +1,12 @@
 package KohaPluginStore::Controller::Plugins;
 use Mojo::Base 'Mojolicious::Controller', -signatures;
-use KohaPluginStore::Model::Plugins;
+use KohaPluginStore::Model::Plugin;
 use JSON;
 
 sub index {
     my $c = shift;
 
-    my @plugins = KohaPluginStore::Model::Plugins->new()->search;
+    my @plugins = KohaPluginStore::Model::Plugin->new()->search;
     $c->stash( plugins => \@plugins );
     $c->render;
 }
@@ -14,7 +14,7 @@ sub index {
 sub my_plugins {
     my $c = shift;
 
-    my @plugins = KohaPluginStore::Model::Plugins->new()->search( { user_id => $c->session->{user}->{id} } );
+    my @plugins = KohaPluginStore::Model::Plugin->new()->search( { user_id => $c->session->{user}->{id} } );
     $c->stash( my_plugins => \@plugins );
 
     my $template = $c->session->{user} ? 'my-plugins' : 'unauthorized';
@@ -34,7 +34,7 @@ sub edit_form {
     return $c->render( text => 'Unauthorized', status => 401 ) unless $c->session->{user};
 
     my $plugin_id = $c->param('id');
-    my $plugin = KohaPluginStore::Model::Plugins->new()->find(
+    my $plugin = KohaPluginStore::Model::Plugin->new()->find(
         {
             id => $plugin_id,
         }
@@ -49,21 +49,16 @@ sub edit_form {
 
 sub list_all ($c) {
 
-    my @plugins = map { my %h = $_->get_columns; \%h } KohaPluginStore::Model::Plugins->new()->search;
+    my @plugins = map { $_->unblessed } KohaPluginStore::Model::Plugin->new()->search;
 
     foreach my $plugin (@plugins) {
         my @releases =
-            map { my %h = $_->get_columns; \%h }
-            $c->app->{_dbh}->resultset('Release')->search( { plugin_id => $plugin->{id} } );
+            map { $_->unblessed } KohaPluginStore::Model::Release->new()->search( { plugin_id => $plugin->{id} } );
 
         foreach my $release (@releases) {
             push(
                 @{ $plugin->{releases} },
-                {
-                    koha_max_version => $release->{koha_max_version},
-                    version => $release->{version},
-                    name => $release->{name}
-                }
+                $release
             );
         }
 
@@ -105,7 +100,7 @@ sub new_plugin ($c) {
         my $plugin_metadata   = _get_plugin_metadata($plugin_class_file);
 
 
-        my $existing_plugin = KohaPluginStore::Model::Plugins->new()->find(
+        my $existing_plugin = KohaPluginStore::Model::Plugin->new()->find(
             {
                 name => $plugin_metadata->{name},
             }
@@ -152,7 +147,7 @@ sub new_plugin_confirm ($c) {
     }
 
     #TODO: Add repo_url here
-    my $new_plugin = KohaPluginStore::Model::Plugins->new()->create( {
+    my $new_plugin = KohaPluginStore::Model::Plugin->new()->create( {
         name => $name,
         description => $description,
         author => $author,

@@ -1,4 +1,4 @@
-package KohaPluginStore::Model::Users;
+package KohaPluginStore::Model::User;
 
 use strict;
 use warnings;
@@ -25,9 +25,11 @@ sub add_user {
 }
 
 sub check_password {
-    my ( $self, $username, $password ) = @_;
+    my ( $username, $password ) = @_;
+
     return undef unless $password;
-    my $user = $self->search({ username => $username } )->first;
+    my $user = KohaPluginStore::Model::User->new()->find( { username => $username } );
+
     return undef unless $user;
     return Passwords::password_verify( $password, $user->password, );
 }
