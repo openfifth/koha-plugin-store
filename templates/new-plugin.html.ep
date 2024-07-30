@@ -10,7 +10,7 @@
 <p>
 %= form_for 'new-plugin' => (method => 'POST') => begin
   <div class="mb-3">
-    <input required type="text" class="form-control" name="plugin_repo" id="plugin_repo" placeholder="Plugin repository" aria-describedby="repoHelp">
+    <input required type="url" class="form-control" name="plugin_repo" id="plugin_repo" placeholder="Plugin repository" aria-describedby="repoHelp">
     <div id="repoHelp" class="form-text">The <i class='bx bxl-github' ></i> github repo URL. Example: <a target="_blank" href="https://github.com/bywatersolutions/koha-plugin-coverflow">https://github.com/bywatersolutions/koha-plugin-coverflow</a></div>
   </div>
   <div class="mb-3">
