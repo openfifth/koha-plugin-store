@@ -14,9 +14,9 @@ sub index {
 sub my_plugins {
     my $c = shift;
 
-    my @plugins = KohaPluginStore::Model::Plugins->new()->search({user_id => $c->session->{user}->{id}});
+    my @plugins = KohaPluginStore::Model::Plugins->new()->search( { user_id => $c->session->{user}->{id} } );
     $c->stash( my_plugins => \@plugins );
-    
+
     my $template = $c->session->{user} ? 'my-plugins' : 'unauthorized';
     $c->render($template);
 }
@@ -30,14 +30,12 @@ sub add_form {
 
 sub list_all ($c) {
 
-    my @plugins = map { my %h = $_->get_columns; \%h }
-        KohaPluginStore::Model::Plugins->new()->search;
+    my @plugins = map { my %h = $_->get_columns; \%h } KohaPluginStore::Model::Plugins->new()->search;
 
     foreach my $plugin (@plugins) {
         my @versions =
-          map { my %h = $_->get_columns; \%h }
-          $c->app->{_dbh}->resultset('Version')
-          ->search( { plugin_id => $plugin->{id} } );
+            map { my %h = $_->get_columns; \%h }
+            $c->app->{_dbh}->resultset('Version')->search( { plugin_id => $plugin->{id} } );
 
         foreach my $version (@versions) {
             push(
@@ -53,12 +51,9 @@ sub list_all ($c) {
     }
 
     # The following is required for CORS. same-origin Dev only (?)
-    $c->res->headers->header(
-        'Access-Control-Allow-Origin' => 'http://localhost:8081' );
-    $c->res->headers->header(
-        'Access-Control-Allow-Headers' => 'content-type' );
-    $c->res->headers->header(
-        'Access-Control-Allow-Headers' => 'x-koha-request-id' );
+    $c->res->headers->header( 'Access-Control-Allow-Origin'  => 'http://localhost:8081' );
+    $c->res->headers->header( 'Access-Control-Allow-Headers' => 'content-type' );
+    $c->res->headers->header( 'Access-Control-Allow-Headers' => 'x-koha-request-id' );
 
     return $c->render( json => \@plugins, status => 200 );
 }
@@ -73,46 +68,167 @@ sub new_plugin ($c) {
         return $c->render( text => 'Unauthorized', status => 401 );
     }
 
-    # TODO: Validate that $config->{github_user_access_token} exists
-    my $plugin_api_repo = $plugin_repo =~
-      s/https:\/\/github.com\//https:\/\/api.github.com\/repos\//r;
-    my $ua      = Mojo::UserAgent->new;
-    my $request = $ua->get(
-        $plugin_api_repo
-          . '/releases/latest' => {
-            Accept        => 'application/vnd.github+json',
-            Authorization => 'Bearer ' . $config->{github_user_access_token}
-          }
-    );
+    my $result = $c->_get_latest_release_from_github($plugin_repo);
+    if ($result) {
+        my $latest_release = decode_json $result;
+        my @assets         = grep { $_->{name} =~ /\.kpz$/ } @{ $latest_release->{assets} };
 
-    # TODO: We need a try/catch here
-    my $result         = $request->result->body;
-    my $latest_release = decode_json $result;
+        # TODO: Write a unit test for this
+        unless ( scalar @assets eq 1 ) {
+            push @errors,
+                'Latest release must contain one and only one \'.kpz\' asset. Number of \'.kpz\' assets found: '
+                . scalar @assets;
+        }
 
-    my @assets = grep { $_->{name} =~ /\.kpz$/ } @{ $latest_release->{assets} };
+        my $plugin_dir        = _download_plugin($assets[0]->{browser_download_url});
+        my $plugin_class_file = _get_plugin_class_file($plugin_dir);
+        my $plugin_metadata   = _get_plugin_metadata($plugin_class_file);
 
-    # TODO: Write a unit test for this
-    unless ( scalar @assets eq 1 ) {
-        push @errors,
-'Latest release must contain one and only one \'.kpz\' asset. Number of \'.kpz\' assets found: '
-          . scalar @assets;
-    }
 
-    $c->stash( errors => \@errors );
-    if ( scalar @errors eq 0 ) {
-        $c->stash( latest_release => $latest_release );
-        $c->stash( kpz_asset      => $assets[0] );
+        my $existing_plugin = KohaPluginStore::Model::Plugins->new()->find(
+            {
+                name => $plugin_metadata->{name},
+            }
+        );
+
+        if ($existing_plugin) {
+            push @errors, 'A plugin named ' . $plugin_metadata->{name} . ' already exists';
+        }
+
+
+
+        $plugin_metadata->{repo_url} = $plugin_repo;
+
+        unless ($plugin_class_file) {
+            push @errors,
+                'Plugin class file not found. Make sure the plugin has a class containing \'use base qw(Koha::Plugins::Base)\'?';
+        }
+
+        unless ($plugin_metadata) {
+            push @errors,
+                'Plugin metadata not found. Make sure the plugin class contains \'our $metadata = { ... } ?\'';
+        }
+
+
+        $c->stash( errors => \@errors );
+        if ( scalar @errors eq 0 ) {
+            $c->stash( latest_release  => $latest_release );
+            $c->stash( kpz_asset       => $assets[0] );
+            $c->stash( plugin_metadata => $plugin_metadata );
+        }
     }
     $c->render('new-plugin-step2');
 }
 
 sub new_plugin_confirm ($c) {
-    my $kpz_download = $c->param('kpz_download');
+    my $name = $c->param('plugin_metadata_name');
+    my $repo_url = $c->param('plugin_metadata_repo_url');
+    my $description = $c->param('plugin_metadata_description');
+    my $author = $c->param('plugin_metadata_author');
 
     # TODO: Write a test for this
     unless ( $c->logged_in_user ) {
         return $c->render( text => 'Unauthorized', status => 401 );
     }
+
+    my $new_plugin = KohaPluginStore::Model::Plugins->new()->create( {
+        name => $name,
+        description => $description,
+        author => $author,
+        user_id => $c->session->{user}->{id}
+    } );
+
+    $c->stash( new_plugin_id  => $new_plugin->id );
+    $c->render('new-plugin-confirm');
+
+}
+
+sub _get_latest_release_from_github {
+    my ( $c, $plugin_repo ) = @_;
+
+    my $config          = $c->app->plugin('Config');
+    my $plugin_api_repo = $plugin_repo =~ s/https:\/\/github.com\//https:\/\/api.github.com\/repos\//r;
+    my $ua              = Mojo::UserAgent->new;
+    my $request         = $ua->get(
+        $plugin_api_repo . '/releases/latest' => {
+            Accept        => 'application/vnd.github+json',
+            Authorization => 'Bearer ' . $config->{github_user_access_token}
+        }
+    );
+
+    #TOOD: Write a unit test for this
+    if ( $request->result->code != 200 ) {
+        $c->stash(
+            errors => [
+                      'Unable to get latest release from github. Error: {code: '
+                    . $request->result->code
+                    . ', message: '
+                    . $request->result->message . '}'
+            ]
+        );
+        return;
+    }
+
+    return $request->result->body;
+}
+
+sub _get_plugin_class_file {
+    my ($plugin_dir) = @_;
+
+    return unless $plugin_dir;
+
+    use File::Find;
+    use String::Util 'trim';
+    my $plugin_class_file;
+
+    find(
+        {
+            wanted => sub {
+                return unless -f $_ && -T _;
+                open my $fh, '<', $_ or die "Could not open file: $!";
+                while ( my $line = <$fh> ) {
+                    $line = trim($line);
+                    if ( $line =~ /use base/ && $line =~ /Koha::Plugins::Base/ ) {
+                        $plugin_class_file = $File::Find::name;
+                        last;
+                    }
+                }
+                close $fh;
+            },
+            no_chdir => 1,
+        },
+        $plugin_dir
+    );
+
+    return $plugin_class_file;
+}
+
+sub _get_plugin_metadata {
+    my ($plugin_class_file) = @_;
+
+    return unless $plugin_class_file;
+
+    use File::Slurp;
+
+    my $metadata_contents = read_file($plugin_class_file);
+    my $plugin_metadata;
+
+    if ( $metadata_contents =~ /our \$metadata = (\{.*?\});(?!\w)/s ) {
+
+        #TODO: This is hardcoded. Fix this.
+        our $VERSION = "2.5.7";
+
+        eval( '$plugin_metadata = ' . $1 . ';' );
+        if ($@) {
+            print "Error evaluating metadata: $@";
+        }
+    }
+
+    return $plugin_metadata;
+}
+
+sub _download_plugin {
+    my ($kpz_download) = @_;
 
     my $ua      = Mojo::UserAgent->new( max_redirects => 5 );
     my $request = $ua->get($kpz_download);
@@ -131,10 +247,7 @@ sub new_plugin_confirm ($c) {
         $zip_file->extractToFileNamed( "$dir/" . $zip_file->fileName );
     }
 
-#THIS IS WHERE I LEFT OFF - READ $METADATA FROM PLUGIN CLASS TO EXTRACT KOHA MAX VERSION
-
-    $c->render('new-plugin-confirm');
-
+    return $dir;
 }
 
 1;
