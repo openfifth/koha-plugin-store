@@ -152,6 +152,12 @@ sub new_plugin_confirm ($c) {
         user_id => $c->session->{user}->{id}
     } );
 
+    my $new_release = KohaPluginStore::Model::Release->new()->create(
+        {
+            plugin_id        => $new_plugin->id,
+        }
+    );
+
     $c->stash( new_plugin_id  => $new_plugin->id );
     $c->render('new-plugin-confirm');
 
