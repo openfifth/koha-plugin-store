@@ -6,16 +6,20 @@
       <th>Description</th>
       <th>Author</th>
       <th>User ID</th>
+      <th>Releases</th>
+      <th>Actions</th>
     </td>
   </thead>
   <tbody>
-    % for my $item (@{ $plugins }) {
+    % for my $plugin (@{ $plugins }) {
     <tr>
-      %= t td => $item->id
-      %= t td => $item->name
-      %= t td => $item->description
-      %= t td => $item->author
-      %= t td => $item->user_id
+      %= t td => $plugin->id
+      %= t td => $plugin->name
+      %= t td => $plugin->description
+      %= t td => $plugin->author
+      %= t td => $plugin->user_id
+      %= t td => scalar $plugin->releases
+      %= t td => link_to 'Edit' => 'plugins/edit/'.$plugin->id
     </tr>
   % }
   </tbody>
