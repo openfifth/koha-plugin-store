@@ -21,7 +21,7 @@ Koha plugin store project consisting of 2 distinct components:
 
 - Commands
   - Create database schema: run `perl lib/KohaPluginStore/Command/create_db_schema.pl`
-  - Add test data: `perl lib/KohaPluginStore/Command/add_test_data.pl`
+  - Reset test data: `perl lib/KohaPluginStore/Command/reset_test_data.pl`
   - Generate schema class files: `perl lib/KohaPluginStore/Command/make_dbic_schema_files.pl`
 
 # Client

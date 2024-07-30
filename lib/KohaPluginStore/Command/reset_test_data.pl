@@ -3,6 +3,10 @@ use DBI;
 
 my $dbh = DBI->connect( "dbi:SQLite:dbname=database.db", "", "" );
 
+$dbh->do(q{DELETE FROM plugins});
+$dbh->do(q{DELETE FROM users});
+$dbh->do(q{DELETE FROM releases});
+
 # Plugins data
 $dbh->do(
 q{INSERT OR IGNORE INTO plugins ( name, repo_url, plugin_class, description, author, thumbnail, user_id ) values ( 'Acquisitions 2.0', 'https://github.com/PTFS-Europe/koha-plugin-acq2.0', 'Koha::Plugin::Acquire', 'Replaces the built-in Acquisitions module with a newer, more user-friendly, version.', 'PTFS-Europe', 'acq2.png', 1) }
