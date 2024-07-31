@@ -12,7 +12,7 @@
 
 <h2><%= title %></h2>
 
-% if (scalar @{$errors}) {
+% if ($errors) {
   <h3 class="text-danger">Errors found:</h2>
   % foreach my $error ( @{$errors} ) {
         %= t li => (class => 'text-danger') => $error

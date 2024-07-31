@@ -77,55 +77,47 @@ sub new_plugin ($c) {
     my @errors;
 
     my $result = $c->_get_latest_release_from_github($plugin_repo);
-    if ($result) {
-        my $latest_release = decode_json $result;
-        my @assets         = grep { $_->{name} =~ /\.kpz$/ } @{ $latest_release->{assets} };
+    return $c->render('new-plugin-step2') unless $result;
 
-        # TODO: Write a unit test for this
-        unless ( scalar @assets eq 1 ) {
-            push @errors,
-                'Latest release must contain one and only one \'.kpz\' asset. Number of \'.kpz\' assets found: '
-                . scalar @assets;
+    my $latest_release = decode_json $result;
+    my @assets         = grep { $_->{name} =~ /\.kpz$/ } @{ $latest_release->{assets} };
+    return $c->_exit_with_error_message(
+        'Latest release must contain one and only one \'.kpz\' asset. Number of \'.kpz\' assets found: ')
+        unless ( scalar @assets eq 1 );
+
+    my $plugin_dir        = _download_plugin( $assets[0]->{browser_download_url} );
+    my $plugin_class_file = _get_plugin_class_file($plugin_dir);
+    return $c->_exit_with_error_message(
+        'Plugin class file not found. Make sure the plugin has a class containing \'use base qw(Koha::Plugins::Base)\'?'
+    ) unless $plugin_class_file;
+
+    my $plugin_metadata = _get_plugin_metadata($plugin_class_file);
+    return $c->_exit_with_error_message(
+        'Plugin metadata not found. Make sure the plugin class contains \'our $metadata = { ... } ?\'')
+        unless $plugin_metadata;
+
+    return $c->_exit_with_error_message('Plugin metadata missing \'maximum_version\'. Make sure this value is set.')
+        unless $plugin_metadata->{maximum_version};
+
+    my $existing_plugin = KohaPluginStore::Model::Plugin->new()->find(
+        {
+            name     => $plugin_metadata->{name},
+            repo_url => $plugin_repo
         }
+    );
 
-        my $plugin_dir        = _download_plugin( $assets[0]->{browser_download_url} );
-        my $plugin_class_file = _get_plugin_class_file($plugin_dir);
-        my $plugin_metadata   = _get_plugin_metadata($plugin_class_file);
+    return $c->_exit_with_error_message( 'A plugin with the name \''
+            . $plugin_metadata->{name}
+            . '\' or the URL \''
+            . $plugin_repo
+            . '\' already exists.' )
+        if $existing_plugin;
 
-
-        my $existing_plugin = KohaPluginStore::Model::Plugin->new()->find(
-            {
-                name => $plugin_metadata->{name},
-            }
-        );
-
-        if ($existing_plugin) {
-            push @errors, 'A plugin named ' . $plugin_metadata->{name} . ' already exists';
-        }
-
-
-
-        $plugin_metadata->{repo_url} = $plugin_repo;
-
-        unless ($plugin_class_file) {
-            push @errors,
-                'Plugin class file not found. Make sure the plugin has a class containing \'use base qw(Koha::Plugins::Base)\'?';
-        }
-
-        unless ($plugin_metadata) {
-            push @errors,
-                'Plugin metadata not found. Make sure the plugin class contains \'our $metadata = { ... } ?\'';
-        }
-
-
-        $c->stash( errors => \@errors );
-        if ( scalar @errors eq 0 ) {
-            $c->stash( latest_release  => $latest_release );
-            $c->stash( kpz_asset       => $assets[0] );
-            $c->stash( plugin_metadata => $plugin_metadata );
-        }
-    }
-    $c->render('new-plugin-step2');
+    $plugin_metadata->{repo_url} = $plugin_repo;
+    $c->stash( latest_release  => $latest_release );
+    $c->stash( kpz_asset       => $assets[0] );
+    $c->stash( plugin_metadata => $plugin_metadata );
+    return $c->render('new-plugin-step2');
 }
 
 sub new_plugin_confirm ($c) {
@@ -134,9 +126,9 @@ sub new_plugin_confirm ($c) {
     my $description = $c->param('plugin_metadata_description');
     my $author      = $c->param('plugin_metadata_author');
 
-    my $release_name = $c->param('release_metadata_name');
-    my $release_date_released = $c->param('release_metadata_date_released');
-    my $release_version = $c->param('release_metadata_version');
+    my $release_name             = $c->param('release_metadata_name');
+    my $release_date_released    = $c->param('release_metadata_date_released');
+    my $release_version          = $c->param('release_metadata_version');
     my $release_koha_max_version = $c->param('release_metadata_koha_max_version');
 
     # TODO: Write a test for this
@@ -144,13 +136,15 @@ sub new_plugin_confirm ($c) {
         return $c->render( text => 'Unauthorized', status => 401 );
     }
 
-    #TODO: Add repo_url here
-    my $new_plugin = KohaPluginStore::Model::Plugin->new()->create( {
-        name => $name,
-        description => $description,
-        author => $author,
-        user_id => $c->session->{user}->{id}
-    } );
+    my $new_plugin = KohaPluginStore::Model::Plugin->new()->create(
+        {
+            name        => $name,
+            description => $description,
+            author      => $author,
+            repo_url    => $repo_url,
+            user_id     => $c->session->{user}->{id}
+        }
+    );
 
     my $new_release = KohaPluginStore::Model::Release->new()->create(
         {
@@ -262,6 +256,7 @@ sub _get_plugin_metadata {
         }
     }
 
+    return unless ref($plugin_metadata) eq 'HASH' && scalar keys %$plugin_metadata > 0;
     return $plugin_metadata;
 }
 
@@ -286,6 +281,12 @@ sub _download_plugin {
     }
 
     return $dir;
+}
+
+sub _exit_with_error_message {
+    my ( $c, $error_message ) = @_;
+    $c->stash( errors => [$error_message] );
+    return $c->render('new-plugin-step2');
 }
 
 1;
