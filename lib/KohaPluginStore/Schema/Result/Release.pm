@@ -45,7 +45,7 @@ __PACKAGE__->table("releases");
   data_type: 'text'
   is_nullable: 1
 
-=head2 koha_max_version
+=head2 koha_min_version
 
   data_type: 'text'
   is_nullable: 1
@@ -71,7 +71,7 @@ __PACKAGE__->add_columns(
   { data_type => "text", is_nullable => 1 },
   "version",
   { data_type => "text", is_nullable => 1 },
-  "koha_max_version",
+  "koha_min_version",
   { data_type => "text", is_nullable => 1 },
   "kpz_url",
   { data_type => "", is_nullable => 1 },
@@ -114,8 +114,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-31 13:26:01
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:HeuBawKPQWG61wbFkVhp6w
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-31 13:36:41
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:abWxuC2PWyjjrS5uZZmzPQ
 
 sub object_class {
     'KohaPluginStore::Model::Release';

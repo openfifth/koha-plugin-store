@@ -31,7 +31,7 @@ $dbh->do(
         plugin_id INTEGER,                           -- id from the plugins table
         name TEXT,                                   -- release name
         version TEXT,                                -- release version
-        koha_max_version TEXT,                       -- major Koha version (e.g. '24.05')
+        koha_min_version TEXT,                       -- minimum major Koha version (e.g. '24.05') this release is compatible with
         kpz_url,                                     -- URL to the .kpz file
         date_released DATETIME,                      -- Date time this plugin version was released
         FOREIGN KEY(plugin_id) REFERENCES plugins(id) ON DELETE CASCADE

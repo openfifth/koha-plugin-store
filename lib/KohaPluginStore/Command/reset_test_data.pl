@@ -20,7 +20,7 @@ q{INSERT OR IGNORE INTO plugins ( name, repo_url, plugin_class, description, aut
 
 # Releases data
 $dbh->do(
-q{INSERT OR IGNORE INTO releases( plugin_id, name, version, koha_max_version ) values( 1, 'v3.1.1','3.1.1', '24.05' ) }
+q{INSERT OR IGNORE INTO releases( plugin_id, name, version, koha_min_version ) values( 1, 'v3.1.1','3.1.1', '24.05' ) }
 );
 
 # Users data:

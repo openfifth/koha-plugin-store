@@ -96,8 +96,8 @@ sub new_plugin ($c) {
         'Plugin metadata not found. Make sure the plugin class contains \'our $metadata = { ... } ?\'')
         unless $plugin_metadata;
 
-    return $c->_exit_with_error_message('Plugin metadata missing \'maximum_version\'. Make sure this value is set.')
-        unless $plugin_metadata->{maximum_version};
+    return $c->_exit_with_error_message('Plugin metadata missing \'minimum_version\'. Make sure this value is set.')
+        unless $plugin_metadata->{minimum_version};
 
     my $existing_plugin = KohaPluginStore::Model::Plugin->new()->find(
         {
@@ -129,7 +129,7 @@ sub new_plugin_confirm ($c) {
     my $release_name             = $c->param('release_metadata_name');
     my $release_date_released    = $c->param('release_metadata_date_released');
     my $release_version          = $c->param('release_metadata_version');
-    my $release_koha_max_version = $c->param('release_metadata_koha_max_version');
+    my $release_koha_min_version = $c->param('release_metadata_koha_min_version');
     my $release_kpz_url          = $c->param('kpz_download');
 
     # TODO: Write a test for this
@@ -153,7 +153,7 @@ sub new_plugin_confirm ($c) {
             name             => $release_name,
             date_released    => $release_date_released,
             version          => $release_version,
-            koha_max_version => $release_koha_max_version,
+            koha_min_version => $release_koha_min_version,
             kpz_url          => $release_kpz_url
         }
     );
