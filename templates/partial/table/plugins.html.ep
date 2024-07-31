@@ -19,7 +19,7 @@
       %= t td => $plugin->author
       %= t td => $plugin->user_id
       %= t td => scalar $plugin->releases
-      % if (logged_in_user->id eq $plugin->user_id){
+      % if (logged_in_user && logged_in_user->id eq $plugin->user_id){
       %= t td => link_to 'Edit' => 'plugins/edit/'.$plugin->id
       % }
     </tr>
