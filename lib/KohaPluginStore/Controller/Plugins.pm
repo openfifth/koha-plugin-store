@@ -130,6 +130,7 @@ sub new_plugin_confirm ($c) {
     my $release_date_released    = $c->param('release_metadata_date_released');
     my $release_version          = $c->param('release_metadata_version');
     my $release_koha_max_version = $c->param('release_metadata_koha_max_version');
+    my $release_kpz_url          = $c->param('kpz_download');
 
     # TODO: Write a test for this
     unless ( $c->logged_in_user ) {
@@ -152,7 +153,8 @@ sub new_plugin_confirm ($c) {
             name             => $release_name,
             date_released    => $release_date_released,
             version          => $release_version,
-            koha_max_version => $release_koha_max_version
+            koha_max_version => $release_koha_max_version,
+            kpz_url          => $release_kpz_url
         }
     );
 

@@ -50,6 +50,11 @@ __PACKAGE__->table("releases");
   data_type: 'text'
   is_nullable: 1
 
+=head2 kpz_url
+
+  data_type: (empty string)
+  is_nullable: 1
+
 =head2 date_released
 
   data_type: 'datetime'
@@ -68,6 +73,8 @@ __PACKAGE__->add_columns(
   { data_type => "text", is_nullable => 1 },
   "koha_max_version",
   { data_type => "text", is_nullable => 1 },
+  "kpz_url",
+  { data_type => "", is_nullable => 1 },
   "date_released",
   { data_type => "datetime", is_nullable => 1 },
 );
@@ -107,8 +114,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 15:44:37
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:2MRRl9aM6+2gpUgZh/yUlA
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-31 13:26:01
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:HeuBawKPQWG61wbFkVhp6w
 
 sub object_class {
     'KohaPluginStore::Model::Release';
