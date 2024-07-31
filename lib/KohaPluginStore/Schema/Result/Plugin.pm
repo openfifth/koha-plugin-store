@@ -29,11 +29,6 @@ __PACKAGE__->table("plugins");
   is_auto_increment: 1
   is_nullable: 0
 
-=head2 plugin_class
-
-  data_type: 'text'
-  is_nullable: 1
-
 =head2 repo_url
 
   data_type: 'text'
@@ -76,8 +71,6 @@ __PACKAGE__->table("plugins");
 __PACKAGE__->add_columns(
   "id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
-  "plugin_class",
-  { data_type => "text", is_nullable => 1 },
   "repo_url",
   { data_type => "text", is_nullable => 1 },
   "name",
@@ -123,18 +116,6 @@ __PACKAGE__->set_primary_key("id");
 =cut
 
 __PACKAGE__->add_unique_constraint("name_unique", ["name"]);
-
-=head2 C<plugin_class_unique>
-
-=over 4
-
-=item * L</plugin_class>
-
-=back
-
-=cut
-
-__PACKAGE__->add_unique_constraint("plugin_class_unique", ["plugin_class"]);
 
 =head2 C<repo_url_unique>
 
@@ -186,8 +167,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-30 15:44:37
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:5o0j/rtmSokRc+q6cFyrVg
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-31 13:43:23
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:PqzSRqRGMWXDK7kWCG2OPA
 
 sub object_class {
     'KohaPluginStore::Model::Plugin';

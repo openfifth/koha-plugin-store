@@ -9,7 +9,6 @@ $dbh->do(
     q{
     CREATE TABLE plugins (
         id INTEGER PRIMARY KEY AUTOINCREMENT,   -- PK
-        plugin_class TEXT UNIQUE,               -- Unique plugin class
         repo_url TEXT UNIQUE,                   -- Unique plugin repo url
         name TEXT UNIQUE,                       -- Unique plugin name
         description TEXT,                       -- Plugin description
