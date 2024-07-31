@@ -10,6 +10,7 @@ my ( $schema_class, $connect_info );
 #TODO: Move this to koha_plugin_store.conf (?)
 
 BEGIN {
+    # $ENV{DBIC_TRACE} = 1;
     $schema_class = 'KohaPluginStore::Schema';
     $connect_info = {
         dsn      => 'dbi:SQLite:database.db',
