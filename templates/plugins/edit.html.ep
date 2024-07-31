@@ -10,15 +10,19 @@
 <p>
 %= form_for 'new-plugin' => (method => 'POST', id => 'new_plugin_form') => begin
   <div class="mb-3">
+    <label for="name">Name:</label>
     <input required type="text" class="form-control" name="name" id="name" value="<%= $plugin->name %>" >
   </div>
   <div class="mb-3">
+    <label for="description">Description:</label>
     <input required type="text" class="form-control" name="description" id="description" value="<%= $plugin->description %>" >
   </div>
   <div class="mb-3">
+    <label for="repo_url">Repository URL:</label>
     <input required type="text" class="form-control" name="repo_url" id="repo_url" value="<%= $plugin->repo_url %>" >
   </div>
   <div class="mb-3">
+    <label for="author">Author:</label>
     <input required type="text" class="form-control" name="author" id="author" value="<%= $plugin->author %>" >
   </div>
   <button type="submit" class="btn btn-primary">Submit</button>
