@@ -76,11 +76,6 @@ sub new_plugin ($c) {
     my $config      = $c->app->plugin('Config');
     my @errors;
 
-    # TODO: Write a unit test for this
-    unless ( $c->logged_in_user ) {
-        return $c->render( text => 'Unauthorized', status => 401 );
-    }
-
     my $result = $c->_get_latest_release_from_github($plugin_repo);
     if ($result) {
         my $latest_release = decode_json $result;
