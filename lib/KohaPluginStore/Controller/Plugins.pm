@@ -32,14 +32,14 @@ sub edit_form {
     my $c = shift;
 
     my $plugin_id = $c->param('id');
-    my $plugin = KohaPluginStore::Model::Plugin->new()->find(
+    my $plugin    = KohaPluginStore::Model::Plugin->new()->find(
         {
             id => $plugin_id,
         }
     );
 
     return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
-    return $c->render( text => 'Unauthorized', status => 401 ) unless $c->session->{user}->{id} == $plugin->user_id;
+    return $c->render( text => 'Unauthorized',     status => 401 ) unless $c->session->{user}->{id} == $plugin->user_id;
 
     $c->stash( plugin => $plugin );
     $c->render('plugins/edit');
@@ -93,7 +93,7 @@ sub new_plugin ($c) {
                 . scalar @assets;
         }
 
-        my $plugin_dir        = _download_plugin($assets[0]->{browser_download_url});
+        my $plugin_dir        = _download_plugin( $assets[0]->{browser_download_url} );
         my $plugin_class_file = _get_plugin_class_file($plugin_dir);
         my $plugin_metadata   = _get_plugin_metadata($plugin_class_file);
 
@@ -134,10 +134,10 @@ sub new_plugin ($c) {
 }
 
 sub new_plugin_confirm ($c) {
-    my $name = $c->param('plugin_metadata_name');
-    my $repo_url = $c->param('plugin_metadata_repo_url');
+    my $name        = $c->param('plugin_metadata_name');
+    my $repo_url    = $c->param('plugin_metadata_repo_url');
     my $description = $c->param('plugin_metadata_description');
-    my $author = $c->param('plugin_metadata_author');
+    my $author      = $c->param('plugin_metadata_author');
 
     # TODO: Write a test for this
     unless ( $c->logged_in_user ) {
@@ -154,11 +154,11 @@ sub new_plugin_confirm ($c) {
 
     my $new_release = KohaPluginStore::Model::Release->new()->create(
         {
-            plugin_id        => $new_plugin->id,
+            plugin_id => $new_plugin->id,
         }
     );
 
-    $c->stash( new_plugin_id  => $new_plugin->id );
+    $c->stash( new_plugin_id => $new_plugin->id );
     $c->render('new-plugin-confirm');
 
 }
