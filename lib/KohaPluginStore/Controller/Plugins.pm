@@ -134,6 +134,11 @@ sub new_plugin_confirm ($c) {
     my $description = $c->param('plugin_metadata_description');
     my $author      = $c->param('plugin_metadata_author');
 
+    my $release_name = $c->param('release_metadata_name');
+    my $release_date_released = $c->param('release_metadata_date_released');
+    my $release_version = $c->param('release_metadata_version');
+    my $release_koha_max_version = $c->param('release_metadata_koha_max_version');
+
     # TODO: Write a test for this
     unless ( $c->logged_in_user ) {
         return $c->render( text => 'Unauthorized', status => 401 );
@@ -149,7 +154,11 @@ sub new_plugin_confirm ($c) {
 
     my $new_release = KohaPluginStore::Model::Release->new()->create(
         {
-            plugin_id => $new_plugin->id,
+            plugin_id        => $new_plugin->id,
+            name             => $release_name,
+            date_released    => $release_date_released,
+            version          => $release_version,
+            koha_max_version => $release_koha_max_version
         }
     );
 
