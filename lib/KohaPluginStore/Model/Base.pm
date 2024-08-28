@@ -56,8 +56,9 @@ sub find {
         $params ? { %{ $self->default_query_params }, %{$params} } : { %{ $self->default_query_params } };
 
     my $rs = $self->{_dbh}->resultset( $self->_type )->find( $query, $search_params );
-    my $model_object = $self->object_class()->_new_from_dbic($rs);
+    return unless $rs;
 
+    my $model_object = $self->object_class()->_new_from_dbic($rs);
     return $model_object;
 }
 
