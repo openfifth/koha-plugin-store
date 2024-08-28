@@ -3,8 +3,9 @@ use Mojo::Base 'Mojolicious::Controller', -signatures;
 use KohaPluginStore::Model::Release;
 use JSON;
 
-sub create ($c) {
+sub new_release ($c) {
 
+    my $plugin_id                = $c->param('plugin_id');
     my $release_name             = $c->param('release_metadata_name');
     my $release_tag_name         = $c->param('release_metadata_tag_name');
     my $release_date_released    = $c->param('release_metadata_date_released');
@@ -14,7 +15,7 @@ sub create ($c) {
 
     my $new_release = KohaPluginStore::Model::Release->new()->create(
         {
-            plugin_id        => $new_plugin->id,
+            plugin_id        => $plugin_id,
             name             => $release_name,
             tag_name         => $release_tag_name,
             date_released    => $release_date_released,
@@ -24,7 +25,7 @@ sub create ($c) {
         }
     );
 
-    return $c->render( json => \@plugins, status => 200 );
+    return $c->render( status => 201 );
 }
 
 1;
