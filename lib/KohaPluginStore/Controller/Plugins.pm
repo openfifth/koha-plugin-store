@@ -41,7 +41,51 @@ sub edit_form {
     return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
     return $c->render( text => 'Unauthorized',     status => 401 ) unless $c->session->{user}->{id} == $plugin->user_id;
 
-    $c->stash( plugin => $plugin );
+    my $result          = $c->_get_releases_from_github( $plugin->repo_url );
+    my $github_releases = decode_json($result);
+
+    my @releases = $plugin->releases;
+
+    foreach my $github_release (@$github_releases) {
+        $github_release->{version} = 'N/A';
+        $github_release->{koha_minimum_version} = 'N/A';
+        my @assets = grep { $_->{name} =~ /\.kpz$/ } @{ $github_release->{assets} };
+        if ( scalar @assets ne 1 ) {
+            $github_release->{message}->{error} = 'Release must contain one and only one \'.kpz\' asset.';
+            next;
+        }
+
+        foreach my $release (@releases) {
+            if ( $release->tag_name eq $github_release->{tag_name} ) {
+                $github_release->{message}->{warning} = 'Release has already been submitted.';
+                next;
+            }
+        }
+
+        my $plugin_dir        = _download_plugin( $assets[0]->{browser_download_url} );
+        my $plugin_class_file = _get_plugin_class_file($plugin_dir);
+
+        if( !$plugin_class_file ) {
+            $github_release->{message}->{error} = 'Plugin class file not found.';
+            next;
+        }
+
+        my $plugin_metadata = _get_plugin_metadata($plugin_class_file);
+        if(!$plugin_metadata) {
+            $github_release->{message}->{error} = 'Plugin metadata not found.';
+            next;
+        }
+
+        if(!$plugin_metadata->{minimum_version}) {
+            $github_release->{message}->{error} = 'Plugin metadata missing \'minimum_version\'.';
+            next;
+        }
+        $github_release->{version} = $plugin_metadata->{version};
+        $github_release->{koha_minimum_version} = $plugin_metadata->{minimum_version};
+    }
+
+    $c->stash( plugin          => $plugin );
+    $c->stash( github_releases => $github_releases );
     $c->render('plugins/edit');
 }
 
@@ -181,6 +225,35 @@ sub _get_latest_release_from_github {
         $c->stash(
             errors => [
                       'Unable to get latest release from github. Error: {code: '
+                    . $request->result->code
+                    . ', message: '
+                    . $request->result->message . '}'
+            ]
+        );
+        return;
+    }
+
+    return $request->result->body;
+}
+
+sub _get_releases_from_github {
+    my ( $c, $plugin_repo ) = @_;
+
+    my $config          = $c->app->plugin('Config');
+    my $plugin_api_repo = $plugin_repo =~ s/https:\/\/github.com\//https:\/\/api.github.com\/repos\//r;
+    my $ua              = Mojo::UserAgent->new;
+    my $request         = $ua->get(
+        $plugin_api_repo . '/releases?per_page=5&page=1' => {
+            Accept        => 'application/vnd.github+json',
+            Authorization => 'Bearer ' . $config->{github_user_access_token}
+        }
+    );
+
+    #TOOD: Write a unit test for this
+    if ( $request->result->code != 200 ) {
+        $c->stash(
+            errors => [
+                      'Unable to get releases from github. Error: {code: '
                     . $request->result->code
                     . ', message: '
                     . $request->result->message . '}'

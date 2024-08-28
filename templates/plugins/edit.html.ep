@@ -1,5 +1,6 @@
 % layout 'default';
 % my $plugin = stash 'plugin';
+% my $github_releases = stash 'github_releases';
 
 % content_for 'sidebar' => begin
   %= include 'partial/side_menu'
@@ -7,27 +8,90 @@
 
 <h2>Edit plugin: <%= $plugin->name %></h2>
 
-<p>
-%= form_for 'new-plugin' => (method => 'POST', id => 'new_plugin_form') => begin
-  <div class="mb-3">
-    <label for="name">Name:</label>
-    <input required type="text" class="form-control" name="name" id="name" value="<%= $plugin->name %>" >
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="plugin-details" data-bs-toggle="tab" data-bs-target="#plugin-details-tab" type="button" role="tab" aria-controls="plugin-details" aria-selected="true">Details</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="plugin-releases" data-bs-toggle="tab" data-bs-target="#plugin-releases-tab" type="button" role="tab" aria-controls="plugin-releases" aria-selected="false">Releases</button>
+  </li>
+</ul>
+<div class="tab-content" id="myTabContent">
+  <div class="tab-pane fade show active" id="plugin-details-tab" role="tabpanel" aria-labelledby="plugin-details">
+    <p>
+    %= form_for 'new-plugin' => (method => 'POST', id => 'new_plugin_form') => begin
+      <div class="mb-3">
+        <label for="name">Name:</label>
+        <input required type="text" class="form-control" name="name" id="name" value="<%= $plugin->name %>" >
+      </div>
+      <div class="mb-3">
+        <label for="description">Description:</label>
+        <input required type="text" class="form-control" name="description" id="description" value="<%= $plugin->description %>" >
+      </div>
+      <div class="mb-3">
+        <label for="repo_url">Repository URL:</label>
+        <input required type="text" class="form-control" name="repo_url" id="repo_url" value="<%= $plugin->repo_url %>" >
+      </div>
+      <div class="mb-3">
+        <label for="author">Author:</label>
+        <input required type="text" class="form-control" name="author" id="author" value="<%= $plugin->author %>" >
+      </div>
+      <button type="submit" class="btn btn-primary">Submit</button>
+    % end
+  </p>
   </div>
-  <div class="mb-3">
-    <label for="description">Description:</label>
-    <input required type="text" class="form-control" name="description" id="description" value="<%= $plugin->description %>" >
+  <div class="tab-pane fade" id="plugin-releases-tab" role="tabpanel" aria-labelledby="plugin-releases">
+    &nbsp;
+    <h3>Submitted releases:</h3>
+     %= include 'partial/table/releases', releases => $plugin->releases
+
+    &nbsp;
+    <h3>Releases from <i class='bx bxl-github' ></i> github:</h3>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Tag name</th>
+          <th>Version</th>
+          <th>Koha minimum version</th>
+          <th>Published at</th>
+          <th>Actions</th>
+        </td>
+      </thead>
+      <tbody>
+      % for my $release (@$github_releases) {
+        % if ($release->{message}->{warning} ){
+        <tr class="text-warning">
+        % }elsif($release->{message}->{error}){
+        <tr class="text-danger">
+        % }else{
+        <tr>
+        % }
+          %= t td => link_to $release->{name} => $release->{html_url} => (target => '_blank')
+          % if ($release->{message}->{error} ){
+          %= t td => begin
+            <%= $release->{tag_name} %> <i class='bx bx-error'></i>
+          % end 
+          % } else{
+          %= t td => $release->{tag_name} 
+          % }
+          %= t td => $release->{version}
+          %= t td => $release->{koha_minimum_version}
+          %= t td => $release->{published_at}
+          % if ($release->{message}->{warning} ){
+          %= t td => $release->{message}->{warning}
+          % } elsif($release->{message}->{error} ){
+          %= t td => $release->{message}->{error}
+          % } else{
+          %= t td => link_to 'Add this release' => $release->{html_url} => (target => '_blank')
+          % }
+        </tr>
+      % }
+      </tbody>
+    </table>
   </div>
-  <div class="mb-3">
-    <label for="repo_url">Repository URL:</label>
-    <input required type="text" class="form-control" name="repo_url" id="repo_url" value="<%= $plugin->repo_url %>" >
-  </div>
-  <div class="mb-3">
-    <label for="author">Author:</label>
-    <input required type="text" class="form-control" name="author" id="author" value="<%= $plugin->author %>" >
-  </div>
-  <button type="submit" class="btn btn-primary">Submit</button>
-% end
-</p>
+</div>
 
 <script type="text/javascript">
 $(document).ready(function() {

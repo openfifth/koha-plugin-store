@@ -1,0 +1,17 @@
+<table class="table">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Version</th>
+    </td>
+  </thead>
+  <tbody>
+    % for my $release ($releases) {
+    <tr>
+      %= t td => $release->name
+      %= t td => $release->version
+    </tr>
+  % }
+  </tbody>
+</table>
+
