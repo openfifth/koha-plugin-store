@@ -4,14 +4,18 @@
       <th>Name</th>
       <th>Tag name</th>
       <th>Version</th>
+      <th>Koha minimum version</th>
+      <th>Date released</th>
     </td>
   </thead>
   <tbody>
-    % for my $release ($releases) {
+    % for my $release (@$releases) {
     <tr>
       %= t td => $release->name
       %= t td => $release->tag_name
       %= t td => $release->version
+      %= t td => $release->koha_min_version
+      %= t td => $release->date_released
     </tr>
   % }
   </tbody>

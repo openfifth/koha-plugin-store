@@ -9,7 +9,9 @@ use Mojo::Base -base;
 
 sub releases {
     my ( $self ) = @_;
-    return KohaPluginStore::Model::Release->new()->search( { plugin_id => $self->id } );
+
+    my @releases = KohaPluginStore::Model::Release->new()->search( { plugin_id => $self->id } );
+    return \@releases;
 }
 sub _type {
     return 'Plugin';

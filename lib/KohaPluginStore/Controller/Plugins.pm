@@ -44,7 +44,7 @@ sub edit_form {
     my $result          = $c->_get_releases_from_github( $plugin->repo_url );
     my $github_releases = decode_json($result);
 
-    my @releases = $plugin->releases;
+    my $releases = $plugin->releases;
 
     foreach my $github_release (@$github_releases) {
         $github_release->{version} = 'N/A';
@@ -55,7 +55,7 @@ sub edit_form {
             next;
         }
 
-        foreach my $release (@releases) {
+        foreach my $release (@$releases) {
             if ( $release->tag_name eq $github_release->{tag_name} ) {
                 $github_release->{message}->{warning} = 'Release has already been submitted.';
                 next;
