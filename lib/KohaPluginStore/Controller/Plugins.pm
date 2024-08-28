@@ -340,19 +340,20 @@ sub _get_plugin_metadata {
 sub _download_plugin {
     my ($kpz_download) = @_;
 
+    my $kpz_name = ( split '/', $kpz_download )[-1];
+    my $dir      = 'kpz_packages/' . substr( $kpz_name, 0, -4 );
+    my $file     = 'kpz_packages/' . $kpz_name;
+
+    return $dir if -d $dir;
+
     my $ua      = Mojo::UserAgent->new( max_redirects => 5 );
     my $request = $ua->get($kpz_download);
 
-    my $kpz_name = ( split '/', $kpz_download )[-1];
-
-    my $file = 'kpz_packages/' . $kpz_name;
     $ua->get($kpz_download)->res->content->asset->move_to($file);
 
     use Archive::Zip;
-    my $dir = 'kpz_packages/' . substr( $kpz_name, 0, -4 );
     my $zip = Archive::Zip->new($file);
 
-    # TODO - Check if package/directory doesnt already exist
     foreach my $zip_file ( $zip->members ) {
         $zip_file->extractToFileNamed( "$dir/" . $zip_file->fileName );
     }
