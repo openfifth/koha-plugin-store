@@ -64,8 +64,6 @@ sub _log_in_user {
     my $username = shift;
     my $user = KohaPluginStore::Model::User->new->find(
         { username => $username } );
-    $c->session->{user} =
-        KohaPluginStore::Model::User->new()->as_hash($user);
-
+    $c->session->{user} = $user->unblessed;
 }
 1;
