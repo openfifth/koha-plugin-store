@@ -87,6 +87,7 @@
     <input type="hidden" name="plugin_metadata_description" value="<%= $plugin_metadata->{description} %>"></button>
     <input type="hidden" name="plugin_metadata_author" value="<%= $plugin_metadata->{author} %>"></button>
     <input type="hidden" name="release_metadata_name" value="<%= $latest_release->{name} %>"></button>
+    <input type="hidden" name="release_metadata_tag_name" value="<%= $latest_release->{tag_name} %>"></button>
     <input type="hidden" name="release_metadata_date_released" value="<%= $latest_release->{published_at} %>"></button>
     <input type="hidden" name="release_metadata_version" value="<%= $plugin_metadata->{version} %>"></button>
     <input type="hidden" name="release_metadata_koha_min_version" value="<%= $plugin_metadata->{minimum_version} %>"></button>

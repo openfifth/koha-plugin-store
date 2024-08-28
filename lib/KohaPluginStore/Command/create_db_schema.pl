@@ -29,6 +29,7 @@ $dbh->do(
         id INTEGER PRIMARY KEY AUTOINCREMENT,        -- release id
         plugin_id INTEGER,                           -- id from the plugins table
         name TEXT,                                   -- release name
+        tag_name TEXT,                               -- release tag name
         version TEXT,                                -- release version
         koha_min_version TEXT,                       -- minimum major Koha version (e.g. '24.05') this release is compatible with
         kpz_url,                                     -- URL to the .kpz file

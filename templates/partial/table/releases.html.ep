@@ -2,6 +2,7 @@
   <thead>
     <tr>
       <th>Name</th>
+      <th>Tag name</th>
       <th>Version</th>
     </td>
   </thead>
@@ -9,6 +10,7 @@
     % for my $release ($releases) {
     <tr>
       %= t td => $release->name
+      %= t td => $release->tag_name
       %= t td => $release->version
     </tr>
   % }

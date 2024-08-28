@@ -171,6 +171,7 @@ sub new_plugin_confirm ($c) {
     my $author      = $c->param('plugin_metadata_author');
 
     my $release_name             = $c->param('release_metadata_name');
+    my $release_tag_name         = $c->param('release_metadata_tag_name');
     my $release_date_released    = $c->param('release_metadata_date_released');
     my $release_version          = $c->param('release_metadata_version');
     my $release_koha_min_version = $c->param('release_metadata_koha_min_version');
@@ -195,6 +196,7 @@ sub new_plugin_confirm ($c) {
         {
             plugin_id        => $new_plugin->id,
             name             => $release_name,
+            tag_name         => $release_tag_name,
             date_released    => $release_date_released,
             version          => $release_version,
             koha_min_version => $release_koha_min_version,

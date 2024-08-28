@@ -40,6 +40,11 @@ __PACKAGE__->table("releases");
   data_type: 'text'
   is_nullable: 1
 
+=head2 tag_name
+
+  data_type: 'text'
+  is_nullable: 1
+
 =head2 version
 
   data_type: 'text'
@@ -68,6 +73,8 @@ __PACKAGE__->add_columns(
   "plugin_id",
   { data_type => "integer", is_foreign_key => 1, is_nullable => 1 },
   "name",
+  { data_type => "text", is_nullable => 1 },
+  "tag_name",
   { data_type => "text", is_nullable => 1 },
   "version",
   { data_type => "text", is_nullable => 1 },
@@ -114,8 +121,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-31 13:36:41
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:abWxuC2PWyjjrS5uZZmzPQ
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-08-28 13:48:12
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:MCNrP+4GSjloS8UPiMeeFg
 
 sub object_class {
     'KohaPluginStore::Model::Release';
