@@ -48,7 +48,6 @@ sub startup ($self) {
     #TODO: Use OpenAPI mojolicious plugin?
     $r->get('/api/plugins')->to('plugins#list_all');
     $r->options('/api/plugins')->to('plugins#list_all');
-
 }
 
 sub _add_routes_authorization {

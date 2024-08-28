@@ -206,7 +206,6 @@ sub new_plugin_confirm ($c) {
 
     $c->stash( new_plugin_id => $new_plugin->id );
     $c->render('new-plugin-confirm');
-
 }
 
 sub _get_latest_release_from_github {

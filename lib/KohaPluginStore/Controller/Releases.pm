@@ -25,7 +25,8 @@ sub new_release ($c) {
         }
     );
 
-    return $c->render( status => 201 );
+    $c->stash( plugin_id => $plugin_id );
+    $c->render('releases/new-release-confirm');
 }
 
 1;

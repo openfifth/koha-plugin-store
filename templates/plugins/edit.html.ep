@@ -84,15 +84,14 @@
           % } elsif($release->{message}->{error} ){
           %= t td => $release->{message}->{error}
           % } else{
-
-          %= t td => form_for '/new-release' => (method => 'POST') => begin
+          %= t td => form_for '/new-release' => (method => 'POST', id => 'new_release_form') => begin
             <input type="hidden" name="kpz_download" value="<%= $release->{assets}[0]->{browser_download_url} %>"></button>
             <input type="hidden" name="plugin_id" value="<%= $plugin->id %>"></button>
             <input type="hidden" name="release_metadata_name" value="<%= $release->{name} %>"></button>
             <input type="hidden" name="release_metadata_tag_name" value="<%= $release->{tag_name} %>"></button>
             <input type="hidden" name="release_metadata_date_released" value="<%= $release->{published_at} %>"></button>
             <input type="hidden" name="release_metadata_version" value="<%= $release->{version} %>"></button>
-            <input type="hidden" name="release_metadata_koha_min_version" value="<%= $release->{minimum_version} %>"></button>
+            <input type="hidden" name="release_metadata_koha_min_version" value="<%= $release->{koha_minimum_version} %>"></button>
             <button type="submit" class="btn btn-primary">Add this release</button>
           % end
           % }
@@ -105,7 +104,7 @@
 
 <script type="text/javascript">
 $(document).ready(function() {
-  $('#new_plugin_form').submit(function() {
+  $('#new_release_form').submit(function() {
       show_spinner();
   });
 });
