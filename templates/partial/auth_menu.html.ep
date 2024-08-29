@@ -4,7 +4,7 @@
     %= link_to '/new-plugin' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'newplugin' ? 'active' : '' )) => begin
       <i class='bx bx-plus'></i> New Plugin
     % end
-    %= link_to '/my-plugins' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'myplugins' ? 'active' : '' )) => begin
+    %= link_to '/my-plugins' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'myplugins' || current_route eq 'pluginseditid' ? 'active' : '' )) => begin
       <i class='bx bx-list-ol'></i> My Plugins
     % end
     %= link_to '/logout' => (class => 'list-group-item list-group-item-action text-danger') => begin
