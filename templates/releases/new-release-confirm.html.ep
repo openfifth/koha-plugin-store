@@ -10,4 +10,4 @@
 
 <p>Your release has been submitted!</p>
 
-%= link_to 'Go back to your plugin' => '/plugins/edit/'.$plugin_id
+%= link_to 'Go back to your plugin releases' => '/plugins/edit/'.$plugin_id.'#plugin-releases'
