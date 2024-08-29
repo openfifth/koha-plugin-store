@@ -1,0 +1,13 @@
+% title "Confirm new release";
+% layout 'default';
+% my $plugin_id = stash 'plugin_id';
+
+% content_for 'sidebar' => begin
+  %= include 'partial/side_menu'
+% end
+
+<h2><%= title %></h2>
+
+<p>Your release has been submitted!</p>
+
+%= link_to 'Go back to your plugin' => '/plugins/edit/'.$plugin_id

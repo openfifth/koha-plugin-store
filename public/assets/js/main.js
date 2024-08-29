@@ -1,3 +1,7 @@
-function show_spinner(){
-    $("#overlay").fadeIn(300);
-}
+$(window).on('load', function () {
+  $("#overlay").fadeOut();
+});
+
+$(window).on("beforeunload", function () {
+  $("#overlay").fadeIn();
+});
