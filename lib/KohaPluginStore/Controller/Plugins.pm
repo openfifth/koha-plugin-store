@@ -130,7 +130,7 @@ sub new_plugin ($c) {
     my $latest_release = decode_json $result;
     my @assets         = grep { $_->{name} =~ /\.kpz$/ } @{ $latest_release->{assets} };
     return $c->_exit_with_error_message(
-        'Latest release must contain one and only one \'.kpz\' asset. Number of \'.kpz\' assets found: ')
+        'Latest release must contain one and only one \'.kpz\' asset. Number of \'.kpz\' assets found: '.scalar @assets)
         unless ( scalar @assets eq 1 );
 
     my $plugin_dir        = _download_plugin( $assets[0]->{browser_download_url} );
