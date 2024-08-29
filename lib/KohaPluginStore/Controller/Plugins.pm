@@ -332,13 +332,13 @@ sub _get_plugin_metadata {
     my $metadata_contents = read_file($plugin_class_file);
     my $plugin_metadata;
 
-    if ( lc($metadata_contents) =~ /our \$metadata = (\{.*?\});(?!\w)/s ) {
+    if ( $metadata_contents =~ /our \$metadata = (\{.*?\});(?!\w)/si ) {
 
         my $extracted_metadata = $1;
         my $metadata_variables;
         while ( $extracted_metadata =~ /\$([a-zA-Z_]+)\b/g ) {
             my $variable = $1;
-            if ( lc($metadata_contents) =~ /(our \$$variable.*?= .*?;)/s ) {
+            if ( $metadata_contents =~ /(our \$$variable.*?= .*?;)/si ) {
                 my $value = $1;
                 $value =~ s/our \$$variable.*?= //;
                 $value =~ s/;//;
