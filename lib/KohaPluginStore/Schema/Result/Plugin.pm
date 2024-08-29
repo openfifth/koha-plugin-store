@@ -39,6 +39,11 @@ __PACKAGE__->table("plugins");
   data_type: 'text'
   is_nullable: 1
 
+=head2 class_name
+
+  data_type: 'text'
+  is_nullable: 1
+
 =head2 description
 
   data_type: 'text'
@@ -75,6 +80,8 @@ __PACKAGE__->add_columns(
   { data_type => "text", is_nullable => 1 },
   "name",
   { data_type => "text", is_nullable => 1 },
+  "class_name",
+  { data_type => "text", is_nullable => 1 },
   "description",
   { data_type => "text", is_nullable => 1 },
   "author",
@@ -104,6 +111,18 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key("id");
 
 =head1 UNIQUE CONSTRAINTS
+
+=head2 C<class_name_unique>
+
+=over 4
+
+=item * L</class_name>
+
+=back
+
+=cut
+
+__PACKAGE__->add_unique_constraint("class_name_unique", ["class_name"]);
 
 =head2 C<name_unique>
 
@@ -167,8 +186,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-07-31 13:43:23
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:PqzSRqRGMWXDK7kWCG2OPA
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-08-29 12:00:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Sth9A48EsF9iX6Tflx8x5w
 
 sub object_class {
     'KohaPluginStore::Model::Plugin';

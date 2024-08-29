@@ -11,6 +11,7 @@ $dbh->do(
         id INTEGER PRIMARY KEY AUTOINCREMENT,   -- PK
         repo_url TEXT UNIQUE,                   -- Unique plugin repo url
         name TEXT UNIQUE,                       -- Unique plugin name
+        class_name TEXT UNIQUE,                 -- Unique plugin class name
         description TEXT,                       -- Plugin description
         author TEXT,                            -- Author of the plugin
         thumbnail TEXT,                         -- Thumbnail image

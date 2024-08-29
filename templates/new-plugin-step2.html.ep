@@ -43,6 +43,10 @@
       %= t td => 'Repository'
       %= t td => link_to $plugin_metadata->{repo_url}  => $plugin_metadata->{repo_url}  => (target => '_blank')
       </tr>
+      <tr>
+      %= t td => 'Class name'
+      %= t td => $plugin_metadata->{class_name}
+      </tr>
     </tbody>
   </table>
 % }
@@ -84,6 +88,7 @@
     <input type="hidden" name="kpz_download" value="<%= $kpz_asset->{browser_download_url} %>"></button>
     <input type="hidden" name="plugin_metadata_name" value="<%= $plugin_metadata->{name} %>"></button>
     <input type="hidden" name="plugin_metadata_repo_url" value="<%= $plugin_metadata->{repo_url} %>"></button>
+    <input type="hidden" name="plugin_metadata_class_name" value="<%= $plugin_metadata->{class_name} %>"></button>
     <input type="hidden" name="plugin_metadata_description" value="<%= $plugin_metadata->{description} %>"></button>
     <input type="hidden" name="plugin_metadata_author" value="<%= $plugin_metadata->{author} %>"></button>
     <input type="hidden" name="release_metadata_name" value="<%= $latest_release->{name} %>"></button>

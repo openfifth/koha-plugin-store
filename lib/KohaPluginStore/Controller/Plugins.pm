@@ -63,10 +63,15 @@ sub edit_form {
         }
 
         my $plugin_dir        = _download_plugin( $assets[0]->{browser_download_url} );
-        my $plugin_class_file = _get_plugin_class_file($plugin_dir);
+        my ( $plugin_class_file, $plugin_class_name ) = _get_plugin_class_file_and_name($plugin_dir);
 
         if( !$plugin_class_file ) {
             $github_release->{message}->{error} = 'Plugin class file not found.';
+            next;
+        }
+
+        if ( !$plugin_class_name ) {
+            $github_release->{message}->{error} = 'Plugin class name not found.';
             next;
         }
 
@@ -129,10 +134,14 @@ sub new_plugin ($c) {
         unless ( scalar @assets eq 1 );
 
     my $plugin_dir        = _download_plugin( $assets[0]->{browser_download_url} );
-    my $plugin_class_file = _get_plugin_class_file($plugin_dir);
+    my ( $plugin_class_file, $plugin_class_name ) = _get_plugin_class_file_and_name($plugin_dir);
     return $c->_exit_with_error_message(
         'Plugin class file not found. Make sure the plugin has a class containing \'use base qw(Koha::Plugins::Base)\'?'
     ) unless $plugin_class_file;
+
+    return $c->_exit_with_error_message(
+        'Plugin class name not found. Make sure the plugin has a class file containing \'package \'?'
+    ) unless $plugin_class_name;
 
     my $plugin_metadata = _get_plugin_metadata($plugin_class_file);
     return $c->_exit_with_error_message(
@@ -157,6 +166,7 @@ sub new_plugin ($c) {
         if $existing_plugin;
 
     $plugin_metadata->{repo_url} = $plugin_repo;
+    $plugin_metadata->{class_name} = $plugin_class_name;
     $c->stash( latest_release  => $latest_release );
     $c->stash( kpz_asset       => $assets[0] );
     $c->stash( plugin_metadata => $plugin_metadata );
@@ -166,6 +176,7 @@ sub new_plugin ($c) {
 sub new_plugin_confirm ($c) {
     my $name        = $c->param('plugin_metadata_name');
     my $repo_url    = $c->param('plugin_metadata_repo_url');
+    my $class_name  = $c->param('plugin_metadata_class_name');
     my $description = $c->param('plugin_metadata_description');
     my $author      = $c->param('plugin_metadata_author');
 
@@ -187,6 +198,7 @@ sub new_plugin_confirm ($c) {
             description => $description,
             author      => $author,
             repo_url    => $repo_url,
+            class_name  => $class_name,
             user_id     => $c->session->{user}->{id}
         }
     );
@@ -265,7 +277,7 @@ sub _get_releases_from_github {
     return $request->result->body;
 }
 
-sub _get_plugin_class_file {
+sub _get_plugin_class_file_and_name {
     my ($plugin_dir) = @_;
 
     return unless $plugin_dir;
@@ -273,6 +285,7 @@ sub _get_plugin_class_file {
     use File::Find;
     use String::Util 'trim';
     my $plugin_class_file;
+    my $plugin_class_name;
 
     find(
         {
@@ -283,8 +296,21 @@ sub _get_plugin_class_file {
                     $line = trim($line);
                     if ( $line =~ /use base/ && $line =~ /Koha::Plugins::Base/ ) {
                         $plugin_class_file = $File::Find::name;
+
+                        my $plugin_class_file_h;
+                        open $plugin_class_file_h, '<', $plugin_class_file or die "Could not open file: $plugin_class_file";
+                        while ( my $line = <$plugin_class_file_h> ) {
+                            if ( $line =~ /^package/ ) {
+                                $plugin_class_name = $line;
+                                $plugin_class_name =~ s/^package\s+//;
+                                $plugin_class_name =~ s/;$//;
+                                $plugin_class_name =~ s/\s+//g;
+                            }
+                        }
+                        close $plugin_class_file_h;
                         last;
                     }
+
                 }
                 close $fh;
             },
@@ -293,7 +319,7 @@ sub _get_plugin_class_file {
         $plugin_dir
     );
 
-    return $plugin_class_file;
+    return ($plugin_class_file, $plugin_class_name);
 }
 
 sub _get_plugin_metadata {
