@@ -343,7 +343,7 @@ sub _download_plugin {
     my $dir      = 'kpz_packages/' . substr( $kpz_name, 0, -4 );
     my $file     = 'kpz_packages/' . $kpz_name;
 
-    return $dir if -d $dir;
+    return $dir if -e $file;
 
     my $ua      = Mojo::UserAgent->new( max_redirects => 5 );
     my $request = $ua->get($kpz_download);
