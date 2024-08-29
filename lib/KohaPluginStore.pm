@@ -46,8 +46,7 @@ sub startup ($self) {
     $r->post('/new-release')->to('releases#new_release');
 
     #TODO: Use OpenAPI mojolicious plugin?
-    $r->get('/api/plugins')->to('plugins#list_all');
-    $r->options('/api/plugins')->to('plugins#list_all');
+    $r->any('/api/plugins')->to('plugins#list_all');
 }
 
 sub _add_routes_authorization {
