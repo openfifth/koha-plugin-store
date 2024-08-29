@@ -1,5 +1,6 @@
 % title "Confirm new plugin";
 % layout 'default';
+% my $new_plugin_id = stash 'new_plugin_id';
 
 % content_for 'sidebar' => begin
   %= include 'partial/side_menu'
@@ -7,4 +8,6 @@
 
 <h2><%= title %></h2>
 
-Your plugin has been submitted!
+<p>Your plugin has been submitted!</p>
+
+%= link_to 'Go to your plugin' => '/plugins/edit/'.$new_plugin_id
