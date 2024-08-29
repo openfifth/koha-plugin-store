@@ -68,7 +68,7 @@
         % }else{
         <tr>
         % }
-          %= t td => link_to $release->{name} => $release->{html_url} => (target => '_blank')
+          %= t td => link_to $release->{name} || 'N/A' => $release->{html_url} => (target => '_blank')
           % if ($release->{message}->{error} ){
           %= t td => begin
             <%= $release->{tag_name} %> <i class='bx bx-error'></i>
