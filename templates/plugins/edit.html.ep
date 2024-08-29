@@ -61,8 +61,8 @@
       </thead>
       <tbody>
       % for my $release (@$github_releases) {
-        % if ($release->{message}->{warning} ){
-        <tr class="text-warning">
+        % if ($release->{message}->{success} ){
+        <tr class="text-success">
         % }elsif($release->{message}->{error}){
         <tr class="text-danger">
         % }else{
@@ -79,8 +79,8 @@
           %= t td => $release->{version}
           %= t td => $release->{koha_minimum_version}
           %= t td => $release->{published_at}
-          % if ($release->{message}->{warning} ){
-          %= t td => $release->{message}->{warning}
+          % if ($release->{message}->{success} ){
+          %= t td => $release->{message}->{success}
           % } elsif($release->{message}->{error} ){
           %= t td => $release->{message}->{error}
           % } else{

@@ -57,7 +57,7 @@ sub edit_form {
 
         foreach my $release (@$releases) {
             if ( $release->tag_name eq $github_release->{tag_name} ) {
-                $github_release->{message}->{warning} = 'Release has already been submitted.';
+                $github_release->{message}->{success} = 'Release has already been submitted.';
                 next;
             }
         }
