@@ -95,14 +95,20 @@ sub edit_form {
 }
 
 sub list_all ($c) {
+    my $koha_version_release = $c->param('koha_version_release');
+
+    return $c->render( text => 'koha_version_release required', status => 400 ) unless $koha_version_release;
 
     my @plugins = map { $_->unblessed } KohaPluginStore::Model::Plugin->new()->search;
 
     foreach my $plugin (@plugins) {
         my @releases =
-            map { $_->unblessed } KohaPluginStore::Model::Release->new()->search( { plugin_id => $plugin->{id} } );
+            map { $_->unblessed } KohaPluginStore::Model::Release->new()->search(
+                { plugin_id => $plugin->{id} }, { order_by => { -desc => 'date_released' } }
+            );
 
         foreach my $release (@releases) {
+            next if( $release->{koha_min_version} > $koha_version_release );
             push(
                 @{ $plugin->{releases} },
                 $release
