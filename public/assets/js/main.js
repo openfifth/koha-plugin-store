@@ -1,4 +1,4 @@
-$(window).on('load', function () {
+$(window).on("pageshow", function () {
   $("#overlay").fadeOut();
 });
 
