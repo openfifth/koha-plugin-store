@@ -300,7 +300,7 @@ sub _get_plugin_class_file_and_name {
                 open my $fh, '<', $_ or die "Could not open file: $!";
                 while ( my $line = <$fh> ) {
                     $line = trim($line);
-                    if ( $line =~ /use base/ && $line =~ /Koha::Plugins::Base/ ) {
+                    if ( $line =~ /use (?:base|parent)/ && $line =~ /Koha::Plugins::Base/ ) {
                         $plugin_class_file = $File::Find::name;
 
                         my $plugin_class_file_h;
