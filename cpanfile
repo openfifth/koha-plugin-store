@@ -1,6 +1,11 @@
+requires 'Modern::Perl';
 requires 'Mojolicious';
 requires 'Mojo::SQLite';
 requires 'Data::Structure::Util';
+requires 'DBIx::Class::Schema';
+requires 'JSON';
 requires 'Passwords';
 requires 'Archive::Zip';
 requires 'String::Util';
+requires 'IO::Socket::SSL';
+requires 'Net::SSLeay';
