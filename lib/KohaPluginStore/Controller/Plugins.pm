@@ -118,9 +118,11 @@ sub list_all ($c) {
         $plugin->{thumbnail} ||= 'no_img.jpg';
     }
 
-    # The following is required for CORS. FIXME: Is there a better way around this?
+    # The following is required for CORS
+    # Without this, users won't be able to list from remote locations
     $c->res->headers->header( 'Access-Control-Allow-Origin'  => '*' );
     $c->res->headers->header( 'Access-Control-Allow-Headers' => 'content-type,x-koha-request-id' );
+    $c->res->headers->header( 'Access-Control-Allow-Methods' => 'get,options' );
 
     return $c->render( json => \@plugins, status => 200 );
 }
