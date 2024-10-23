@@ -1,0 +1,29 @@
+# koha-plugin-store.service
+[Unit]
+Description=Koha Plugin Store
+After=syslog.target network.target
+
+[Service]
+Type=simple
+## make sure the user & group exist
+User=plugin-store
+Group=plugin-store
+## change the below values to suit your installation
+Environment=PERL5LIB=/opt/plugin-store/lib
+Environment=MOJO_MODE=production
+Environment=MOJO_HTTP_PORT=443
+Environment=MOJO_SSL_CERT=/opt/plugin-store/ssl/cert.pem
+Environment=MOJO_SSL_PRIV=/opt/plugin-store/ssl/privkey.pem
+WorkingDirectory=/opt/plugin-store
+## end of config values
+ExecStartPre=+/usr/sbin/setcap "CAP_NET_BIND_SERVICE=+eip" /usr/bin/perl
+ExecStartPre=+/usr/sbin/setcap "CAP_NET_BIND_SERVICE=+eip" /usr/local/bin/morbo
+ExecStart=/usr/bin/perl ./script/koha_plugin_store prefork \
+    -l "https://[::]:${MOJO_HTTP_PORT}?cert=${MOJO_SSL_CERT}&key=${MOJO_SSL_PRIV}"
+KillMode=mixed
+Restart=on-failure
+RestartSec=5s
+SyslogIdentifier=koha-plugin-store
+
+[Install]
+WantedBy=multi-user.target
