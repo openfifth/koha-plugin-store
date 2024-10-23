@@ -118,8 +118,8 @@ sub list_all ($c) {
         $plugin->{thumbnail} ||= 'no_img.jpg';
     }
 
-    # The following is required for CORS. same-origin Dev only (?)
-    $c->res->headers->header( 'Access-Control-Allow-Origin'  => 'http://localhost:8081' );
+    # The following is required for CORS. FIXME: Is there a better way around this?
+    $c->res->headers->header( 'Access-Control-Allow-Origin'  => '*' );
     $c->res->headers->header( 'Access-Control-Allow-Headers' => 'content-type,x-koha-request-id' );
 
     return $c->render( json => \@plugins, status => 200 );
