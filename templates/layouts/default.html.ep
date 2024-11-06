@@ -24,6 +24,11 @@
             <%= app->site_name %>
           </a>
         </div>
+        <!-- Development environment warning -->
+        <div class="row text-center text-warning bg-dark">
+          <h2><i class='bx bx-error'></i> This is a test environment <i class='bx bx-error'></i></h2>
+        </div>
+        <!-- !Development environment warning -->
         % if ( logged_in_user ) {
         <div class="navbar-header float-right text-white">
           %= link_to '/my-plugins' => (class => 'link-underline link-underline-opacity-0 text-white') => begin
@@ -36,6 +41,7 @@
         % }
       </div>
     </nav>
+
     <div class="container">
       <div class="row">
         <div id="sidebar" class="col-md-3 mt-4">
