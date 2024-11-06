@@ -20,9 +20,7 @@
     <nav class="navbar navbar-default navbar-dark bg-dark">
       <div class="container">
         <div class="navbar-header">
-          <a class="navbar-brand" href="/">
-            <%= app->site_name %>
-          </a>
+          <a class="navbar-brand" href="/"><img src="/img/koha_128dpi.png" alt="Logo" height="24" class="d-inline-block align-text-top"> <%= app->site_name %></a>
         </div>
         <!-- Development environment warning -->
         <div class="row text-center text-warning bg-dark">
