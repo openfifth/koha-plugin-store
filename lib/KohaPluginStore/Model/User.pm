@@ -18,6 +18,16 @@ sub check_password {
     return Passwords::password_verify( $password, $user->password, );
 }
 
+sub create {
+    my ( $self, $attrs ) = @_;
+
+    Carp::croak 'password is required'
+        unless $attrs->{password};
+    $attrs->{password} = Passwords::password_hash( $attrs->{password} );
+
+    return $self->SUPER::create($attrs);
+}
+
 sub _type {
     return 'User';
 }
