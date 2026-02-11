@@ -42,6 +42,8 @@ sub edit_form {
     return $c->render( text => 'Unauthorized',     status => 401 ) unless $c->session->{user}->{id} == $plugin->user_id;
 
     my $result          = $c->_get_releases_from_github( $plugin->repo_url );
+
+    #TODO: Handle case: $result is undef
     my $github_releases = decode_json($result);
 
     my $releases = $plugin->releases;
@@ -261,7 +263,7 @@ sub _get_releases_from_github {
 
     my $config          = $c->app->plugin('Config');
     my $plugin_api_repo = $plugin_repo =~ s/https:\/\/github.com\//https:\/\/api.github.com\/repos\//r;
-    my $ua              = Mojo::UserAgent->new;
+    my $ua              = Mojo::UserAgent->new( max_redirects => 5 );
     my $request         = $ua->get(
         $plugin_api_repo . '/releases?per_page=5&page=1' => {
             Accept        => 'application/vnd.github+json',
