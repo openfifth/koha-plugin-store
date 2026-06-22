@@ -3,8 +3,6 @@
     <tr>
       <th>ID</th>
       <th>Username</th>
-      <th>Email</th>
-      <th>Password</th>
     </td>
   </thead>
   <tbody>
@@ -12,8 +10,6 @@
     <tr>
       %= t td => $user->id
       %= t td => $user->username
-      %= t td => $user->email
-      %= t td => $user->password
     </tr>
   % }
   </tbody>
