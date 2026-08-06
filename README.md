@@ -22,6 +22,10 @@ Koha plugin store project consisting of 2 distinct components:
   - A `koha_plugin_store.conf` file is required. Follow the example from `koha_plugin_store.conf.example`
     (now also holds `pg_dsn`, the Postgres connection string).
   - The `kpz_packages` directory is used to store `.kpz` files download from github.
+  - Developer login is GitHub OAuth — there's no password-based login anymore. Local/Docker
+    dev needs a real GitHub OAuth App registered (callback URL matching your `morbo`/Docker
+    host and port), with its `client_id`/`client_secret` added to `koha_plugin_store.conf`'s
+    `oauth_providers` block.
   - To install cpan dependencies, run `cpanm --installdeps .` at the project
     root dir.
   - Local Postgres runs via `docker compose up -d postgres` (see `docker-compose.yml`).

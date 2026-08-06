@@ -28,7 +28,7 @@ describes (tables, endpoints, auth flow) exists in the code yet.
 docker compose up -d postgres                          # start local Postgres
 cpanm --installdeps .                                  # install CPAN dependencies (see cpanfile)
 script/koha_plugin_store migrate                        # apply Postgres migrations
-script/koha_plugin_store reset_test_data                # wipe and reseed demo users/plugins/releases
+script/koha_plugin_store reset_test_data                # wipe and reseed demo developers/plugins/releases
 morbo script/koha_plugin_store                          # run dev server with auto-reload
 prove -l t/basic.t                                      # run a single test
 prove -l t/                                             # run all tests
@@ -47,8 +47,11 @@ its failures as regressions.
 ### Request flow
 
 Routes are all registered in `KohaPluginStore::startup()` (`lib/KohaPluginStore.pm`),
-not split into a router class. Auth is a single Mojolicious route condition,
-`user_authenticated`, checked against `$c->session->{user}->{id}`; there's no
+not split into a router class. Developer login is GitHub OAuth
+(`Mojolicious::Plugin::OAuth2`, registered from a config-driven `oauth_providers`
+list; the flow itself lives in `Controller::Auth`) — there's no password-based
+login anymore. Auth is still a single Mojolicious route condition,
+`user_authenticated`, checked against `$c->session->{developer}->{id}`; there's no
 role/permission system beyond "logged in or not". Controllers live in
 `lib/KohaPluginStore/Controller/` (`Site`, `Plugins`, `Releases`, `Users`) and
 follow standard Mojolicious controller conventions.
@@ -59,8 +62,11 @@ follow standard Mojolicious controller conventions.
   that builds a `Mojo::Pg` connection from `koha_plugin_store.conf`'s `pg_dsn` on first
   access — no class-level singleton. Controllers reach it via the `$c->pg` helper;
   commands via `$self->app->pg`.
-- `KohaPluginStore::Model::Base` — base class for `Model::{Plugin,PluginVersion,User}`,
+- `KohaPluginStore::Model::Base` — base class for `Model::{Plugin,PluginVersion,Developer}`,
   taking `pg` and `data` as constructor-injected attributes (`has 'pg'`, `has 'data'`).
+  `Model::Developer` replaced `Model::User` — developers are keyed by GitHub identity
+  (`oauth_provider_key`, `provider_user_id`), not username/password, and
+  `plugins.developer_id` replaced `plugins.user_id`.
   Each subclass declares `_table` (the Postgres table name) and `_columns` (used for
   `INSERT ... RETURNING`). `create`/`find`/`search` are built on `Mojo::Pg::Database`'s
   `insert`/`select` query builder. Column accessors (`->id`, `->name`, etc.) are still
