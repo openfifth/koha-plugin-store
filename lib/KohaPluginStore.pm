@@ -35,6 +35,11 @@ sub startup ($self) {
 
     $self->_add_routes_authorization();
 
+    $self->plugin( 'OpenAPI', {
+        url   => $self->home->child(qw(lib KohaPluginStore OpenAPI spec.yaml)),
+        route => $self->routes->any('/api/v1'),
+    } );
+
     my $r = $self->routes;
 
     $r->any('/')->to('site#index');

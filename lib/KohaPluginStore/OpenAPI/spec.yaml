@@ -1,0 +1,22 @@
+openapi: 3.0.1
+info:
+  title: Koha Plugin Store API
+  version: "1"
+x-mojo-controller: KohaPluginStore::Controller::Api
+paths:
+  /ping:
+    get:
+      operationId: ping
+      x-mojo-to: api#ping
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status

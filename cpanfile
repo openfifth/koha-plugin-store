@@ -1,5 +1,6 @@
 requires 'Modern::Perl';
 requires 'Mojolicious';
+requires 'Mojolicious::Plugin::OpenAPI';
 requires 'Mojo::Pg';
 requires 'JSON';
 requires 'Passwords';
