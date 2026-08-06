@@ -3,6 +3,19 @@ use Mojo::Base 'Mojolicious::Controller', -signatures;
 use KohaPluginStore::Model::Developer;
 
 sub github ($c) {
+    if ( $c->app->config->{oauth_mock} ) {
+        my $developer = KohaPluginStore::Model::Developer->new( pg => $c->pg )->find_or_create_from_oauth(
+            {
+                oauth_provider_key => 'github',
+                provider_user_id   => 'mock',
+                username           => 'mockdev',
+                avatar_url         => undef,
+            }
+        );
+        $c->log_in_developer($developer);
+        return $c->redirect_to('/my-plugins');
+    }
+
     $c->_get_oauth_token_p('github')->then(
         sub {
             my $provider_res = shift;

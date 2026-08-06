@@ -12,6 +12,20 @@ reset_db();
 my $t = Test::Mojo->new('KohaPluginStore');
 $t->app->pg( test_pg() );
 
+subtest 'GitHub login with oauth_mock enabled bypasses OAuth2 handshake' => sub {
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github')->status_is(302)->header_is( Location => '/my-plugins' );
+
+    # Verify that a developer row was created with mockdev username
+    my $developers = $t->app->pg->db->select( 'developers', ['username'] )->arrays->to_array;
+    my @usernames = map { $_->[0] } @$developers;
+    ok( grep( { $_ eq 'mockdev' } @usernames ), 'mockdev developer was created' );
+
+    # Clean up for subsequent tests
+    $t->app->config->{oauth_mock} = 0;
+    reset_db();
+};
+
 {
     no strict 'refs';
     no warnings 'redefine';

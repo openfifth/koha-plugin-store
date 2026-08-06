@@ -46,6 +46,8 @@ No local Perl or Postgres install needed:
 4. `docker compose exec app script/koha_plugin_store reset_test_data` (optional demo data)
 5. Visit http://127.0.0.1:3000
 
+The `oauth_mock` flag is already enabled in `koha_plugin_store.conf.docker.example`, allowing you to log in instantly as a mock developer without registering a real GitHub OAuth App — just click "GitHub login" and you'll be logged in. To test the real OAuth flow instead, remove or set `oauth_mock => 0` in your `koha_plugin_store.conf`.
+
 Edits to the repo on your host are picked up automatically (`morbo` hot-reloads inside the
 container) — no rebuild needed unless you change `cpanfile` or the `Dockerfile` itself.
 

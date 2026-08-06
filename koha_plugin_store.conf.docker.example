@@ -2,6 +2,10 @@
   # Github user access token
   github_user_access_token => "YOUR_TOKEN_HERE",
 
+  # Enable fake GitHub login for local Docker testing without registering a real OAuth App.
+  # When enabled, /auth/github logs in instantly as a mock developer, skipping GitHub's OAuth flow.
+  oauth_mock => 1,
+
   # Postgres connection string — 'postgres' is the docker-compose service name,
   # reachable from inside the app container on the compose network. If you're
   # running the app directly on the host instead (not via Docker), use
