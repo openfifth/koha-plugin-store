@@ -2,6 +2,7 @@ requires 'Modern::Perl';
 requires 'Mojolicious';
 requires 'Mojolicious::Plugin::OpenAPI';
 requires 'Mojo::Pg';
+requires 'Mojolicious::Plugin::OAuth2';
 requires 'JSON';
 requires 'Archive::Zip';
 requires 'String::Util';

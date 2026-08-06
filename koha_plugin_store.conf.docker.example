@@ -7,4 +7,17 @@
   # running the app directly on the host instead (not via Docker), use
   # koha_plugin_store.conf.example instead, which points at 127.0.0.1:55432.
   pg_dsn => 'postgresql://koha_plugin_store:koha_plugin_store@postgres:5432/koha_plugin_store',
+
+  # OAuth providers for developer login. 'github' is a built-in provider name
+  # recognised by Mojolicious::Plugin::OAuth2 -- register an OAuth App at
+  # https://github.com/settings/developers to get a client_id/client_secret.
+  oauth_providers => [
+    {
+      key           => 'github',
+      kind          => 'github',
+      display_name  => 'GitHub',
+      client_id     => 'YOUR_CLIENT_ID',
+      client_secret => 'YOUR_CLIENT_SECRET',
+    },
+  ],
 };

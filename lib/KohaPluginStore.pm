@@ -1,6 +1,7 @@
 package KohaPluginStore;
 use Mojo::Base 'Mojolicious', -signatures;
 use Mojo::Pg;
+use Mojolicious::Plugin::OAuth2;
 
 use KohaPluginStore::Model::Developer;
 use KohaPluginStore::Model::Plugin;
@@ -18,6 +19,17 @@ has pg => sub {
 sub startup ($self) {
 
     $self->plugin('Config');
+
+    my %oauth2_providers;
+    for my $provider ( @{ $self->config->{oauth_providers} || [] } ) {
+        if ( $provider->{kind} eq 'github' ) {
+            $oauth2_providers{ $provider->{key} } = {
+                key    => $provider->{client_id},
+                secret => $provider->{client_secret},
+            };
+        }
+    }
+    $self->plugin( OAuth2 => \%oauth2_providers );
 
     push @{ $self->commands->namespaces }, 'KohaPluginStore::Command';
 
