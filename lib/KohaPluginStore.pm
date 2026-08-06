@@ -71,7 +71,7 @@ sub startup ($self) {
     $r->get('/plugins/edit/:id')->requires( user_authenticated => 1 )->to('plugins#edit_form');
     $r->post('/new-plugin')->to('plugins#new_plugin');
     $r->post('/new-plugin-confirm')->to('plugins#new_plugin_confirm');
-    $r->post('/new-release')->to('releases#new_release');
+    $r->post('/new-release')->requires( user_authenticated => 1 )->to('releases#new_release');
 
     #TODO: Use OpenAPI mojolicious plugin?
     $r->any('/api/plugins')->to('plugins#list_all');

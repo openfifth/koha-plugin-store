@@ -1,11 +1,17 @@
 package KohaPluginStore::Controller::Releases;
 use Mojo::Base 'Mojolicious::Controller', -signatures;
 use KohaPluginStore::Model::PluginVersion;
+use KohaPluginStore::Model::Plugin;
 use JSON;
 
 sub new_release ($c) {
 
-    my $plugin_id                = $c->param('plugin_id');
+    my $plugin_id = $c->param('plugin_id');
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { id => $plugin_id } );
+    return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
+    return $c->render( text => 'Unauthorized', status => 401 )
+        unless $c->session->{developer}->{id} == $plugin->developer_id;
     my $release_name             = $c->param('release_metadata_name');
     my $release_tag_name         = $c->param('release_metadata_tag_name');
     my $release_date_released    = $c->param('release_metadata_date_released');
