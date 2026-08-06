@@ -63,3 +63,32 @@ CREATE TABLE plugin_versions (
 DROP TABLE plugin_versions;
 DROP TABLE plugins;
 DROP TABLE users;
+
+-- 2 up
+CREATE TABLE developers (
+    id                 SERIAL PRIMARY KEY,
+    oauth_provider_key TEXT NOT NULL,
+    provider_user_id   TEXT NOT NULL,
+    username           TEXT NOT NULL,
+    avatar_url         TEXT,
+    created_at         TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (oauth_provider_key, provider_user_id)
+);
+
+ALTER TABLE plugins DROP COLUMN user_id;
+ALTER TABLE plugins ADD COLUMN developer_id INTEGER REFERENCES developers(id) ON DELETE CASCADE;
+
+DROP TABLE users;
+
+-- 2 down
+CREATE TABLE users (
+    id       SERIAL PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    email    TEXT UNIQUE NOT NULL
+);
+
+ALTER TABLE plugins DROP COLUMN developer_id;
+ALTER TABLE plugins ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+
+DROP TABLE developers;
