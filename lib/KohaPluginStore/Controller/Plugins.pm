@@ -15,17 +15,17 @@ sub index {
 sub my_plugins {
     my $c = shift;
 
-    my @plugins = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->search( { user_id => $c->session->{user}->{id} } );
+    my @plugins = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->search( { developer_id => $c->session->{developer}->{id} } );
     $c->stash( my_plugins => \@plugins );
 
-    my $template = $c->session->{user} ? 'my-plugins' : 'unauthorized';
+    my $template = $c->session->{developer} ? 'my-plugins' : 'unauthorized';
     $c->render($template);
 }
 
 sub add_form {
     my $c = shift;
 
-    my $template = $c->session->{user} ? 'new-plugin' : 'unauthorized';
+    my $template = $c->session->{developer} ? 'new-plugin' : 'unauthorized';
     $c->render($template);
 }
 
@@ -40,7 +40,7 @@ sub edit_form {
     );
 
     return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
-    return $c->render( text => 'Unauthorized',     status => 401 ) unless $c->session->{user}->{id} == $plugin->user_id;
+    return $c->render( text => 'Unauthorized',     status => 401 ) unless $c->session->{developer}->{id} == $plugin->developer_id;
 
     my $result          = $c->_get_releases_from_github( $plugin->repo_url );
 
@@ -210,7 +210,7 @@ sub new_plugin_confirm ($c) {
             author      => $author,
             repo_url    => $repo_url,
             class_name  => $class_name,
-            user_id     => $c->session->{user}->{id}
+            developer_id => $c->session->{developer}->{id}
         }
     );
 

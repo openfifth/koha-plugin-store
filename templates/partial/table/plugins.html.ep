@@ -5,7 +5,7 @@
       <th>Title</th>
       <th>Description</th>
       <th>Author</th>
-      <th>User ID</th>
+      <th>Developer ID</th>
       <th>Releases</th>
       <th>Actions</th>
     </td>
@@ -17,9 +17,9 @@
       %= t td => $plugin->name
       %= t td => $plugin->description
       %= t td => $plugin->author
-      %= t td => $plugin->user_id
+      %= t td => $plugin->developer_id
       %= t td => scalar @{$plugin->releases}
-      % if (logged_in_user && logged_in_user->id eq $plugin->user_id){
+      % if (logged_in_user && logged_in_user->id eq $plugin->developer_id){
       %= t td => link_to 'Edit' => 'plugins/edit/'.$plugin->id
       % }
     </tr>

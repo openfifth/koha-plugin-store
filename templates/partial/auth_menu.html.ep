@@ -14,9 +14,6 @@
     %= link_to '/login' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'login' ? 'active' : '' )) => begin
       <i class='bx bx-log-in'></i> Log In
     % end
-    %= link_to '/register' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'register' ? 'active' : '' )) => begin
-      <i class='bx bx-user-plus'></i> Register
-    % end
   % }
   </ul>
 </div>
