@@ -2,6 +2,7 @@ use Mojo::Base -strict;
 
 use Test::More;
 use Test::Mojo;
+use Mojo::Promise;
 
 use lib 't/lib';
 use TestDB qw(reset_db test_pg);
@@ -11,24 +12,23 @@ reset_db();
 my $t = Test::Mojo->new('KohaPluginStore');
 $t->app->pg( test_pg() );
 
-subtest 'register then login' => sub {
-    $t->post_ok(
-        '/register' => form => {
-            username => 'newdev',
-            password => 'devpassword',
-            email    => 'newdev@example.com',
-        }
-    )->status_is(302);
+{
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::Controller::Auth::_get_oauth_token_p = sub {
+        return Mojo::Promise->resolve( { access_token => 'fake-token' } );
+    };
+    *KohaPluginStore::Controller::Auth::_fetch_github_profile = sub {
+        return { id => '777', login => 'newdev', avatar_url => 'https://example.com/n.png' };
+    };
+}
 
+subtest 'GitHub login then logout' => sub {
+    $t->get_ok('/auth/github')->status_is(302)->header_is( Location => '/my-plugins' );
     $t->get_ok('/logout')->status_is(302);
-
-    $t->post_ok(
-        '/login' => form => { username => 'newdev', password => 'devpassword' }
-    )->status_is(302);
 };
 
 subtest 'my-plugins requires login' => sub {
-    $t->get_ok('/logout')->status_is(302);
     $t->get_ok('/my-plugins')->status_is(404); # existing #TODO in the app: this should be 401
 };
 

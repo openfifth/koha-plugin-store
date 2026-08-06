@@ -19,10 +19,10 @@ sub run ($self, @args) {
     # admin (GitHub)
     # John (GitHub)
     my $admin = KohaPluginStore::Model::Developer->new( pg => $pg )->create(
-        { oauth_provider_key => 'github', provider_user_id => '1', username => 'admin', avatar_url => 'https://example.com/admin.png' }
+        { oauth_provider_key => 'github', provider_user_id => '1001', username => 'admin' }
     );
     KohaPluginStore::Model::Developer->new( pg => $pg )->create(
-        { oauth_provider_key => 'github', provider_user_id => '2', username => 'John', avatar_url => 'https://example.com/john.png' }
+        { oauth_provider_key => 'github', provider_user_id => '1002', username => 'John' }
     );
 
     my $coverflow = KohaPluginStore::Model::Plugin->new( pg => $pg )->create(
@@ -34,7 +34,7 @@ sub run ($self, @args) {
             repo_url    => 'https://github.com/bywatersolutions/koha-plugin-coverflow',
             thumbnail   => 'coverflow.png',
             timestamp   => '2024-09-17 09:34:22',
-            developer_id     => $admin->id,
+            developer_id => $admin->id,
         }
     );
     KohaPluginStore::Model::PluginVersion->new( pg => $pg )->create(
@@ -58,7 +58,7 @@ sub run ($self, @args) {
             repo_url    => 'https://github.com/PTFS-Europe/koha-plugin-ill-actions',
             thumbnail   => 'ill_actions.png',
             timestamp   => '2024-09-17 09:53:10',
-            developer_id     => $admin->id,
+            developer_id => $admin->id,
         }
     );
     KohaPluginStore::Model::PluginVersion->new( pg => $pg )->create(
@@ -82,7 +82,7 @@ sub run ($self, @args) {
             repo_url    => 'https://github.com/inLibro/koha-plugin-pdftocover',
             thumbnail   => 'pdftocover.png',
             timestamp   => '2024-09-17 10:12:51',
-            developer_id     => $admin->id,
+            developer_id => $admin->id,
         }
     );
     KohaPluginStore::Model::PluginVersion->new( pg => $pg )->create(
@@ -106,7 +106,7 @@ sub run ($self, @args) {
             repo_url    => 'https://github.com/LMSCloud/LMSEventManagement',
             thumbnail   => 'lmscloudevent.png',
             timestamp   => '2024-09-17 11:29:28',
-            developer_id     => $admin->id,
+            developer_id => $admin->id,
         }
     );
     KohaPluginStore::Model::PluginVersion->new( pg => $pg )->create(

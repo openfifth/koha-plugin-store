@@ -6,17 +6,17 @@ use Test::Mojo;
 use lib 't/lib';
 use TestDB qw(reset_db test_pg);
 
-use KohaPluginStore::Model::User;
+use KohaPluginStore::Model::Developer;
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
 
 reset_db();
 
-my $user = KohaPluginStore::Model::User->new( pg => test_pg() )->create(
-    { username => 'seeder', password => 'seederpass', email => 'seeder@example.com' }
+my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+    { oauth_provider_key => 'github', provider_user_id => '1', username => 'seeder' }
 );
 my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create(
-    { name => 'CoverFlow', description => 'A widget', user_id => $user->id }
+    { name => 'CoverFlow', description => 'A widget', developer_id => $developer->id }
 );
 KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
     {
