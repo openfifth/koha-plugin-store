@@ -37,11 +37,18 @@ sub startup ($self) {
 
     $self->helper(
         logged_in_user => sub {
-            my ( $c, $user ) = @_;
-            $user ||= $c->stash->{user} || $c->session->{user};
-            return unless $user;
-            return KohaPluginStore::Model::Developer->new( pg => $c->pg )->find( { username => $user->{username} } )
+            my ( $c, $developer ) = @_;
+            $developer ||= $c->stash->{developer} || $c->session->{developer};
+            return unless $developer;
+            return KohaPluginStore::Model::Developer->new( pg => $c->pg )->find( { id => $developer->{id} } )
               || undef;
+        }
+    );
+
+    $self->helper(
+        log_in_developer => sub {
+            my ( $c, $developer ) = @_;
+            $c->session->{developer} = $developer->unblessed;
         }
     );
 
@@ -57,9 +64,7 @@ sub startup ($self) {
     $r->any('/')->to('site#index');
     $r->any('/plugins')->to('plugins#index');
     $r->get('/login')->to( template => 'login' );
-    $r->post('/login')->to('site#login');
-    $r->get('/register')->to( template => 'register' );
-    $r->post('/register')->to('site#register');
+    $r->get('/auth/github')->to('auth#github');
     $r->get('/logout')->to('site#logout');
     $r->get('/my-plugins')->requires( user_authenticated => 1 )->to('plugins#my_plugins');
     $r->get('/new-plugin')->requires( user_authenticated => 1 )->to('plugins#add_form');
@@ -79,7 +84,7 @@ sub _add_routes_authorization {
     	user_authenticated => sub {
     	my ( $r, $c ) = @_;
 
-        if ( defined(  $c->session->{user}->{id} ) ) {
+        if ( defined(  $c->session->{developer}->{id} ) ) {
             return 1;
         }
 
