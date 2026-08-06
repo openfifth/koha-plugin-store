@@ -40,6 +40,15 @@ sub search {
     return map { $self->_new_from_row($_) } @$rows;
 }
 
+sub update {
+    my ( $self, $attrs ) = @_;
+
+    $self->pg->db->update( $self->_table, $attrs, { id => $self->id } );
+    $self->data->{$_} = $attrs->{$_} for keys %$attrs;
+
+    return $self;
+}
+
 sub _new_from_row {
     my ( $self, $row ) = @_;
     return ref($self)->new( pg => $self->pg, data => $row );

@@ -3,7 +3,6 @@ requires 'Mojolicious';
 requires 'Mojolicious::Plugin::OpenAPI';
 requires 'Mojo::Pg';
 requires 'JSON';
-requires 'Passwords';
 requires 'Archive::Zip';
 requires 'String::Util';
 requires 'IO::Socket::SSL';

@@ -1,28 +1,28 @@
 package KohaPluginStore::Command::reset_test_data;
 use Mojo::Base 'Mojolicious::Command', -signatures;
 
-use KohaPluginStore::Model::User;
+use KohaPluginStore::Model::Developer;
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
 
-has description => 'Wipe and reseed demo users/plugins/releases';
+has description => 'Wipe and reseed demo developers/plugins/releases';
 has usage       => sub { shift->extract_usage };
 
 sub run ($self, @args) {
     my $pg = $self->app->pg;
 
     $pg->db->query(
-        'TRUNCATE plugin_versions, plugins, users RESTART IDENTITY CASCADE'
+        'TRUNCATE plugin_versions, plugins, developers RESTART IDENTITY CASCADE'
     );
 
-    # Users data:
-    # admin: admin
-    # John: Doe
-    my $admin = KohaPluginStore::Model::User->new( pg => $pg )->create(
-        { username => 'admin', password => 'admin', email => 'admin@www.com' }
+    # Developers data (OAuth):
+    # admin (GitHub)
+    # John (GitHub)
+    my $admin = KohaPluginStore::Model::Developer->new( pg => $pg )->create(
+        { oauth_provider_key => 'github', provider_user_id => '1', username => 'admin', avatar_url => 'https://example.com/admin.png' }
     );
-    KohaPluginStore::Model::User->new( pg => $pg )->create(
-        { username => 'John', password => 'Doe', email => 'john@doe.com' }
+    KohaPluginStore::Model::Developer->new( pg => $pg )->create(
+        { oauth_provider_key => 'github', provider_user_id => '2', username => 'John', avatar_url => 'https://example.com/john.png' }
     );
 
     my $coverflow = KohaPluginStore::Model::Plugin->new( pg => $pg )->create(
@@ -34,7 +34,7 @@ sub run ($self, @args) {
             repo_url    => 'https://github.com/bywatersolutions/koha-plugin-coverflow',
             thumbnail   => 'coverflow.png',
             timestamp   => '2024-09-17 09:34:22',
-            user_id     => $admin->id,
+            developer_id     => $admin->id,
         }
     );
     KohaPluginStore::Model::PluginVersion->new( pg => $pg )->create(
@@ -58,7 +58,7 @@ sub run ($self, @args) {
             repo_url    => 'https://github.com/PTFS-Europe/koha-plugin-ill-actions',
             thumbnail   => 'ill_actions.png',
             timestamp   => '2024-09-17 09:53:10',
-            user_id     => $admin->id,
+            developer_id     => $admin->id,
         }
     );
     KohaPluginStore::Model::PluginVersion->new( pg => $pg )->create(
@@ -82,7 +82,7 @@ sub run ($self, @args) {
             repo_url    => 'https://github.com/inLibro/koha-plugin-pdftocover',
             thumbnail   => 'pdftocover.png',
             timestamp   => '2024-09-17 10:12:51',
-            user_id     => $admin->id,
+            developer_id     => $admin->id,
         }
     );
     KohaPluginStore::Model::PluginVersion->new( pg => $pg )->create(
@@ -106,7 +106,7 @@ sub run ($self, @args) {
             repo_url    => 'https://github.com/LMSCloud/LMSEventManagement',
             thumbnail   => 'lmscloudevent.png',
             timestamp   => '2024-09-17 11:29:28',
-            user_id     => $admin->id,
+            developer_id     => $admin->id,
         }
     );
     KohaPluginStore::Model::PluginVersion->new( pg => $pg )->create(

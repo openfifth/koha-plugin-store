@@ -10,7 +10,7 @@ package TestPlugin {
     use Modern::Perl;
     use parent -norequire, 'KohaPluginStore::Model::Base';
     sub _table   { return 'plugins' }
-    sub _columns { return [qw(id repo_url name class_name description author thumbnail user_id timestamp)] }
+    sub _columns { return [qw(id repo_url name class_name description author thumbnail developer_id timestamp)] }
 }
 
 reset_db();
@@ -53,6 +53,15 @@ subtest 'unknown column dies' => sub {
     my $plugin = TestPlugin->new( pg => test_pg() )->create( { name => 'Strict' } );
     eval { $plugin->not_a_real_column };
     like( $@, qr/not a column/, 'raises on unknown accessor' );
+};
+
+subtest 'update modifies the row and the in-memory object' => sub {
+    my $plugin = TestPlugin->new( pg => test_pg() )->create( { name => 'Updatable', description => 'Before' } );
+    my $result = $plugin->update( { description => 'After' } );
+    is( $result, $plugin, 'update returns the same object' );
+    is( $plugin->description, 'After', 'in-memory value updated' );
+    my $reloaded = TestPlugin->new( pg => test_pg() )->find( { name => 'Updatable' } );
+    is( $reloaded->description, 'After', 'persisted value updated' );
 };
 
 done_testing();

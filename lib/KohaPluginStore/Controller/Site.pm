@@ -1,6 +1,6 @@
 package KohaPluginStore::Controller::Site;
 use Mojo::Base 'Mojolicious::Controller', -signatures;
-use KohaPluginStore::Model::User;
+use KohaPluginStore::Model::Developer;
 use KohaPluginStore::Model::Plugin;
 
 sub index {
@@ -16,7 +16,7 @@ sub login {
     my $username = $c->param('username');
     my $password = $c->param('password');
 
-    my $user = KohaPluginStore::Model::User->new( pg => $c->pg )->find( { username => $username } );
+    my $user = KohaPluginStore::Model::Developer->new( pg => $c->pg )->find( { username => $username } );
 
     if ( $user && $user->check_password($password) ) {
         $c->_log_in_user($user);
@@ -38,7 +38,7 @@ sub register {
     my $created_user;
     unless (
         eval {
-            $created_user = KohaPluginStore::Model::User->new( pg => $c->pg )->create($user);
+            $created_user = KohaPluginStore::Model::Developer->new( pg => $c->pg )->create($user);
             1;
         }
       )

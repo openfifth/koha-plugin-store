@@ -2,7 +2,7 @@ package KohaPluginStore;
 use Mojo::Base 'Mojolicious', -signatures;
 use Mojo::Pg;
 
-use KohaPluginStore::Model::User;
+use KohaPluginStore::Model::Developer;
 use KohaPluginStore::Model::Plugin;
 
 has site_name => sub {
@@ -28,7 +28,7 @@ sub startup ($self) {
             my ( $c, $user ) = @_;
             $user ||= $c->stash->{user} || $c->session->{user};
             return unless $user;
-            return KohaPluginStore::Model::User->new( pg => $c->pg )->find( { username => $user->{username} } )
+            return KohaPluginStore::Model::Developer->new( pg => $c->pg )->find( { username => $user->{username} } )
               || undef;
         }
     );
