@@ -6,7 +6,10 @@ sub github ($c) {
     $c->_get_oauth_token_p('github')->then(
         sub {
             my $provider_res = shift;
-            return unless $provider_res && $provider_res->{access_token};
+            return unless $provider_res; # plugin already redirected to GitHub
+
+            return $c->render( text => 'GitHub login was not completed', status => 400 )
+                unless $provider_res->{access_token};
 
             my $profile = $c->_fetch_github_profile( $provider_res->{access_token} );
             return $c->render( text => 'Could not fetch GitHub profile', status => 502 )
