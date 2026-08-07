@@ -47,12 +47,13 @@ sub startup ($self) {
 
     $self->helper(
         log_in_developer => sub {
-            my ( $c, $developer ) = @_;
+            my ( $c, $developer, $access_token ) = @_;
 
             # Only the id -- never the whole row. logged_in_user() always re-fetches
             # fresh from the DB anyway, and the session cookie is capped at 4KiB by
             # Mojolicious, so storing more risks silently losing the session.
             $c->session->{developer} = { id => $developer->id };
+            $c->session->{github_access_token} = $access_token if $access_token;
         }
     );
 

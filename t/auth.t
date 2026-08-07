@@ -54,6 +54,15 @@ subtest 'log_in_developer stores only the id in session, not the whole row' => s
     is_deeply( [ sort keys %$session_developer ], ['id'], 'only id is stored, nothing else' );
 };
 
+subtest 'GitHub login stores the access token in session for later API calls' => sub {
+    $t->app->routes->get('/__test/session_token' => sub {
+        my $c = shift;
+        return $c->render( json => { token => $c->session->{github_access_token} } );
+    });
+
+    $t->get_ok('/__test/session_token')->status_is(200)->json_is( '/token' => 'fake-token' );
+};
+
 {
     no strict 'refs';
     no warnings 'redefine';

@@ -37,7 +37,7 @@ sub github ($c) {
                 }
             );
 
-            $c->log_in_developer($developer);
+            $c->log_in_developer( $developer, $provider_res->{access_token} );
             $c->redirect_to('/my-plugins');
         }
     )->catch(
