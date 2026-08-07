@@ -140,6 +140,12 @@ sub new_plugin ($c) {
     my $config      = $c->app->plugin('Config');
     my @errors;
 
+    my $developer_repos = KohaPluginStore::GitHub::fetch_public_repos( $c->session->{github_access_token} );
+    my $repo_is_owned   = grep { $_->{html_url} eq $plugin_repo } @$developer_repos;
+    return $c->_exit_with_error_message(
+        'That repository is not in the list of your public GitHub repositories. Please pick one from the dropdown.'
+    ) unless $repo_is_owned;
+
     my $result = $c->_get_latest_release_from_github($plugin_repo);
     return $c->render('new-plugin-step2') unless $result;
 
