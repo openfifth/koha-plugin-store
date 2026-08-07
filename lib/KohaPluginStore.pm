@@ -32,7 +32,6 @@ sub startup ($self) {
 
     $r->any('/')->to('site#index');
     $r->any('/plugins')->to('plugins#index');
-    $r->any('/users')->to('users#index');
     $r->get('/login')->to( template => 'login' );
     $r->post('/login')->to('site#login');
     $r->get('/register')->to( template => 'register' );

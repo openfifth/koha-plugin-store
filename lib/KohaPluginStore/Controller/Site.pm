@@ -5,10 +5,8 @@ use KohaPluginStore::Model::User;
 sub index {
     my $c = shift;
 
-    my @users = KohaPluginStore::Model::User->new()->search;
     my @plugins = KohaPluginStore::Model::Plugin->new()->search;
     $c->stash( plugins => \@plugins );
-    $c->stash( users   => \@users );
     $c->render;
 }
 
