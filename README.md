@@ -26,6 +26,9 @@ Koha plugin store project consisting of 2 distinct components:
     dev needs a real GitHub OAuth App registered (callback URL matching your `morbo`/Docker
     host and port), with its `client_id`/`client_secret` added to `koha_plugin_store.conf`'s
     `oauth_providers` block.
+  - Submitting a plugin now requires the developer to have at least one public GitHub
+    repository — the submission form picks from a list of the developer's own public
+    repos rather than accepting a free-text URL.
   - To install cpan dependencies, run `cpanm --installdeps .` at the project
     root dir.
   - Local Postgres runs via `docker compose up -d postgres` (see `docker-compose.yml`).

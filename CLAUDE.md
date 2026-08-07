@@ -56,7 +56,9 @@ not split into a router class. Developer login is GitHub OAuth
 list; the flow itself lives in `Controller::Auth`) — there's no password-based
 login anymore. Auth is still a single Mojolicious route condition,
 `user_authenticated`, checked against `$c->session->{developer}->{id}`; there's no
-role/permission system beyond "logged in or not". Controllers live in
+role/permission system beyond "logged in or not". The developer's GitHub access
+token is kept in `session->{github_access_token}` after login (previously
+discarded), so later requests can call GitHub's API as the developer. Controllers live in
 `lib/KohaPluginStore/Controller/` (`Site`, `Plugins`, `Releases`, `Users`) and
 follow standard Mojolicious controller conventions.
 
@@ -87,6 +89,12 @@ follow standard Mojolicious controller conventions.
 ### Plugin submission workflow (`Controller::Plugins`)
 
 The interesting/fragile logic lives here:
+
+Plugin submission picks from `GET /api/v1/developer/repos` (the developer's own
+public GitHub repos, fetched via `KohaPluginStore::GitHub::fetch_public_repos`
+using the access token stored in session at login) rather than accepting an
+arbitrary URL — `new_plugin` re-validates the submitted repo against that same
+list server-side, since the dropdown alone doesn't stop a hand-crafted request.
 
 1. `new_plugin`/`edit_form` call the GitHub API (latest release / release list)
    using the configured `github_user_access_token`.
