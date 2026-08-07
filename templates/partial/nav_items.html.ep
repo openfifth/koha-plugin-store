@@ -3,9 +3,6 @@
       %= link_to '/' => (class => 'list-group-item list-group-item-action ' . (current_route eq '' ? 'active' : '' )) => begin
         <i class='bx bx-home'></i> Home
       % end
-      %= link_to '/users' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'users' ? 'active' : '' )) => begin
-        <i class='bx bx-user'></i> Users
-      % end
       %= link_to '/plugins' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'plugins' ? 'active' : '' )) => begin
         <i class='bx bx-list-ul'></i> All Plugins
       % end
