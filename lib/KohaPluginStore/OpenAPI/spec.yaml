@@ -3,6 +3,12 @@ info:
   title: Koha Plugin Store API
   version: "1"
 x-mojo-controller: KohaPluginStore::Controller::Api
+components:
+  securitySchemes:
+    session_auth:
+      type: apiKey
+      in: cookie
+      name: mojolicious
 paths:
   /ping:
     get:
@@ -20,3 +26,37 @@ paths:
                     type: string
                 required:
                   - status
+  /developer/repos:
+    get:
+      operationId: developerRepos
+      x-mojo-to: api#developer_repos
+      security:
+        - session_auth: []
+      responses:
+        '200':
+          description: The developer's public GitHub repositories
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - repos
+                properties:
+                  repos:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - full_name
+                        - html_url
+                      properties:
+                        full_name:
+                          type: string
+                        html_url:
+                          type: string
+        '401':
+          description: Not logged in
+          content:
+            application/json:
+              schema:
+                type: object

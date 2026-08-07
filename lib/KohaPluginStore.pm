@@ -60,8 +60,15 @@ sub startup ($self) {
     $self->_add_routes_authorization();
 
     $self->plugin( 'OpenAPI', {
-        url   => $self->home->child(qw(lib KohaPluginStore OpenAPI spec.yaml)),
-        route => $self->routes->any('/api/v1'),
+        url      => $self->home->child(qw(lib KohaPluginStore OpenAPI spec.yaml)),
+        route    => $self->routes->any('/api/v1'),
+        security => {
+            session_auth => sub {
+                my ( $c, $definition, $scopes, $cb ) = @_;
+                return $c->$cb() if $c->session->{developer};
+                return $c->$cb('Not logged in');
+            },
+        },
     } );
 
     my $r = $self->routes;
