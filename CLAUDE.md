@@ -35,8 +35,12 @@ prove -l t/                                             # run all tests
 ```
 
 A `koha_plugin_store.conf` file (gitignored) is required at the project root —
-copy `koha_plugin_store.conf.example`. It holds `github_user_access_token`
-(for GitHub API calls) and `pg_dsn` (Postgres connection string).
+copy `koha_plugin_store.conf.example` (host) or `koha_plugin_store.conf.docker.example`
+(Docker — these two differ in `pg_dsn`'s host, don't mix them up). It holds
+`github_user_access_token` (for GitHub API calls), `pg_dsn` (Postgres connection
+string), and `oauth_providers` (developer login — see README's "Testing developer
+login" section for the full GitHub OAuth App setup walkthrough and the `oauth_mock`
+shortcut).
 
 `t/login.t` is stale (marked `#TODO: Redo this, its out of date` in the file
 itself) and tests a login flow that doesn't match the current app — don't treat
