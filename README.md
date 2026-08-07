@@ -44,7 +44,13 @@ No local Perl or Postgres install needed:
 2. `docker compose up -d --build`
 3. `docker compose exec app script/koha_plugin_store migrate` (first run only)
 4. `docker compose exec app script/koha_plugin_store reset_test_data` (optional demo data)
-5. Visit http://127.0.0.1:3000
+5. Visit http://127.0.0.1:3000 — the app port is published on all interfaces (`3000:3000`,
+   not `127.0.0.1:3000:3000`), so it's also reachable from elsewhere on your LAN via the
+   Docker host's own IP or hostname. That matters if you're browsing from a different
+   machine than the Docker host (e.g. testing a real GitHub OAuth App's callback from your
+   laptop against a Docker host running elsewhere on the network) — `127.0.0.1` would only
+   ever mean "this machine," not the Docker host. Postgres stays bound to `127.0.0.1` only —
+   its dev credentials are weak and well-known, so it's never exposed beyond the Docker host.
 
 The `oauth_mock` flag is already enabled in `koha_plugin_store.conf.docker.example`, allowing you to log in instantly as a mock developer without registering a real GitHub OAuth App — just click "GitHub login" and you'll be logged in. To test the real OAuth flow instead, remove or set `oauth_mock => 0` in your `koha_plugin_store.conf`.
 

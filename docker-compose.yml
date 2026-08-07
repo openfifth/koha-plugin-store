@@ -6,7 +6,7 @@ services:
     volumes:
       - .:/app
     ports:
-      - "127.0.0.1:3000:3000"
+      - "3000:3000"
 
   postgres:
     image: postgres:16-alpine
