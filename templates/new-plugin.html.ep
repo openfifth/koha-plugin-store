@@ -10,8 +10,17 @@
 <p>
 %= form_for 'new-plugin' => (method => 'POST', id => 'new_plugin_form') => begin
   <div class="mb-3">
-    <input required type="url" class="form-control" name="plugin_repo" id="plugin_repo" placeholder="Plugin repository" aria-describedby="repoHelp">
-    <div id="repoHelp" class="form-text">The <i class='bx bxl-github' ></i> github repo URL. Example: <a target="_blank" href="https://github.com/bywatersolutions/koha-plugin-coverflow">https://github.com/bywatersolutions/koha-plugin-coverflow</a></div>
+    % if (@$repos) {
+    <select required class="form-select" name="plugin_repo" id="plugin_repo" aria-describedby="repoHelp">
+      <option value="" disabled selected>Choose a repository&hellip;</option>
+      % for my $repo (@$repos) {
+      <option value="<%= $repo->{html_url} %>"><%= $repo->{full_name} %></option>
+      % }
+    </select>
+    <div id="repoHelp" class="form-text">Only your public <i class='bx bxl-github'></i> GitHub repositories are listed here.</div>
+    % } else {
+    <p class="text-danger">No public GitHub repositories found for your account. Make sure your plugin's repository is public, then refresh this page.</p>
+    % }
   </div>
   <div class="mb-3">
     <input required type="checkbox" class="form-check-input" name="author_confirm" id="author_confirm">

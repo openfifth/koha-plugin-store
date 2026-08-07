@@ -2,6 +2,7 @@ package KohaPluginStore::Controller::Plugins;
 use Mojo::Base 'Mojolicious::Controller', -signatures;
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
+use KohaPluginStore::GitHub;
 use JSON;
 
 sub index {
@@ -26,6 +27,10 @@ sub add_form {
     my $c = shift;
 
     my $template = $c->session->{developer} ? 'new-plugin' : 'unauthorized';
+    if ( $template eq 'new-plugin' ) {
+        my $repos = KohaPluginStore::GitHub::fetch_public_repos( $c->session->{github_access_token} );
+        $c->stash( repos => $repos );
+    }
     $c->render($template);
 }
 
