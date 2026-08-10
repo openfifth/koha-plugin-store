@@ -26,7 +26,7 @@ $t->app->config->{oauth_mock} = 0;
 subtest 'rejects a repo not in the developer\'s own list, without calling GitHub for release info' => sub {
     no strict 'refs';
     no warnings 'redefine';
-    *KohaPluginStore::Controller::Plugins::_get_latest_release_from_github = sub {
+    *KohaPluginStore::GitHub::fetch_releases = sub {
         die 'should not be called for an unowned repo';
     };
 

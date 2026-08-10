@@ -1,10 +1,8 @@
-% title "Confirm new plugin";
+% title "Choose a release";
 % layout 'default';
 % my $errors = stash 'errors';
-% my $latest_release = stash 'latest_release';
-% my $plugin_metadata = stash 'plugin_metadata';
-% my $kpz_asset = stash 'kpz_asset';
-
+% my $plugin_repo = stash 'plugin_repo';
+% my $releases = stash 'releases';
 
 % content_for 'sidebar' => begin
   %= include 'partial/side_menu'
@@ -13,90 +11,45 @@
 <h2><%= title %></h2>
 
 % if ($errors) {
-  <h3 class="text-danger">Errors found:</h2>
+  <h3 class="text-danger">Errors found:</h3>
   % foreach my $error ( @{$errors} ) {
         %= t li => (class => 'text-danger') => $error
   % }
-  %= t p => 'Please correct the errors above and submit the plugin again'
   %= link_to '/new-plugin' => (class => 'btn btn-primary') => begin
   Return
   % end
-% }
-
-% if ($plugin_metadata) {
-  <h3>Plugin metadata:</h3>
-  <table class="table">
-    <tbody>
-      <tr>
-      %= t td => 'Name'
-      %= t td => $plugin_metadata->{name} 
-      </tr>
-      <tr>
-      %= t td => 'Description'
-      %= t td => $plugin_metadata->{description} 
-      </tr>
-      <tr>
-      %= t td => 'Author'
-      %= t td => $plugin_metadata->{author} 
-      </tr>
-      <tr>
-      %= t td => 'Repository'
-      %= t td => link_to $plugin_metadata->{repo_url}  => $plugin_metadata->{repo_url}  => (target => '_blank')
-      </tr>
-      <tr>
-      %= t td => 'Class name'
-      %= t td => $plugin_metadata->{class_name}
-      </tr>
-    </tbody>
-  </table>
-% }
-
-% if ($latest_release && $kpz_asset) {
-  <h3>Latest release details:</h3>
-  <table class="table">
-    <tbody>
-      <tr>
-      %= t td => 'Name'
-      %= t td => link_to $latest_release->{name} => $latest_release->{html_url} => (target => '_blank')
-      </tr>
-      <tr>
-      %= t td => 'Published at'
-      %= t td => $latest_release->{published_at}
-      </tr>
-      <tr>
-      %= t td => 'Author'
-      %= t td => link_to $latest_release->{author}->{login} => $latest_release->{author}->{html_url} => (target => '_blank')
-      </tr>
-      <tr>
-      %= t td => begin
-        <i class='bx bx-package'></i> .kpz asset name
-      % end 
-      %= t td => link_to $kpz_asset->{name} => $kpz_asset->{browser_download_url} => (target => '_blank')
-      </tr>
-      <tr>
-
-      %= t td => begin
-        <i class='bx bx-package'></i> .kpz asset download count
-      % end 
-      %= t td => $kpz_asset->{download_count}
-      </tr>
-    </tbody>
-  </table>
-
-  %= t p => (class => 'text-success') => 'Everything appears to be in order!'
-  %= t p => form_for 'new-plugin-confirm' => (method => 'POST') => begin
-    <input type="hidden" name="kpz_download" value="<%= $kpz_asset->{browser_download_url} %>"></button>
-    <input type="hidden" name="plugin_metadata_name" value="<%= $plugin_metadata->{name} %>"></button>
-    <input type="hidden" name="plugin_metadata_repo_url" value="<%= $plugin_metadata->{repo_url} %>"></button>
-    <input type="hidden" name="plugin_metadata_class_name" value="<%= $plugin_metadata->{class_name} %>"></button>
-    <input type="hidden" name="plugin_metadata_description" value="<%= $plugin_metadata->{description} %>"></button>
-    <input type="hidden" name="plugin_metadata_author" value="<%= $plugin_metadata->{author} %>"></button>
-    <input type="hidden" name="release_metadata_name" value="<%= $latest_release->{name} %>"></button>
-    <input type="hidden" name="release_metadata_tag_name" value="<%= $latest_release->{tag_name} %>"></button>
-    <input type="hidden" name="release_metadata_date_released" value="<%= $latest_release->{published_at} %>"></button>
-    <input type="hidden" name="release_metadata_version" value="<%= $plugin_metadata->{version} %>"></button>
-    <input type="hidden" name="release_metadata_koha_min_version" value="<%= $plugin_metadata->{minimum_version} %>"></button>
+% } else {
+  %= form_for 'new-plugin-confirm' => (method => 'POST') => begin
+    <input type="hidden" name="plugin_repo" value="<%= $plugin_repo %>">
+    <table class="table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Name</th>
+          <th>Tag</th>
+          <th>Published at</th>
+        </tr>
+      </thead>
+      <tbody>
+        % for my $release (@$releases) {
+        <tr>
+          <td>
+            % if ($release->{eligible}) {
+            <input required type="radio" name="tag_name" value="<%= $release->{tag_name} %>">
+            % } else {
+            <i class='bx bx-error text-danger'></i>
+            % }
+          </td>
+          %= t td => $release->{name}
+          %= t td => $release->{tag_name}
+          %= t td => $release->{published_at}
+          % if (!$release->{eligible}) {
+          %= t td => (class => 'text-danger') => $release->{ineligible_reason}
+          % }
+        </tr>
+        % }
+      </tbody>
+    </table>
     <button type="submit" class="btn btn-primary">Continue</button>
   % end
-
 % }

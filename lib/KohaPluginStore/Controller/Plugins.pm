@@ -154,8 +154,6 @@ sub list_all ($c) {
 
 sub new_plugin ($c) {
     my $plugin_repo = $c->param('plugin_repo');
-    my $config      = $c->app->plugin('Config');
-    my @errors;
 
     my $developer_repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
     my $repo_is_owned   = grep { $_->{html_url} eq $plugin_repo } @$developer_repos;
@@ -163,128 +161,83 @@ sub new_plugin ($c) {
         'That repository is not in the list of your public GitHub repositories. Please pick one from the dropdown.'
     ) unless $repo_is_owned;
 
-    my $result = $c->_get_latest_release_from_github($plugin_repo);
-    return $c->render('new-plugin-step2') unless $result;
+    my $config   = $c->app->plugin('Config');
+    my $releases = KohaPluginStore::GitHub::fetch_releases( $config->{github_app_token}, $plugin_repo );
+    return $c->_exit_with_error_message('Could not fetch releases from GitHub for this repository.')
+        unless @$releases;
 
-    my $latest_release = decode_json $result;
-    my @assets         = grep { $_->{name} =~ /\.kpz$/ } @{ $latest_release->{assets} };
-    return $c->_exit_with_error_message(
-        'Latest release must contain one and only one \'.kpz\' asset. Number of \'.kpz\' assets found: '.scalar @assets)
-        unless ( scalar @assets eq 1 );
-
-    my $plugin_dir        = _download_plugin( $assets[0]->{browser_download_url} );
-    my ( $plugin_class_file, $plugin_class_name ) = _get_plugin_class_file_and_name($plugin_dir);
-    return $c->_exit_with_error_message(
-        'Plugin class file not found. Make sure the plugin has a class containing \'use base qw(Koha::Plugins::Base)\'?'
-    ) unless $plugin_class_file;
-
-    return $c->_exit_with_error_message(
-        'Plugin class name not found. Make sure the plugin has a class file containing \'package \'?'
-    ) unless $plugin_class_name;
-
-    my $plugin_metadata = _get_plugin_metadata($plugin_class_file);
-    return $c->_exit_with_error_message(
-        'Plugin metadata not found. Make sure the plugin class contains \'our $metadata = { ... } ?\'')
-        unless $plugin_metadata;
-
-    return $c->_exit_with_error_message('Plugin metadata missing \'minimum_version\'. Make sure this value is set.')
-        unless $plugin_metadata->{minimum_version};
-
-    my $existing_plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find(
-        {
-            name     => $plugin_metadata->{name},
-            repo_url => $plugin_repo
+    for my $release (@$releases) {
+        my @kpz_assets = grep { $_->{name} =~ /\.kpz$/ } @{ $release->{assets} };
+        if ( scalar @kpz_assets == 1 ) {
+            $release->{eligible} = 1;
         }
-    );
+        else {
+            $release->{eligible}         = 0;
+            $release->{ineligible_reason} =
+                'Release must contain one and only one \'.kpz\' asset. Found: ' . scalar @kpz_assets;
+        }
+    }
 
-    return $c->_exit_with_error_message( 'A plugin with the name \''
-            . $plugin_metadata->{name}
-            . '\' or the URL \''
-            . $plugin_repo
-            . '\' already exists.' )
-        if $existing_plugin;
-
-    $plugin_metadata->{repo_url} = $plugin_repo;
-    $plugin_metadata->{class_name} = $plugin_class_name;
-    $c->stash( latest_release  => $latest_release );
-    $c->stash( kpz_asset       => $assets[0] );
-    $c->stash( plugin_metadata => $plugin_metadata );
-    return $c->render('new-plugin-step2');
+    $c->stash( plugin_repo => $plugin_repo, releases => $releases );
+    $c->render('new-plugin-step2');
 }
 
 sub new_plugin_confirm ($c) {
-    my $name        = $c->param('plugin_metadata_name');
-    my $repo_url    = $c->param('plugin_metadata_repo_url');
-    my $class_name  = $c->param('plugin_metadata_class_name');
-    my $description = $c->param('plugin_metadata_description');
-    my $author      = $c->param('plugin_metadata_author');
+    my $plugin_repo = $c->param('plugin_repo');
+    my $tag_name    = $c->param('tag_name');
 
-    my $release_name             = $c->param('release_metadata_name');
-    my $release_tag_name         = $c->param('release_metadata_tag_name');
-    my $release_date_released    = $c->param('release_metadata_date_released');
-    my $release_version          = $c->param('release_metadata_version');
-    my $release_koha_min_version = $c->param('release_metadata_koha_min_version');
-    my $release_kpz_url          = $c->param('kpz_download');
-
-    # TODO: Write a test for this
-    unless ( $c->logged_in_user ) {
+    unless ( $c->session->{developer} ) {
         return $c->render( text => 'Unauthorized', status => 401 );
     }
 
-    my $new_plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->create(
+    my $developer_repos = KohaPluginStore::GitHub::fetch_public_repos( $c->session->{github_access_token} );
+    my $repo_is_owned   = grep { $_->{html_url} eq $plugin_repo } @$developer_repos;
+    return $c->_exit_with_error_message(
+        'That repository is not in the list of your public GitHub repositories. Please pick one from the dropdown.'
+    ) unless $repo_is_owned;
+
+    my $config  = $c->app->plugin('Config');
+    my $token   = $config->{github_app_token};
+    my $release = KohaPluginStore::GitHub::fetch_release_by_tag( $token, $plugin_repo, $tag_name );
+    return $c->_exit_with_error_message('Could not re-fetch that release from GitHub. Please try again.')
+        unless $release;
+
+    my @kpz_assets = grep { $_->{name} =~ /\.kpz$/ } @{ $release->{assets} };
+    return $c->_exit_with_error_message(
+        'Release must contain one and only one \'.kpz\' asset. Found: ' . scalar @kpz_assets )
+        unless scalar @kpz_assets == 1;
+
+    my ($repo_name) = $plugin_repo =~ m{([^/]+)/?$};
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->create_with_unique_slug(
+        $repo_name,
         {
-            name        => $name,
-            description => $description,
-            author      => $author,
-            repo_url    => $repo_url,
-            class_name  => $class_name,
-            developer_id => $c->session->{developer}->{id}
+            repo_url     => $plugin_repo,
+            developer_id => $c->session->{developer}->{id},
         }
     );
 
-    my $new_release = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->create(
-        {
-            plugin_id        => $new_plugin->id,
-            name             => $release_name,
-            tag_name         => $release_tag_name,
-            date_released    => $release_date_released,
-            version          => $release_version,
-            koha_min_version => $release_koha_min_version,
-            kpz_url          => $release_kpz_url
-        }
-    );
-
-    $c->stash( new_plugin_id => $new_plugin->id );
-    $c->render('new-plugin-confirm');
-}
-
-sub _get_latest_release_from_github {
-    my ( $c, $plugin_repo ) = @_;
-
-    my $config          = $c->app->plugin('Config');
-    my $plugin_api_repo = $plugin_repo =~ s/https:\/\/github.com\//https:\/\/api.github.com\/repos\//r;
-    my $ua              = Mojo::UserAgent->new;
-    my $request         = $ua->get(
-        $plugin_api_repo . '/releases/latest' => {
-            Accept        => 'application/vnd.github+json',
-            Authorization => 'Bearer ' . $config->{github_user_access_token}
-        }
-    );
-
-    #TOOD: Write a unit test for this
-    if ( $request->result->code != 200 ) {
-        $c->stash(
-            errors => [
-                      'Unable to get latest release from github. Error: {code: '
-                    . $request->result->code
-                    . ', message: '
-                    . $request->result->message . '}'
-            ]
+    my $new_version = eval {
+        KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->create(
+            {
+                plugin_id         => $plugin->id,
+                tag_name          => $release->{tag_name},
+                name              => $release->{name},
+                date_released     => $release->{published_at},
+                kpz_url           => $kpz_assets[0]->{browser_download_url},
+                author_username   => $release->{author}->{login},
+                author_avatar_url => $release->{author}->{avatar_url},
+                status            => 'submitted',
+            }
         );
-        return;
-    }
+    };
+    return $c->_exit_with_error_message('That release has already been submitted.')
+        if !$new_version && $@ =~ /plugin_versions_plugin_id_tag_name_key/;
+    die $@ if !$new_version;
 
-    return $request->result->body;
+    $c->minion->enqueue( process_plugin_version => [ $new_version->id ], { attempts => 3 } );
+
+    return $c->redirect_to( '/plugins/' . $plugin->slug );
 }
 
 sub _get_releases_from_github {
