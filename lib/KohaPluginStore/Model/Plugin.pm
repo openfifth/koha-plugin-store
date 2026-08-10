@@ -21,4 +21,21 @@ sub releases {
     return \@versions;
 }
 
+sub create_with_unique_slug {
+    my ( $self, $slug_source, $attrs ) = @_;
+
+    my $base = lc($slug_source);
+    $base =~ s/[^a-z0-9]+/-/g;
+    $base =~ s/^-+|-+$//g;
+
+    for my $attempt ( 1 .. 10 ) {
+        my $candidate = $attempt == 1 ? $base : "$base-$attempt";
+        my $plugin = eval { $self->create( { %$attrs, slug => $candidate } ) };
+        return $plugin if $plugin;
+        die $@ unless $@ =~ /plugins_slug_key/;
+    }
+
+    die "Could not generate a unique slug for '$slug_source' after 10 attempts";
+}
+
 1;
