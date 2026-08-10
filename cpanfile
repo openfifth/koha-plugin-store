@@ -6,6 +6,7 @@ requires 'Mojolicious::Plugin::OAuth2';
 requires 'Minion';
 requires 'JSON';
 requires 'Archive::Zip';
+requires 'Digest::SHA';
 requires 'String::Util';
 requires 'IO::Socket::SSL';
 requires 'Net::SSLeay';
