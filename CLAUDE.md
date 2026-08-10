@@ -97,22 +97,25 @@ using the access token stored in session at login) rather than accepting an
 arbitrary URL — `new_plugin` re-validates the submitted repo against that same
 list server-side, since the dropdown alone doesn't stop a hand-crafted request.
 
-1. `new_plugin`/`edit_form` call the GitHub API (latest release / release list)
-   using the configured `github_user_access_token`.
-2. The release's `.kpz` asset is downloaded and unzipped into `kpz_packages/`
-   (`_download_plugin`) — this directory is gitignored and acts as a cache
-   (`_download_plugin` short-circuits if the target file already exists).
-3. `_get_plugin_class_file_and_name` walks the extracted plugin directory
-   looking for a file with `use base`/`use parent ... Koha::Plugins::Base`, then
-   extracts the `package` name from it.
-4. `_get_plugin_metadata` regex-extracts the `our $metadata = { ... }` hash
-   literal out of the plugin's Perl source (resolving `$variable` references
-   used inside it) and `eval`s it into a real hashref. This is parsing Perl
-   source with regexes, not executing/requiring the plugin module — fragile by
-   design, but avoids loading untrusted third-party plugin code into the store
-   process.
-5. `new_plugin_confirm` persists the `Plugin` + first `Release` rows once a
-   logged-in user confirms the parsed metadata.
+1. The developer picks a repo (constrained to their own public GitHub repos, §above) and
+   a specific tagged release (`GET /repos/.../releases`, via the store's own
+   `github_app_token` -- not the developer's login token). `new_plugin_confirm`/
+   `new_release` re-fetch that exact release server-side, create the `plugins`/
+   `plugin_versions` rows immediately with `status = 'submitted'`, and enqueue a Minion
+   job -- they never download or parse anything themselves.
+2. `KohaPluginStore::Task::ProcessPluginVersion` (the `process_plugin_version` Minion
+   task) does the actual work: downloads the `.kpz` to a temp directory (never a
+   permanent cache), extracts it, walks the tree for a file with `use base`/`use parent
+   ... Koha::Plugins::Base`, regex-extracts the `our $metadata = { ... }` hash literal
+   (same fragile-by-design approach as before -- parsing text, not executing the plugin),
+   fetches the repo's contributors, computes a SHA-256 `content_digest`, and sets the
+   version's `status` to `published` or `changes_requested` (with `error_message`)
+   accordingly.
+3. `GET /plugins/:slug` is the public page a developer watches while their submission
+   processes -- it auto-refreshes every 5 seconds while any version is
+   `submitted`/`checks_running`.
+
+**Note:** A Minion worker process must be running for submissions to ever leave `status = 'submitted'`. Locally: `perl script/koha_plugin_store minion worker`. In Docker: the `worker` service in `docker-compose.yml`.
 
 `/api/plugins` (`list_all`) is the public, unauthenticated, CORS-enabled endpoint
 the Koha-side Vue client calls; it filters releases by `koha_version_release`

@@ -8,6 +8,14 @@ services:
     ports:
       - "3000:3000"
 
+  worker:
+    build: .
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
+    command: ["perl", "script/koha_plugin_store", "minion", "worker"]
+
   postgres:
     image: postgres:16-alpine
     environment:

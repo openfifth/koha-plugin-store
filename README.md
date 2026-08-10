@@ -29,6 +29,11 @@ Koha plugin store project consisting of 2 distinct components:
   - Submitting a plugin now requires the developer to have at least one public GitHub
     repository — the submission form picks from a list of the developer's own public
     repos rather than accepting a free-text URL.
+  - Plugin submission is asynchronous: picking a repo+tag creates the plugin/version rows
+    immediately and a Minion background job does the actual download/parse/validation.
+    A Minion worker process must be running for submissions to ever complete -- either
+    `perl script/koha_plugin_store minion worker` locally, or the `worker` service in
+    Docker (already included in `docker-compose.yml`).
   - To install cpan dependencies, run `cpanm --installdeps .` at the project
     root dir.
   - Local Postgres runs via `docker compose up -d postgres` (see `docker-compose.yml`).
