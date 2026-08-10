@@ -11,24 +11,35 @@ reset_db();
 
 my $t = test_app();
 
-{
-    no strict 'refs';
-    no warnings 'redefine';
-    *KohaPluginStore::Controller::Auth::_get_oauth_token_p = sub {
-        return Mojo::Promise->resolve( { access_token => 'fake-token' } );
-    };
-    *KohaPluginStore::Controller::Auth::_fetch_github_profile = sub {
-        return { id => '777', login => 'newdev', avatar_url => 'https://example.com/n.png' };
-    };
-}
-
-subtest 'GitHub login then logout' => sub {
-    $t->get_ok('/auth/github')->status_is(302)->header_is( Location => '/my-plugins' );
-    $t->get_ok('/logout')->status_is(302);
+subtest 'anonymous visitor sees the pitch and join path, not the welcome-back panel' => sub {
+    $t->get_ok('/')
+      ->status_is(200)
+      ->content_like(qr/community-run plugin catalogue/i)
+      ->content_like(qr/for plugin developers/i)
+      ->element_exists('a[href="/auth/github"]')
+      ->element_exists_not('a[href="/new-plugin"]')
+      ->element_exists_not('a[href="/my-plugins"]')
+      ->content_unlike(qr/Welcome back/i);
 };
 
-subtest 'my-plugins requires login' => sub {
-    $t->get_ok('/my-plugins')->status_is(404); # existing #TODO in the app: this should be 401
+subtest 'logged-in developer sees the welcome-back panel, not the join path' => sub {
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    $t->get_ok('/')
+      ->status_is(200)
+      ->content_like(qr/Welcome back, mockdev/i)
+      ->element_exists('a[href="/new-plugin"]')
+      ->element_exists('a[href="/my-plugins"]')
+      ->element_exists_not('a[href="/auth/github"]')
+      ->content_unlike(qr/community-run plugin catalogue/i);
+
+    $t->get_ok('/logout');
+};
+
+subtest 'no longer duplicates the All Plugins listing' => sub {
+    $t->get_ok('/')->element_exists_not('table');
 };
 
 done_testing();

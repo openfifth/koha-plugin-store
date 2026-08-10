@@ -5,7 +5,45 @@
   %= include 'partial/side_menu'
 % end
 
-<h2><%= title %></h2>
-<h3>Plugins List</h3>
-%= include 'partial/table/plugins', plugins => $plugins
+% if (logged_in_user) {
+  <div class="d-flex align-items-center mb-4">
+    % if (logged_in_user->avatar_url) {
+    <img src="<%= logged_in_user->avatar_url %>" alt="" class="rounded-circle me-3" width="64" height="64">
+    % }
+    <h2 class="mb-0">Welcome back, <%= logged_in_user->username %></h2>
+  </div>
 
+  <div class="list-group">
+    %= link_to '/new-plugin' => (class => 'list-group-item list-group-item-action') => begin
+      <i class='bx bx-plus'></i> Submit a new plugin
+    % end
+    %= link_to '/my-plugins' => (class => 'list-group-item list-group-item-action') => begin
+      <i class='bx bx-list-ol'></i> View my plugins
+    % end
+  </div>
+% } else {
+  <h2><%= title %></h2>
+  <p class="lead">
+    A community-run plugin catalogue for Koha. Developers submit and manage their own
+    Koha plugins here; Koha libraries discover and install them from inside Koha itself.
+  </p>
+
+  <div class="alert alert-info" role="alert">
+    <strong>This site is for plugin developers.</strong> If you're a librarian or other
+    Koha staff member looking for plugins to install, you'll find them from within your
+    Koha staff client, not here.
+  </div>
+
+  <h3>How to join</h3>
+  <ol>
+    <li>Log in with your GitHub account.</li>
+    <li>Pick one of your public repositories that contains a Koha plugin.</li>
+    <li>Choose a tagged release to submit.</li>
+  </ol>
+
+  <p>
+    %= link_to '/auth/github' => (class => 'btn btn-dark') => begin
+      <i class='bx bxl-github'></i> Log in with GitHub
+    % end
+  </p>
+% }
