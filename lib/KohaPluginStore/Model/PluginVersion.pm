@@ -9,7 +9,7 @@ sub _table {
 }
 
 sub _columns {
-    return [qw(id plugin_id name tag_name version koha_min_version kpz_url date_released)];
+    return [qw(id plugin_id name tag_name version koha_min_version kpz_url date_released status error_message content_digest author_username author_avatar_url)];
 }
 
 1;

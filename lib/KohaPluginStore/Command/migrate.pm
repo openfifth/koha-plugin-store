@@ -100,3 +100,38 @@ ALTER TABLE developers ADD COLUMN cached_repos_fetched_at TIMESTAMPTZ;
 -- 3 down
 ALTER TABLE developers DROP COLUMN cached_repos_fetched_at;
 ALTER TABLE developers DROP COLUMN cached_repos;
+
+-- 4 up
+ALTER TABLE plugins ADD COLUMN slug TEXT UNIQUE;
+ALTER TABLE plugins ADD COLUMN documentation_url TEXT;
+
+ALTER TABLE plugin_versions ADD COLUMN status TEXT NOT NULL DEFAULT 'submitted';
+ALTER TABLE plugin_versions ADD COLUMN error_message TEXT;
+ALTER TABLE plugin_versions ADD COLUMN content_digest TEXT;
+ALTER TABLE plugin_versions ADD COLUMN author_username TEXT;
+ALTER TABLE plugin_versions ADD COLUMN author_avatar_url TEXT;
+ALTER TABLE plugin_versions ADD CONSTRAINT plugin_versions_plugin_id_tag_name_key
+    UNIQUE (plugin_id, tag_name);
+
+CREATE TABLE plugin_contributors (
+    id                  SERIAL PRIMARY KEY,
+    plugin_id           INTEGER REFERENCES plugins(id) ON DELETE CASCADE,
+    github_username     TEXT NOT NULL,
+    avatar_url          TEXT,
+    contributions_count INTEGER,
+    fetched_at          TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (plugin_id, github_username)
+);
+
+-- 4 down
+DROP TABLE plugin_contributors;
+
+ALTER TABLE plugin_versions DROP CONSTRAINT plugin_versions_plugin_id_tag_name_key;
+ALTER TABLE plugin_versions DROP COLUMN author_avatar_url;
+ALTER TABLE plugin_versions DROP COLUMN author_username;
+ALTER TABLE plugin_versions DROP COLUMN content_digest;
+ALTER TABLE plugin_versions DROP COLUMN error_message;
+ALTER TABLE plugin_versions DROP COLUMN status;
+
+ALTER TABLE plugins DROP COLUMN documentation_url;
+ALTER TABLE plugins DROP COLUMN slug;

@@ -17,7 +17,7 @@ sub test_pg {
 
 sub reset_db {
     $PG->db->query(
-        'TRUNCATE plugin_versions, plugins, developers RESTART IDENTITY CASCADE'
+        'TRUNCATE plugin_versions, plugins, developers, plugin_contributors RESTART IDENTITY CASCADE'
     );
 }
 
