@@ -28,10 +28,27 @@ sub add_form {
 
     my $template = $c->session->{developer} ? 'new-plugin' : 'unauthorized';
     if ( $template eq 'new-plugin' ) {
-        my $repos = KohaPluginStore::GitHub::fetch_public_repos( $c->session->{github_access_token} );
-        $c->stash( repos => $repos );
+        my $developer = $c->logged_in_user;
+        unless ( defined $developer->data->{cached_repos} ) {
+            my $repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
+            $developer->refresh_cached_repos($repos);
+        }
+        $c->stash(
+            repos            => $developer->cached_repos,
+            repos_fetched_at => $developer->cached_repos_fetched_at,
+        );
     }
     $c->render($template);
+}
+
+sub refresh_repos {
+    my $c = shift;
+
+    my $developer = $c->logged_in_user;
+    my $repos      = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
+    $developer->refresh_cached_repos($repos);
+
+    $c->redirect_to('/new-plugin');
 }
 
 sub edit_form {
@@ -140,7 +157,7 @@ sub new_plugin ($c) {
     my $config      = $c->app->plugin('Config');
     my @errors;
 
-    my $developer_repos = KohaPluginStore::GitHub::fetch_public_repos( $c->session->{github_access_token} );
+    my $developer_repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
     my $repo_is_owned   = grep { $_->{html_url} eq $plugin_repo } @$developer_repos;
     return $c->_exit_with_error_message(
         'That repository is not in the list of your public GitHub repositories. Please pick one from the dropdown.'

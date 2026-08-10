@@ -92,3 +92,11 @@ ALTER TABLE plugins DROP COLUMN developer_id;
 ALTER TABLE plugins ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
 
 DROP TABLE developers;
+
+-- 3 up
+ALTER TABLE developers ADD COLUMN cached_repos JSONB;
+ALTER TABLE developers ADD COLUMN cached_repos_fetched_at TIMESTAMPTZ;
+
+-- 3 down
+ALTER TABLE developers DROP COLUMN cached_repos_fetched_at;
+ALTER TABLE developers DROP COLUMN cached_repos;

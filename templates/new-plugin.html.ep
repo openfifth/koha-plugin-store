@@ -5,6 +5,10 @@
   %= include 'partial/side_menu'
 % end
 
+% content_for 'head' => begin
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet" integrity="sha384-piG3EtH1fBnPi68q4spy+Qgpb0dHK1D1dwk0GaHwFkvmUxYi526bBlk3xJcjEBsD" crossorigin="anonymous">
+% end
+
 <h2><%= title %></h2>
 
 <p>
@@ -17,9 +21,12 @@
       <option value="<%= $repo->{html_url} %>"><%= $repo->{full_name} %></option>
       % }
     </select>
-    <div id="repoHelp" class="form-text">Only your public <i class='bx bxl-github'></i> GitHub repositories are listed here.</div>
+    <div id="repoHelp" class="form-text">
+      Search across all of your public GitHub repositories, including organizations you belong
+      to. Repo list last refreshed <%= $repos_fetched_at %>.
+    </div>
     % } else {
-    <p class="text-danger">No public GitHub repositories found for your account. Make sure your plugin's repository is public, then refresh this page.</p>
+    <p class="text-danger">No public GitHub repositories found for your account. Make sure your plugin's repository is public, then click Refresh below.</p>
     % }
   </div>
   <div class="mb-3">
@@ -33,3 +40,21 @@
   <button type="submit" class="btn btn-primary">Submit</button>
 % end
 </p>
+
+%= form_for '/developer/repos/refresh' => (method => 'POST') => begin
+  <button type="submit" class="btn btn-outline-secondary btn-sm">
+    <i class='bx bx-refresh'></i> Refresh my GitHub repos
+  </button>
+% end
+
+% content_for 'end' => begin
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js" integrity="sha384-cnROoUgVILyibe3J0zhzWoJ9p2WmdnK7j/BOTSWqVDbC1pVw2d+i6Q/1ESKJKCYf" crossorigin="anonymous"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var select = document.getElementById('plugin_repo');
+      if (select) {
+        new TomSelect(select, { create: false });
+      }
+    });
+  </script>
+% end
