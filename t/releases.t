@@ -5,7 +5,7 @@ use Test::Mojo;
 use Mojo::Promise;
 
 use lib 't/lib';
-use TestDB qw(reset_db test_pg);
+use TestDB qw(reset_db test_app test_pg);
 
 use KohaPluginStore::Model::Developer;
 use KohaPluginStore::Model::Plugin;
@@ -23,8 +23,7 @@ my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with
     'coverflow', { name => 'CoverFlow', repo_url => 'https://github.com/owner/coverflow', developer_id => $owner->id }
 );
 
-my $t = Test::Mojo->new('KohaPluginStore');
-$t->app->pg( test_pg() );
+my $t = test_app();
 $t->app->plugin( Minion => { Pg => test_pg() } );
 
 my $profile_to_return;

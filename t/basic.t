@@ -4,12 +4,11 @@ use Test::More;
 use Test::Mojo;
 
 use lib 't/lib';
-use TestDB qw(reset_db test_pg);
+use TestDB qw(reset_db test_app test_pg);
 
 reset_db();
 
-my $t = Test::Mojo->new('KohaPluginStore');
-$t->app->pg( test_pg() );
+my $t = test_app();
 
 $t->get_ok('/')->status_is(200)->content_like(qr/Koha Plugin Store/i);
 

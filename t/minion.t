@@ -4,14 +4,13 @@ use Test::More;
 use Test::Mojo;
 
 use lib 't/lib';
-use TestDB qw(reset_db test_pg);
+use TestDB qw(reset_db test_app test_pg);
 
 use KohaPluginStore::Model::Developer;
 
 reset_db();
 
-my $t = Test::Mojo->new('KohaPluginStore');
-$t->app->pg( test_pg() );
+my $t = test_app();
 $t->app->plugin( Minion => { Pg => test_pg() } );
 
 subtest 'the minion helper is registered and can run a trivial job' => sub {

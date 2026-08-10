@@ -7,7 +7,7 @@ use File::Copy 'copy';
 use Archive::Zip;
 
 use lib 't/lib';
-use TestDB qw(reset_db test_pg);
+use TestDB qw(reset_db test_app test_pg);
 
 use KohaPluginStore::Model::Developer;
 use KohaPluginStore::Model::Plugin;
@@ -16,8 +16,7 @@ use KohaPluginStore::Model::PluginContributor;
 
 reset_db();
 
-my $t = Test::Mojo->new('KohaPluginStore');
-$t->app->pg( test_pg() );
+my $t = test_app();
 
 sub make_kpz {
     my ($plugin_pm_contents) = @_;
@@ -72,7 +71,7 @@ subtest 'successful processing publishes the version' => sub {
     };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
-    $t->app->minion->perform_jobs;
+    $t->app->minion->perform_jobs_in_foreground;
 
     my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
     is( $reloaded->status, 'published', 'status is published' );
@@ -105,7 +104,7 @@ subtest 'download failure sets changes_requested with a specific message' => sub
     *KohaPluginStore::GitHub::download_kpz = sub { return 0 };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
-    $t->app->minion->perform_jobs;
+    $t->app->minion->perform_jobs_in_foreground;
 
     my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
     is( $reloaded->status, 'changes_requested', 'status is changes_requested' );
@@ -132,7 +131,7 @@ subtest 'a zip with no plugin class file sets changes_requested' => sub {
     };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
-    $t->app->minion->perform_jobs;
+    $t->app->minion->perform_jobs_in_foreground;
 
     my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
     is( $reloaded->status, 'changes_requested', 'status is changes_requested' );
@@ -166,7 +165,7 @@ PERL
     *KohaPluginStore::GitHub::fetch_contributors = sub { return [] };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
-    $t->app->minion->perform_jobs;
+    $t->app->minion->perform_jobs_in_foreground;
 
     my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
     is( $reloaded->status, 'changes_requested', 'status is changes_requested' );
@@ -194,7 +193,7 @@ subtest 'a contributors fetch failure does not block publishing' => sub {
     *KohaPluginStore::GitHub::fetch_contributors = sub { die 'GitHub is down' };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
-    $t->app->minion->perform_jobs;
+    $t->app->minion->perform_jobs_in_foreground;
 
     my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
     is( $reloaded->status, 'published', 'status is still published despite the contributors fetch failing' );

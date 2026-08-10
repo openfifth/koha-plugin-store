@@ -4,14 +4,13 @@ use Test::More;
 use Test::Mojo;
 
 use lib 't/lib';
-use TestDB qw(reset_db test_pg);
+use TestDB qw(reset_db test_app test_pg);
 
 use KohaPluginStore::Model::Developer;
 
 reset_db();
 
-my $t = Test::Mojo->new('KohaPluginStore');
-$t->app->pg( test_pg() );
+my $t = test_app();
 
 subtest 'anonymous request is rejected' => sub {
     $t->get_ok('/api/v1/developer/repos')->status_is(401);

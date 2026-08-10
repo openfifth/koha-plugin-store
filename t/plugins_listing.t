@@ -4,14 +4,13 @@ use Test::More;
 use Test::Mojo;
 
 use lib 't/lib';
-use TestDB qw(reset_db test_pg);
+use TestDB qw(reset_db test_app test_pg);
 
 use KohaPluginStore::Model::Developer;
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
 
-my $t = Test::Mojo->new('KohaPluginStore');
-$t->app->pg( test_pg() );
+my $t = test_app();
 
 subtest 'links to the detail page and shows the latest version\'s status' => sub {
     reset_db();

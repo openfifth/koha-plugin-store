@@ -4,7 +4,7 @@ use Test::More;
 use Test::Mojo;
 
 use lib 't/lib';
-use TestDB qw(reset_db test_pg);
+use TestDB qw(reset_db test_app test_pg);
 
 use KohaPluginStore::Model::Developer;
 use KohaPluginStore::Model::Plugin;
@@ -27,8 +27,7 @@ KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
     }
 );
 
-my $t = Test::Mojo->new('KohaPluginStore');
-$t->app->pg( test_pg() );
+my $t = test_app();
 
 subtest 'requires koha_version_release' => sub {
     $t->get_ok('/api/plugins')->status_is(400);

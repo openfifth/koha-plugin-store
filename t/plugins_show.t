@@ -4,15 +4,14 @@ use Test::More;
 use Test::Mojo;
 
 use lib 't/lib';
-use TestDB qw(reset_db test_pg);
+use TestDB qw(reset_db test_app test_pg);
 
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
 
 reset_db();
 
-my $t = Test::Mojo->new('KohaPluginStore');
-$t->app->pg( test_pg() );
+my $t = test_app();
 
 subtest 'unknown slug is a 404' => sub {
     $t->get_ok('/plugins/does-not-exist')->status_is(404);
