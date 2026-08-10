@@ -41,6 +41,19 @@ subtest 'GitHub login creates a developer and logs them in' => sub {
     $t->get_ok('/auth/github')->status_is(302)->header_is( Location => '/my-plugins' );
 };
 
+subtest 'log_in_developer stores only the id in session, not the whole row' => sub {
+    $t->app->routes->get(
+        '/__test/session_developer' => sub {
+            my $c = shift;
+            return $c->render( json => { session_developer => $c->session->{developer} } );
+        }
+    );
+
+    $t->get_ok('/__test/session_developer')->status_is(200);
+    my $session_developer = $t->tx->res->json('/session_developer');
+    is_deeply( [ sort keys %$session_developer ], ['id'], 'only id is stored, nothing else' );
+};
+
 {
     no strict 'refs';
     no warnings 'redefine';

@@ -51,7 +51,11 @@ sub github ($c) {
 
 sub _get_oauth_token_p {
     my ( $c, $provider ) = @_;
-    return $c->oauth2->get_token_p($provider);
+
+    # read:org (not the more invasive full 'repo' scope) is required for GitHub to
+    # disclose the developer's organization-owned repos via affiliation=organization_member
+    # -- without it, GitHub silently omits them rather than erroring.
+    return $c->oauth2->get_token_p( $provider, scope => 'read:org' );
 }
 
 sub _fetch_github_profile {
