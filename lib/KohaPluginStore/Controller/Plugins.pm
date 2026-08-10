@@ -182,7 +182,7 @@ sub new_plugin_confirm ($c) {
         return $c->render( text => 'Unauthorized', status => 401 );
     }
 
-    my $developer_repos = KohaPluginStore::GitHub::fetch_public_repos( $c->session->{github_access_token} );
+    my $developer_repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
     my $repo_is_owned   = grep { $_->{html_url} eq $plugin_repo } @$developer_repos;
     return $c->_exit_with_error_message(
         'That repository is not in the list of your public GitHub repositories. Please pick one from the dropdown.'

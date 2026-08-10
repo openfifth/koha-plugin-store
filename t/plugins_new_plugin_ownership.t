@@ -48,11 +48,11 @@ subtest 'accepts a repo beyond a single page of results' => sub {
             { full_name => 'acme/repo101', html_url => 'https://github.com/acme/repo101' },
         ];
     };
-    *KohaPluginStore::Controller::Plugins::_get_latest_release_from_github = sub { return; };
+    *KohaPluginStore::GitHub::fetch_releases = sub { return []; };
 
     $t->post_ok( '/new-plugin' => form => { plugin_repo => 'https://github.com/acme/repo101' } )
       ->status_is(200)
-      ->element_exists_not('li.text-danger');
+      ->text_unlike( 'li.text-danger' => qr/not in the list of your public GitHub repositories/ );
 };
 
 done_testing();

@@ -21,7 +21,7 @@ $t->app->config->{oauth_mock} = 0;
 subtest 'shows a list of releases to choose from, eligible ones selectable' => sub {
     no strict 'refs';
     no warnings 'redefine';
-    *KohaPluginStore::GitHub::fetch_public_repos = sub {
+    *KohaPluginStore::GitHub::fetch_all_repos = sub {
         return [ { full_name => 'octocat/Hello-World', html_url => 'https://github.com/octocat/Hello-World' } ];
     };
     *KohaPluginStore::GitHub::fetch_releases = sub {
@@ -51,7 +51,7 @@ subtest 'shows a list of releases to choose from, eligible ones selectable' => s
 subtest 'submitting a chosen tag creates rows and enqueues a job' => sub {
     no strict 'refs';
     no warnings 'redefine';
-    *KohaPluginStore::GitHub::fetch_public_repos = sub {
+    *KohaPluginStore::GitHub::fetch_all_repos = sub {
         return [ { full_name => 'octocat/Hello-World', html_url => 'https://github.com/octocat/Hello-World' } ];
     };
     *KohaPluginStore::GitHub::fetch_release_by_tag = sub {
@@ -93,7 +93,7 @@ subtest 'submitting a chosen tag creates rows and enqueues a job' => sub {
 subtest 'rejects duplicate submission of same release with constraint violation' => sub {
     no strict 'refs';
     no warnings 'redefine';
-    *KohaPluginStore::GitHub::fetch_public_repos = sub {
+    *KohaPluginStore::GitHub::fetch_all_repos = sub {
         return [ { full_name => 'octocat/Hello-World', html_url => 'https://github.com/octocat/Hello-World' } ];
     };
     *KohaPluginStore::GitHub::fetch_release_by_tag = sub {
