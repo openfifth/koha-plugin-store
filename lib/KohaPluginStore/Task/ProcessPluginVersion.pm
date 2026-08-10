@@ -99,6 +99,7 @@ sub run {
         {
             name        => $metadata->{name},
             description => $metadata->{description},
+            author      => $metadata->{author},
             class_name  => $plugin_class_name,
         }
     );

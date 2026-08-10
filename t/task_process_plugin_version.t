@@ -82,6 +82,7 @@ subtest 'successful processing publishes the version' => sub {
     my $reloaded_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
     is( $reloaded_plugin->name, 'Widget', 'plugin name populated from metadata' );
     is( $reloaded_plugin->class_name, 'Koha::Plugin::Test::Widget', 'class_name populated' );
+    is( $reloaded_plugin->author, 'Someone', 'author populated from metadata' );
 
     my @contributors = KohaPluginStore::Model::PluginContributor->new( pg => test_pg() )->search(
         { plugin_id => $plugin->id }
