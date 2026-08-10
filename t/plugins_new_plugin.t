@@ -10,11 +10,9 @@ use KohaPluginStore::Model::PluginVersion;
 
 reset_db();
 
-# Clear Minion jobs from previous test runs
-test_pg()->db->query('DELETE FROM minion_jobs');
-
 my $t = Test::Mojo->new('KohaPluginStore');
 $t->app->pg( test_pg() );
+$t->app->plugin( Minion => { Pg => test_pg() } );
 
 $t->app->config->{oauth_mock} = 1;
 $t->get_ok('/auth/github');
