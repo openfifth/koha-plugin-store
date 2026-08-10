@@ -31,6 +31,8 @@ sub startup ($self) {
     }
     $self->plugin( OAuth2 => \%oauth2_providers );
 
+    $self->plugin( Minion => { Pg => $self->pg } );
+
     push @{ $self->commands->namespaces }, 'KohaPluginStore::Command';
 
     $self->helper( pg => sub { shift->app->pg } );
