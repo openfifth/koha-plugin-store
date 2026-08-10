@@ -15,6 +15,14 @@ sub _fake_tx {
 
 sub FakeTx::result { return $_[0]->{result} }
 
+sub _fake_release_tx {
+    my ($release) = @_;
+    my $res = Mojo::Message::Response->new;
+    $res->code(200);
+    $res->body( encode_json($release) );
+    return bless { result => $res }, 'FakeTx';
+}
+
 subtest 'no access token returns an empty list without making a request' => sub {
     is_deeply( KohaPluginStore::GitHub::fetch_all_repos(undef), [], 'undef token' );
     is_deeply( KohaPluginStore::GitHub::fetch_all_repos(''),    [], 'empty string token' );
@@ -75,20 +83,81 @@ subtest 'a non-200 response stops pagination and returns what was gathered so fa
     is_deeply( $repos, [ { full_name => 'acme/repo1', html_url => 'https://github.com/acme/repo1' } ], 'first page kept' );
 };
 
-subtest 'fetch_releases with no token returns an empty list' => sub {
-    is_deeply( KohaPluginStore::GitHub::fetch_releases( undef, 'https://github.com/a/b' ), [], 'undef token' );
+subtest '_auth_header omits Authorization when no usable token is configured' => sub {
+    is_deeply( [ KohaPluginStore::GitHub::_auth_header(undef) ], [], 'undef' );
+    is_deeply( [ KohaPluginStore::GitHub::_auth_header('') ], [], 'empty string' );
+    is_deeply( [ KohaPluginStore::GitHub::_auth_header('YOUR_TOKEN_HERE') ], [], 'unfilled-in placeholder from the .conf.example templates' );
 };
 
-subtest 'fetch_release_by_tag with no token returns undef' => sub {
-    is( KohaPluginStore::GitHub::fetch_release_by_tag( undef, 'https://github.com/a/b', 'v1.0.0' ), undef, 'undef token' );
+subtest '_auth_header includes Authorization for a real token' => sub {
+    is_deeply( [ KohaPluginStore::GitHub::_auth_header('real-token') ], [ Authorization => 'Bearer real-token' ] );
 };
 
-subtest 'download_kpz with no token returns undef' => sub {
-    is( KohaPluginStore::GitHub::download_kpz( undef, 'https://example.com/x.kpz', '/tmp/x.kpz' ), undef, 'undef token' );
+# These calls read public data -- GitHub serves it unauthenticated, just at a much
+# lower rate limit (60/hr vs 5000/hr). Not having github_app_token configured (or
+# still having the unfilled-in placeholder) shouldn't make the app stop working,
+# so these functions must still attempt the request rather than short-circuiting.
+subtest 'fetch_releases still makes a request with no token configured' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    my @seen_args;
+    *KohaPluginStore::GitHub::_get = sub { push @seen_args, [@_]; return _fake_tx(); };
+
+    KohaPluginStore::GitHub::fetch_releases( undef, 'https://github.com/a/b' );
+    is( scalar @seen_args, 1, 'the request was made' );
+    is( $seen_args[0][1], undef, 'with no token' );
 };
 
-subtest 'fetch_contributors with no token returns an empty list' => sub {
-    is_deeply( KohaPluginStore::GitHub::fetch_contributors( undef, 'https://github.com/a/b' ), [], 'undef token' );
+subtest 'fetch_release_by_tag requires a tag_name but not a token' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    my $calls = 0;
+    *KohaPluginStore::GitHub::_get = sub {
+        $calls++;
+        return _fake_release_tx( { tag_name => 'v1.0.0', name => 'v1.0.0', assets => [] } );
+    };
+
+    is( KohaPluginStore::GitHub::fetch_release_by_tag( undef, 'https://github.com/a/b', undef ), undef, 'no tag_name' );
+    is( $calls, 0, 'request skipped without a tag_name' );
+
+    KohaPluginStore::GitHub::fetch_release_by_tag( undef, 'https://github.com/a/b', 'v1.0.0' );
+    is( $calls, 1, 'request made once a tag_name is given, even with no token' );
+};
+
+subtest 'download_kpz requires a download_url but not a token' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    my $calls = 0;
+    *KohaPluginStore::GitHub::_get_binary = sub { $calls++; return _fake_tx(); };
+
+    is( KohaPluginStore::GitHub::download_kpz( undef, undef, '/tmp/x.kpz' ), undef, 'no download_url' );
+    is( $calls, 0, 'request skipped without a download_url' );
+};
+
+subtest 'download_kpz still makes a request with no token configured' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    my @seen_args;
+    *KohaPluginStore::GitHub::_get_binary = sub {
+        push @seen_args, [@_];
+        my $res = Mojo::Message::Response->new;
+        $res->code(502);    # short-circuits before touching the (unfaked) asset/move_to path
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    KohaPluginStore::GitHub::download_kpz( undef, 'https://example.com/x.kpz', '/tmp/x.kpz' );
+    is( scalar @seen_args, 1, 'the request was made' );
+    is( $seen_args[0][1], undef, 'with no token' );
+};
+
+subtest 'fetch_contributors still makes a request with no token configured' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    my $calls = 0;
+    *KohaPluginStore::GitHub::_get = sub { $calls++; return _fake_tx(); };
+
+    KohaPluginStore::GitHub::fetch_contributors( undef, 'https://github.com/a/b' );
+    is( $calls, 1, 'the request was made' );
 };
 
 done_testing();

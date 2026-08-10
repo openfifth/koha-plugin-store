@@ -3,8 +3,9 @@ package KohaPluginStore::GitHub;
 use Modern::Perl;
 use Mojo::UserAgent;
 
-my $PER_PAGE  = 100;
-my $MAX_PAGES = 20;
+my $PER_PAGE          = 100;
+my $MAX_PAGES         = 20;
+my $PLACEHOLDER_TOKEN = 'YOUR_TOKEN_HERE';
 
 sub fetch_all_repos {
     my ($access_token) = @_;
@@ -32,30 +33,39 @@ sub fetch_all_repos {
     return \@repos;
 }
 
+# Omits Authorization entirely rather than sending a bad/placeholder value --
+# GitHub 401s on a bad token even for public data that would otherwise be
+# served fine unauthenticated (just at a much lower, 60/hr rate limit).
+sub _auth_header {
+    my ($access_token) = @_;
+
+    return () unless $access_token && $access_token ne $PLACEHOLDER_TOKEN;
+    return ( Authorization => 'Bearer ' . $access_token );
+}
+
 # Test seam: overridden in tests to avoid real HTTP calls.
 sub _get {
     my ( $url, $access_token ) = @_;
 
     return Mojo::UserAgent->new->get(
-        $url => {
-            Accept        => 'application/vnd.github+json',
-            Authorization => 'Bearer ' . $access_token,
-        }
+        $url => { Accept => 'application/vnd.github+json', _auth_header($access_token) }
+    );
+}
+
+# Test seam, separate from _get: needs a different Accept header and UA option.
+sub _get_binary {
+    my ( $url, $access_token ) = @_;
+
+    return Mojo::UserAgent->new( max_redirects => 5 )->get(
+        $url => { Accept => 'application/octet-stream', _auth_header($access_token) }
     );
 }
 
 sub fetch_releases {
     my ( $access_token, $owner_repo ) = @_;
 
-    return [] unless $access_token;
-
     my $api_repo = $owner_repo =~ s{^https://github\.com/}{https://api.github.com/repos/}r;
-    my $tx = Mojo::UserAgent->new->get(
-        "$api_repo/releases?per_page=10" => {
-            Accept        => 'application/vnd.github+json',
-            Authorization => 'Bearer ' . $access_token,
-        }
-    );
+    my $tx = _get( "$api_repo/releases?per_page=10", $access_token );
 
     return [] unless $tx->result->code == 200;
 
@@ -65,15 +75,10 @@ sub fetch_releases {
 sub fetch_release_by_tag {
     my ( $access_token, $owner_repo, $tag_name ) = @_;
 
-    return unless $access_token && $tag_name;
+    return unless $tag_name;
 
     my $api_repo = $owner_repo =~ s{^https://github\.com/}{https://api.github.com/repos/}r;
-    my $tx = Mojo::UserAgent->new->get(
-        "$api_repo/releases/tags/$tag_name" => {
-            Accept        => 'application/vnd.github+json',
-            Authorization => 'Bearer ' . $access_token,
-        }
-    );
+    my $tx = _get( "$api_repo/releases/tags/$tag_name", $access_token );
 
     return unless $tx->result->code == 200;
 
@@ -83,14 +88,9 @@ sub fetch_release_by_tag {
 sub download_kpz {
     my ( $access_token, $download_url, $dest_path ) = @_;
 
-    return unless $access_token && $download_url;
+    return unless $download_url;
 
-    my $tx = Mojo::UserAgent->new( max_redirects => 5 )->get(
-        $download_url => {
-            Accept        => 'application/octet-stream',
-            Authorization => 'Bearer ' . $access_token,
-        }
-    );
+    my $tx = _get_binary( $download_url, $access_token );
 
     return unless $tx->result->code == 200;
 
@@ -101,15 +101,8 @@ sub download_kpz {
 sub fetch_contributors {
     my ( $access_token, $owner_repo ) = @_;
 
-    return [] unless $access_token;
-
     my $api_repo = $owner_repo =~ s{^https://github\.com/}{https://api.github.com/repos/}r;
-    my $tx = Mojo::UserAgent->new->get(
-        "$api_repo/contributors?per_page=100" => {
-            Accept        => 'application/vnd.github+json',
-            Authorization => 'Bearer ' . $access_token,
-        }
-    );
+    my $tx = _get( "$api_repo/contributors?per_page=100", $access_token );
 
     return [] unless $tx->result->code == 200;
 
