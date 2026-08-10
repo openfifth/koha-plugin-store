@@ -28,7 +28,8 @@ subtest 'first visit auto-fetches and shows the repo dropdown' => sub {
       ->status_is(200)
       ->element_exists('select[name="plugin_repo"]')
       ->element_exists('option[value="https://github.com/octocat/Hello-World"]')
-      ->element_exists('form[action="/developer/repos/refresh"]');
+      ->element_exists('form[action="/developer/repos/refresh"]')
+      ->element_exists('a[href="https://github.com/settings/applications"]');
 };
 
 subtest 'second visit reuses the cache, without calling GitHub again' => sub {
