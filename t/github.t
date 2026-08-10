@@ -75,4 +75,20 @@ subtest 'a non-200 response stops pagination and returns what was gathered so fa
     is_deeply( $repos, [ { full_name => 'acme/repo1', html_url => 'https://github.com/acme/repo1' } ], 'first page kept' );
 };
 
+subtest 'fetch_releases with no token returns an empty list' => sub {
+    is_deeply( KohaPluginStore::GitHub::fetch_releases( undef, 'https://github.com/a/b' ), [], 'undef token' );
+};
+
+subtest 'fetch_release_by_tag with no token returns undef' => sub {
+    is( KohaPluginStore::GitHub::fetch_release_by_tag( undef, 'https://github.com/a/b', 'v1.0.0' ), undef, 'undef token' );
+};
+
+subtest 'download_kpz with no token returns undef' => sub {
+    is( KohaPluginStore::GitHub::download_kpz( undef, 'https://example.com/x.kpz', '/tmp/x.kpz' ), undef, 'undef token' );
+};
+
+subtest 'fetch_contributors with no token returns an empty list' => sub {
+    is_deeply( KohaPluginStore::GitHub::fetch_contributors( undef, 'https://github.com/a/b' ), [], 'undef token' );
+};
+
 done_testing();
