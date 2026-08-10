@@ -64,54 +64,21 @@ sub edit_form {
     return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
     return $c->render( text => 'Unauthorized',     status => 401 ) unless $c->session->{developer}->{id} == $plugin->developer_id;
 
-    my $result          = $c->_get_releases_from_github( $plugin->repo_url );
+    my $config          = $c->app->plugin('Config');
+    my $github_releases = KohaPluginStore::GitHub::fetch_releases( $config->{github_app_token}, $plugin->repo_url );
 
-    #TODO: Handle case: $result is undef
-    my $github_releases = decode_json($result);
+    my $existing_tags = { map { $_->tag_name => 1 } @{ $plugin->releases } };
 
-    my $releases = $plugin->releases;
-
-    foreach my $github_release (@$github_releases) {
-        $github_release->{version} = 'N/A';
-        $github_release->{koha_minimum_version} = 'N/A';
-        my @assets = grep { $_->{name} =~ /\.kpz$/ } @{ $github_release->{assets} };
-        if ( scalar @assets ne 1 ) {
-            $github_release->{message}->{error} = 'Release must contain one and only one \'.kpz\' asset.';
+    foreach my $release (@$github_releases) {
+        if ( $existing_tags->{ $release->{tag_name} } ) {
+            $release->{message}->{success} = 'Release has already been submitted.';
             next;
         }
 
-        foreach my $release (@$releases) {
-            if ( $release->tag_name eq $github_release->{tag_name} ) {
-                $github_release->{message}->{success} = 'Release has already been submitted.';
-                next;
-            }
+        my @kpz_assets = grep { $_->{name} =~ /\.kpz$/ } @{ $release->{assets} };
+        if ( scalar @kpz_assets != 1 ) {
+            $release->{message}->{error} = 'Release must contain one and only one \'.kpz\' asset.';
         }
-
-        my $plugin_dir        = _download_plugin( $assets[0]->{browser_download_url} );
-        my ( $plugin_class_file, $plugin_class_name ) = _get_plugin_class_file_and_name($plugin_dir);
-
-        if( !$plugin_class_file ) {
-            $github_release->{message}->{error} = 'Plugin class file not found.';
-            next;
-        }
-
-        if ( !$plugin_class_name ) {
-            $github_release->{message}->{error} = 'Plugin class name not found.';
-            next;
-        }
-
-        my $plugin_metadata = _get_plugin_metadata($plugin_class_file);
-        if(!$plugin_metadata) {
-            $github_release->{message}->{error} = 'Plugin metadata not found.';
-            next;
-        }
-
-        if(!$plugin_metadata->{minimum_version}) {
-            $github_release->{message}->{error} = 'Plugin metadata missing \'minimum_version\'.';
-            next;
-        }
-        $github_release->{version} = $plugin_metadata->{version};
-        $github_release->{koha_minimum_version} = $plugin_metadata->{minimum_version};
     }
 
     $c->stash( plugin          => $plugin );
@@ -238,143 +205,6 @@ sub new_plugin_confirm ($c) {
     $c->minion->enqueue( process_plugin_version => [ $new_version->id ], { attempts => 3 } );
 
     return $c->redirect_to( '/plugins/' . $plugin->slug );
-}
-
-sub _get_releases_from_github {
-    my ( $c, $plugin_repo ) = @_;
-
-    my $config          = $c->app->plugin('Config');
-    my $plugin_api_repo = $plugin_repo =~ s/https:\/\/github.com\//https:\/\/api.github.com\/repos\//r;
-    my $ua              = Mojo::UserAgent->new( max_redirects => 5 );
-    my $request         = $ua->get(
-        $plugin_api_repo . '/releases?per_page=5&page=1' => {
-            Accept        => 'application/vnd.github+json',
-            Authorization => 'Bearer ' . $config->{github_user_access_token}
-        }
-    );
-
-    #TOOD: Write a unit test for this
-    if ( $request->result->code != 200 ) {
-        $c->stash(
-            errors => [
-                      'Unable to get releases from github. Error: {code: '
-                    . $request->result->code
-                    . ', message: '
-                    . $request->result->message . '}'
-            ]
-        );
-        return;
-    }
-
-    return $request->result->body;
-}
-
-sub _get_plugin_class_file_and_name {
-    my ($plugin_dir) = @_;
-
-    return unless $plugin_dir;
-
-    use File::Find;
-    use String::Util 'trim';
-    my $plugin_class_file;
-    my $plugin_class_name;
-
-    find(
-        {
-            wanted => sub {
-                return unless -f $_ && -T _;
-                open my $fh, '<', $_ or die "Could not open file: $!";
-                while ( my $line = <$fh> ) {
-                    $line = trim($line);
-                    if ( $line =~ /use (?:base|parent)/ && $line =~ /Koha::Plugins::Base/ ) {
-                        $plugin_class_file = $File::Find::name;
-
-                        my $plugin_class_file_h;
-                        open $plugin_class_file_h, '<', $plugin_class_file or die "Could not open file: $plugin_class_file";
-                        while ( my $line = <$plugin_class_file_h> ) {
-                            if ( $line =~ /^package/ ) {
-                                $plugin_class_name = $line;
-                                $plugin_class_name =~ s/^package\s+//;
-                                $plugin_class_name =~ s/;$//;
-                                $plugin_class_name =~ s/\s+//g;
-                            }
-                        }
-                        close $plugin_class_file_h;
-                        last;
-                    }
-
-                }
-                close $fh;
-            },
-            no_chdir => 1,
-        },
-        $plugin_dir
-    );
-
-    return ($plugin_class_file, $plugin_class_name);
-}
-
-sub _get_plugin_metadata {
-    my ($plugin_class_file) = @_;
-
-    return unless $plugin_class_file;
-
-    use File::Slurp;
-
-    my $metadata_contents = read_file($plugin_class_file);
-    my $plugin_metadata;
-
-    if ( $metadata_contents =~ /our \$metadata = (\{.*?\});(?!\w)/si ) {
-
-        my $extracted_metadata = $1;
-        my $metadata_variables;
-        while ( $extracted_metadata =~ /\$([a-zA-Z_]+)\b/g ) {
-            my $variable = $1;
-            if ( $metadata_contents =~ /(our \$$variable.*?= .*?;)/si ) {
-                my $value = $1;
-                $value =~ s/our \$$variable.*?= //;
-                $value =~ s/;//;
-                $value = trim($value);
-                $metadata_variables->{ '$' . $variable } = $value;
-            }
-        }
-
-        foreach my $key ( keys %$metadata_variables ) {
-            $extracted_metadata =~ s/\Q$key\E/$metadata_variables->{$key}/;
-        }
-
-        eval( '$plugin_metadata = ' . $extracted_metadata . ';' );
-        if ($@) {
-            print "Error evaluating metadata: $@";
-        }
-    }
-
-    return unless ref($plugin_metadata) eq 'HASH' && scalar keys %$plugin_metadata > 0;
-    return $plugin_metadata;
-}
-
-sub _download_plugin {
-    my ($kpz_download) = @_;
-
-    my $kpz_name = ( split '/', $kpz_download )[-1];
-    my $dir      = 'kpz_packages/' . substr( $kpz_name, 0, -4 );
-    my $file     = 'kpz_packages/' . $kpz_name;
-
-    return $dir if -e $file;
-
-    my $ua      = Mojo::UserAgent->new( max_redirects => 5 );
-    my $request = $ua->get($kpz_download);
-
-    $ua->get($kpz_download)->res->content->asset->move_to($file);
-
-    use Archive::Zip;
-    my $zip = Archive::Zip->new($file);
-
-    foreach my $zip_file ( $zip->members ) {
-        $zip_file->extractToFileNamed( "$dir/" . $zip_file->fileName );
-    }
-
-    return $dir;
 }
 
 sub _exit_with_error_message {
