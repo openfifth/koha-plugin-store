@@ -21,6 +21,17 @@ sub releases {
     return \@versions;
 }
 
+# The most recently *created* version, not the most recently released one --
+# a re-submission of an older GitHub release would otherwise sort behind a
+# newer one by date_released despite being the newest submission attempt.
+sub latest_version {
+    my ($self) = @_;
+
+    my ($version) = KohaPluginStore::Model::PluginVersion->new( pg => $self->pg )
+      ->search( { plugin_id => $self->id }, { order_by => { -desc => 'id' }, limit => 1 } );
+    return $version;
+}
+
 sub create_with_unique_slug {
     my ( $self, $slug_source, $attrs ) = @_;
 

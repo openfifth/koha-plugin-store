@@ -1,3 +1,9 @@
+% my %status_badge = (
+%   submitted          => 'bg-secondary',
+%   checks_running     => 'bg-info',
+%   published          => 'bg-success',
+%   changes_requested  => 'bg-danger',
+% );
 <table class="table">
   <thead>
     <tr>
@@ -7,18 +13,29 @@
       <th>Author</th>
       <th>Developer ID</th>
       <th>Releases</th>
+      <th>Status</th>
       <th>Actions</th>
     </td>
   </thead>
   <tbody>
     % for my $plugin (@{ $plugins }) {
+    % my $latest = $plugin->latest_version;
     <tr>
       %= t td => $plugin->id
-      %= t td => $plugin->name
+      <td>
+        %= link_to $plugin->name => '/plugins/'.$plugin->slug
+      </td>
       %= t td => $plugin->description
       %= t td => $plugin->author
       %= t td => $plugin->developer_id
       %= t td => scalar @{$plugin->releases}
+      <td class="plugin-status">
+        % if ($latest) {
+        <span class="badge <%= $status_badge{$latest->status} || 'bg-secondary' %>"><%= $latest->status %></span>
+        % } else {
+        -
+        % }
+      </td>
       % if (logged_in_user && logged_in_user->id eq $plugin->developer_id){
       %= t td => link_to 'Edit' => 'plugins/edit/'.$plugin->id
       % }
