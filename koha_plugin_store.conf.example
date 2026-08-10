@@ -1,6 +1,11 @@
 {
-  # Github user access token
-  github_user_access_token => "YOUR_TOKEN_HERE",
+  # GitHub token used for the store's own background API calls (fetching release info,
+  # downloading .kpz assets, fetching contributors) -- NOT the developer's own login
+  # token. Must be a fine-grained personal access token scoped to "Public Repositories
+  # (read-only)" access only: https://github.com/settings/personal-access-tokens/new
+  # This constrained scope is deliberate -- it doubles as confirmation that an anonymous
+  # Koha library (with no GitHub credentials at all) will be able to fetch the same URLs.
+  github_app_token => "YOUR_TOKEN_HERE",
 
   # Postgres connection string
   pg_dsn => 'postgresql://koha_plugin_store:koha_plugin_store@127.0.0.1:55432/koha_plugin_store',
