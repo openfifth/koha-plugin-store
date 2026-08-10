@@ -2,6 +2,7 @@ package KohaPluginStore::Controller::Plugins;
 use Mojo::Base 'Mojolicious::Controller', -signatures;
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
+use KohaPluginStore::Model::PluginContributor;
 use KohaPluginStore::GitHub;
 use JSON;
 
@@ -84,6 +85,30 @@ sub edit_form {
     $c->stash( plugin          => $plugin );
     $c->stash( github_releases => $github_releases );
     $c->render('plugins/edit');
+}
+
+sub show ($c) {
+    my $slug = $c->param('slug');
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { slug => $slug } );
+    return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
+
+    my @versions = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->search(
+        { plugin_id => $plugin->id }, { order_by => { -desc => 'id' } }
+    );
+    my @contributors = KohaPluginStore::Model::PluginContributor->new( pg => $c->pg )->search(
+        { plugin_id => $plugin->id }, { order_by => { -desc => 'contributions_count' } }
+    );
+
+    my $still_processing = grep { $_->status eq 'submitted' || $_->status eq 'checks_running' } @versions;
+
+    $c->stash(
+        plugin           => $plugin,
+        versions         => \@versions,
+        contributors     => \@contributors,
+        still_processing => $still_processing,
+    );
+    $c->render('plugins/show');
 }
 
 sub list_all ($c) {

@@ -86,6 +86,7 @@ sub startup ($self) {
     $r->get('/new-plugin')->requires( user_authenticated => 1 )->to('plugins#add_form');
     $r->post('/developer/repos/refresh')->requires( user_authenticated => 1 )->to('plugins#refresh_repos');
     $r->get('/plugins/edit/:id')->requires( user_authenticated => 1 )->to('plugins#edit_form');
+    $r->get('/plugins/:slug')->to('plugins#show');
     $r->post('/new-plugin')->to('plugins#new_plugin');
     $r->post('/new-plugin-confirm')->to('plugins#new_plugin_confirm');
     $r->post('/new-release')->requires( user_authenticated => 1 )->to('releases#new_release');

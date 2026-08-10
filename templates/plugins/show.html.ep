@@ -1,0 +1,52 @@
+% my $plugin = stash 'plugin';
+% my $versions = stash 'versions';
+% my $contributors = stash 'contributors';
+% my $still_processing = stash 'still_processing';
+% my $plugin_title = $plugin->name || 'Processing submission...';
+% title $plugin_title;
+% layout 'default';
+% if ($still_processing) {
+  %= content_for 'head' => begin
+<meta http-equiv="refresh" content="5">
+  %= end
+% }
+
+% content_for 'sidebar' => begin
+  %= include 'partial/side_menu'
+% end
+
+<h2><%= $plugin_title %></h2>
+% if ($plugin->description) {
+<p><%= $plugin->description %></p>
+% }
+
+<h3>Versions</h3>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Tag</th>
+      <th>Version</th>
+      <th>Status</th>
+      <th>Details</th>
+    </tr>
+  </thead>
+  <tbody>
+    % for my $version (@$versions) {
+    <tr>
+      %= t td => $version->tag_name
+      %= t td => ($version->version || '-')
+      %= t td => $version->status
+      %= t td => ($version->error_message || '')
+    </tr>
+    % }
+  </tbody>
+</table>
+
+% if (@$contributors) {
+<h3>Contributors</h3>
+<ul class="list-unstyled">
+  % for my $contributor (@$contributors) {
+  <li><img src="<%= $contributor->avatar_url %>" width="24" height="24"> <%= $contributor->github_username %></li>
+  % }
+</ul>
+% }
