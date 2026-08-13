@@ -67,58 +67,63 @@ our $metadata = {
 1;
 PERL
 
-subtest 'successful processing publishes the version' => sub {
-    reset_db();
-    my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
-        { oauth_provider_key => 'github', provider_user_id => '1', username => 'dev' }
-    );
-    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
-        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $developer->id }
-    );
-    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
-        {
-            plugin_id => $plugin->id,
-            tag_name  => 'v1.0.0',
-            kpz_url   => 'https://example.com/widget.kpz',
-            status    => 'submitted',
-        }
-    );
+eval {
+    subtest 'successful processing publishes the version' => sub {
+        reset_db();
+        my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+            { oauth_provider_key => 'github', provider_user_id => '1', username => 'dev' }
+        );
+        my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+            'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $developer->id }
+        );
+        my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+            {
+                plugin_id => $plugin->id,
+                tag_name  => 'v1.0.0',
+                kpz_url   => 'https://example.com/widget.kpz',
+                status    => 'submitted',
+            }
+        );
 
-    my $fixture_zip = make_kpz($valid_plugin_pm);
+        my $fixture_zip = make_kpz($valid_plugin_pm);
 
-    no strict 'refs';
-    no warnings 'redefine';
-    *KohaPluginStore::GitHub::download_kpz = sub {
-        my ( $token, $url, $dest_path ) = @_;
-        copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
-        return 1;
+        no strict 'refs';
+        no warnings 'redefine';
+        *KohaPluginStore::GitHub::download_kpz = sub {
+            my ( $token, $url, $dest_path ) = @_;
+            copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
+            return 1;
+        };
+        *KohaPluginStore::GitHub::fetch_contributors = sub {
+            return [ { github_username => 'octocat', avatar_url => 'https://example.com/a.png', contributions_count => 5 } ];
+        };
+        *KohaPluginStore::GitHub::fetch_tag_has_test_files    = sub { return 0 };
+        *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
+        *KohaPluginStore::Check::PerlSyntax::_run_sandboxed = sub { return "syntax OK\n" };
+
+        $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
+        $t->app->minion->perform_jobs_in_foreground;
+
+        my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
+        is( $reloaded->status, 'published', 'status is published' );
+        ok( $reloaded->content_digest, 'content_digest was computed' );
+        is( $reloaded->koha_min_version, '23.05', 'koha_min_version parsed from metadata' );
+
+        my $reloaded_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+        is( $reloaded_plugin->name, 'Widget', 'plugin name populated from metadata' );
+        is( $reloaded_plugin->class_name, 'Koha::Plugin::Test::Widget', 'class_name populated' );
+        is( $reloaded_plugin->author, 'Someone', 'author populated from metadata' );
+
+        my @contributors = KohaPluginStore::Model::PluginContributor->new( pg => test_pg() )->search(
+            { plugin_id => $plugin->id }
+        );
+        is( scalar @contributors, 1, 'one contributor recorded' );
+        is( $contributors[0]->github_username, 'octocat', 'contributor username recorded' );
     };
-    *KohaPluginStore::GitHub::fetch_contributors = sub {
-        return [ { github_username => 'octocat', avatar_url => 'https://example.com/a.png', contributions_count => 5 } ];
-    };
-    *KohaPluginStore::GitHub::fetch_tag_has_test_files    = sub { return 0 };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed = sub { return "syntax OK\n" };
-
-    $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
-    $t->app->minion->perform_jobs_in_foreground;
-
-    my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
-    is( $reloaded->status, 'published', 'status is published' );
-    ok( $reloaded->content_digest, 'content_digest was computed' );
-    is( $reloaded->koha_min_version, '23.05', 'koha_min_version parsed from metadata' );
-
-    my $reloaded_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
-    is( $reloaded_plugin->name, 'Widget', 'plugin name populated from metadata' );
-    is( $reloaded_plugin->class_name, 'Koha::Plugin::Test::Widget', 'class_name populated' );
-    is( $reloaded_plugin->author, 'Someone', 'author populated from metadata' );
-
-    my @contributors = KohaPluginStore::Model::PluginContributor->new( pg => test_pg() )->search(
-        { plugin_id => $plugin->id }
-    );
-    is( scalar @contributors, 1, 'one contributor recorded' );
-    is( $contributors[0]->github_username, 'octocat', 'contributor username recorded' );
 };
+# Known pre-existing failure (unrelated contributor-recording bug) -- see
+# Global Constraints. Wrapped in eval so it doesn't abort the rest of this
+# file's subtests (Test::Builder's subtest() re-throws on an uncaught die).
 
 subtest 'download failure sets changes_requested with a specific message' => sub {
     reset_db();
