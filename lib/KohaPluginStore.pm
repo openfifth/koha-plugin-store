@@ -100,6 +100,7 @@ sub startup ($self) {
 
     #TODO: Use OpenAPI mojolicious plugin?
     $r->any('/api/plugins')->to('plugins#list_all');
+    $r->get('/api/plugins/verify')->to('plugins#verify');
 }
 
 sub _add_routes_authorization {
