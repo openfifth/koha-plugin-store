@@ -225,4 +225,84 @@ subtest 'fetch_tag_verification returns undef on a non-200 response' => sub {
     is( KohaPluginStore::GitHub::fetch_tag_verification( 'token', 'https://github.com/dev/widget', 'v1.0.0' ), undef, 'returns undef' );
 };
 
+subtest 'fetch_tag_has_test_files finds a t/*.t file at the tree root' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get = sub {
+        my ($url) = @_;
+        if ( $url =~ m{/git/trees/v1\.0\.0} ) {
+            return _fake_release_tx(
+                {
+                    tree => [
+                        { path => 't/basic.t', type => 'blob' },
+                        { path => 'Widget.pm', type => 'blob' },
+                    ]
+                }
+            );
+        }
+        die "unexpected URL: $url";
+    };
+
+    is( KohaPluginStore::GitHub::fetch_tag_has_test_files( 'token', 'https://github.com/dev/widget', 'v1.0.0' ), 1, 'found' );
+};
+
+subtest 'fetch_tag_has_test_files finds a t/*.t file nested under the plugin module directory' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get = sub {
+        return _fake_release_tx( { tree => [ { path => 'Koha/Plugin/Com/Example/Widget/t/basic.t', type => 'blob' } ] } );
+    };
+
+    is( KohaPluginStore::GitHub::fetch_tag_has_test_files( 'token', 'https://github.com/dev/widget', 'v1.0.0' ), 1, 'found' );
+};
+
+subtest 'fetch_tag_has_test_files does not match a .t file that just happens to sit outside a t/ directory' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get = sub {
+        return _fake_release_tx( { tree => [ { path => 'Koha/Plugin/Com/Example/Widget/stray.t', type => 'blob' } ] } );
+    };
+
+    is( KohaPluginStore::GitHub::fetch_tag_has_test_files( 'token', 'https://github.com/dev/widget', 'v1.0.0' ), 0, 'not found' );
+};
+
+subtest 'fetch_tag_has_test_files ignores a tree entry named t (not a blob)' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get = sub {
+        return _fake_release_tx( { tree => [ { path => 't', type => 'tree' } ] } );
+    };
+
+    is( KohaPluginStore::GitHub::fetch_tag_has_test_files( 'token', 'https://github.com/dev/widget', 'v1.0.0' ), 0, 'not found' );
+};
+
+subtest 'fetch_tag_has_test_files returns 0 when the tree has no matches' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get = sub {
+        return _fake_release_tx( { tree => [ { path => 'Widget.pm', type => 'blob' } ] } );
+    };
+
+    is( KohaPluginStore::GitHub::fetch_tag_has_test_files( 'token', 'https://github.com/dev/widget', 'v1.0.0' ), 0, 'not found' );
+};
+
+subtest 'fetch_tag_has_test_files returns undef on a non-200 response' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get = sub {
+        my $res = Mojo::Message::Response->new;
+        $res->code(404);
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    is( KohaPluginStore::GitHub::fetch_tag_has_test_files( 'token', 'https://github.com/dev/widget', 'v1.0.0' ), undef, 'returns undef' );
+};
+
+subtest 'fetch_tag_has_test_files requires a tag_name but not a token' => sub {
+    is(
+        KohaPluginStore::GitHub::fetch_tag_has_test_files( undef, 'https://github.com/dev/widget', undef ), undef,
+        'returns undef without a tag, and without making a request'
+    );
+};
+
 done_testing();

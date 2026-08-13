@@ -149,6 +149,27 @@ sub fetch_tag_verification {
     return $commit_tx->result->json->{commit}{verification}{verified} ? 1 : 0;
 }
 
+# .kpz archives deliberately don't package t/*.t -- they're for developer/CI
+# use, not the unpacked runtime -- so tests_presence looks at the tagged
+# commit's tree in the source repo instead of the distributed archive. Trees
+# above GitHub's ~7MB/100k-entry cap come back `truncated`, which would read
+# as "no tests"; not worth guarding against for plugin-sized repos.
+sub fetch_tag_has_test_files {
+    my ( $access_token, $owner_repo, $tag_name ) = @_;
+
+    return unless $tag_name;
+
+    my $api_repo = $owner_repo =~ s{^https://github\.com/}{https://api.github.com/repos/}r;
+    my $tx = _get( "$api_repo/git/trees/$tag_name?recursive=1", $access_token );
+
+    return unless $tx->result->code == 200;
+
+    my $tree = $tx->result->json->{tree} || [];
+    my @matches = grep { $_->{type} eq 'blob' && $_->{path} =~ m{(?:^|/)t/[^/]+\.t$} } @$tree;
+
+    return @matches ? 1 : 0;
+}
+
 sub _trim_release {
     my ($release) = @_;
 
