@@ -7,6 +7,7 @@ requires 'Minion';
 requires 'JSON';
 requires 'Archive::Zip';
 requires 'Digest::SHA';
+requires 'CryptX';
 requires 'String::Util';
 requires 'IO::Socket::SSL';
 requires 'Net::SSLeay';
