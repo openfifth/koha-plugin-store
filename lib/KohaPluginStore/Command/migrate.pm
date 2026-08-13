@@ -153,3 +153,11 @@ CREATE TABLE review_checks (
 -- 5 down
 DROP TABLE review_checks;
 ALTER TABLE plugin_versions DROP COLUMN certification_tier;
+
+-- 6 up
+ALTER TABLE plugin_versions ADD COLUMN signed_manifest TEXT;
+ALTER TABLE plugin_versions ADD COLUMN signature TEXT;
+
+-- 6 down
+ALTER TABLE plugin_versions DROP COLUMN signed_manifest;
+ALTER TABLE plugin_versions DROP COLUMN signature;

@@ -7,6 +7,10 @@
   # Koha library (with no GitHub credentials at all) will be able to fetch the same URLs.
   github_app_token => "YOUR_TOKEN_HERE",
 
+  # Path to the PEM file holding the store's Ed25519 signing private key.
+  # Generate one with: script/koha_plugin_store generate_signing_key <path>
+  signing_key_path => '/path/to/signing_key.pem',
+
   # Postgres connection string
   pg_dsn => 'postgresql://koha_plugin_store:koha_plugin_store@127.0.0.1:55432/koha_plugin_store',
 
