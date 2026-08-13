@@ -40,6 +40,18 @@ Resolved:
   complexity now for a need that may never materialise.
 - **The store itself is the signing/certification authority**, not a separate Koha-side
   module and not per-author keys managed locally by each Koha admin. See §4.3.
+- **Signing and levels make two different claims, and every surface that shows either
+  one must say so explicitly, in plain language, not just imply it via data model
+  shape.** "Signed" means authenticity — this file is unmodified since the store
+  inspected it. It says nothing about safety or quality, and every published version
+  gets signed regardless of level. "Level" means how much scrutiny a version has had,
+  independent of signing. A level-1/automated-only version with a valid signature is
+  still just level 1; a level-4/community-reviewed version that fails signature
+  verification is still refused install. Neither developer-facing copy (§4.3, §12) nor
+  the Koha-side install/discovery UI (§8) may collapse these into one combined "trust"
+  indicator, and neither may read as a safety guarantee — see §2 open question 3 on
+  malware scanning being out of scope, which is exactly the guarantee this distinction
+  must not accidentally imply.
 
 Still open:
 
@@ -214,6 +226,16 @@ Separately, whether a developer's own release/tag was itself GPG-signed on GitHu
 useful *input signal* the check pipeline (§6) can look for and record (a non-required check
 contributing to level 2) — that's about trusting what a developer submitted, a different
 question from the store's own signature over what it inspected.
+
+**This has to be legible to the people who actually see it, not just correct in the data
+model.** A plugin's page in the developer/review UI must state, next to the signature
+info, something to the effect of: *"Every published version is signed automatically —
+this confirms the file hasn't been altered since the store inspected it. It is not a
+safety or quality check; see this version's level for that."* Level and signing status
+are shown as two separate labelled facts on that page, never merged into a single score
+or badge. This matters most for a first-time developer watching their submission publish
+at level 1 with no human reviewer ever having looked at it (§6 point 4) — without this
+line, "signed" reads as a stronger endorsement than the store is actually making.
 
 ## 5. Data model (core tables)
 
@@ -408,6 +430,15 @@ convention) that:
 - **Signature verification replaces per-author key management (§4.3).** Koha ships with
   the store's public key baked in and verifies the `.kpz` digest/signature at install time.
   There's no local key store for admins to maintain, unlike the 2020 approach in bug 24632.
+  A signature-verification failure and a below-minimum-level rejection must surface as
+  two visibly different errors, not one generic "can't install this" message — the first
+  means the file was tampered with, corrupted, or the origin changed unexpectedly under
+  a URL the store already vouched for; the second means it hasn't cleared the site's
+  chosen review bar yet. Conflating them either hides a tampering event behind a message
+  a site admin reads as "just turn the syspref down," or makes a legitimate low-level
+  plugin sound like a security incident. Both level badge and signature status render as
+  separate, clearly labelled facts in the discovery UI (per §2's design decision above),
+  same as on the developer-facing plugin page (§4.3).
 - Whether the plugin-store feature is enabled at all, and which staff permissions gate
   viewing/installing store plugins, is an open community discussion on
   [bug 35837](https://bugs.koha-community.org/bugzilla3/show_bug.cgi?id=35837) (comments
@@ -479,6 +510,13 @@ needs:
 - **How to join and submit** — a short numbered path (log in via GitHub/GitLab → pick a
   repo → submit a tagged release), linking straight into the actual login/submission
   routes rather than describing them abstractly.
+- **What happens to a submission after it's in** — one or two sentences setting
+  expectations before a developer's first submission: it gets signed automatically the
+  moment it publishes (that's about file integrity, not an endorsement of it), and it
+  gets a level reflecting how much automated/human scrutiny it's had so far, which can
+  rise after publish as review capacity allows (§6). Worth stating here, not just on the
+  plugin's own page (§4.3), since this is where a developer forms their first impression
+  of what "signed" and "level" are going to mean for their plugin.
 
 This is server-rendered content in this app's own web UI (not the Koha-embedded Vue client
 from §8) — no new backend dependency, so it slots in as soon as login and submission exist
