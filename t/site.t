@@ -42,4 +42,11 @@ subtest 'no longer duplicates the All Plugins listing' => sub {
     $t->get_ok('/')->element_exists_not('table');
 };
 
+subtest 'sets expectations about signing and certification tier before a first submission' => sub {
+    $t->get_ok('/')
+      ->status_is(200)
+      ->content_like(qr/signed automatically/i)
+      ->content_like(qr/certification tier/i);
+};
+
 done_testing();

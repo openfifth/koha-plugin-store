@@ -42,6 +42,13 @@
   </ol>
 
   <p>
+    Once submitted, your release is signed automatically the moment it publishes — that
+    confirms the file's integrity, not an endorsement of it. It also gets a certification tier
+    reflecting how much automated (and eventually human) scrutiny it's had so far, which can
+    rise later as review capacity allows.
+  </p>
+
+  <p>
     %= link_to '/auth/github' => (class => 'btn btn-dark') => begin
       <i class='bx bxl-github'></i> Log in with GitHub
     % end
