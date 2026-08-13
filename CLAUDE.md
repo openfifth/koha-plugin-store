@@ -111,7 +111,20 @@ list server-side, since the dropdown alone doesn't stop a hand-crafted request.
    fetches the repo's contributors, computes a SHA-256 `content_digest`, and sets the
    version's `status` to `published` or `changes_requested` (with `error_message`)
    accordingly.
-3. `GET /plugins/:slug` is the public page a developer watches while their submission
+4. On publish, `KohaPluginStore::Signing` builds and signs a small manifest (`slug`,
+   `version`, `kpz_url`, `digest`, `published_at`) with the store's Ed25519 key
+   (`koha_plugin_store.conf`'s `signing_key_path`, generated via `script/koha_plugin_store
+   generate_signing_key`), storing both the exact signed JSON string
+   (`plugin_versions.signed_manifest`) and the signature (`signature`) verbatim.
+   `certification_tier` is deliberately excluded from the signed content -- it's a
+   separate, re-assessable quality claim, exposed alongside the signature rather than
+   frozen inside it, so a later re-certification never needs a re-sign.
+5. `GET /api/plugins/verify?digest=<sha256hex>` looks up a published version by its
+   `content_digest` and returns `{ signed_manifest, signature, certification_tier }` --
+   this is how a Koha instance verifies a manually-uploaded `.kpz` (which has no
+   `kpz_url` to match against the discovery listing), not just ones fetched via the
+   discovery client.
+6. `GET /plugins/:slug` is the public page a developer watches while their submission
    processes -- it auto-refreshes every 5 seconds while any version is
    `submitted`/`checks_running`.
 
