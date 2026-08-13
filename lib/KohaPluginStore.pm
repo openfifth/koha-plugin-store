@@ -21,6 +21,13 @@ sub startup ($self) {
 
     $self->plugin('Config');
 
+    # Validate signing_key_path configuration if present
+    if ( my $key_path = $self->config->{signing_key_path} ) {
+        unless ( -e $key_path && -r $key_path ) {
+            $self->log->warn("Signing key path is configured but does not exist or is not readable: $key_path");
+        }
+    }
+
     my %oauth2_providers;
     for my $provider ( @{ $self->config->{oauth_providers} || [] } ) {
         if ( $provider->{kind} eq 'github' ) {
