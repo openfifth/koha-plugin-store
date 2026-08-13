@@ -68,8 +68,12 @@ sub _plugin_page_stash {
 
     my %checks_by_version;
     if (@versions) {
+        # search()'s default_query_params applies a limit => 10 unless overridden --
+        # fine for a paginated listing, but here we want every check for every version
+        # on this page. Each version has a fixed, small number of checks (currently 11),
+        # so a generous fixed limit comfortably covers any plugin's full version history.
         my @checks = KohaPluginStore::Model::ReviewCheck->new( pg => $c->pg )->search(
-            { plugin_version_id => [ map { $_->id } @versions ] }, { order_by => 'check_name' }
+            { plugin_version_id => [ map { $_->id } @versions ] }, { order_by => 'check_name', limit => 1000 }
         );
         push @{ $checks_by_version{ $_->plugin_version_id } }, $_ for @checks;
     }
