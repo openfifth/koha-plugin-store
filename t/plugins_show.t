@@ -124,6 +124,56 @@ subtest 'a changes_requested version shows per-check results, not just the gener
       ->content_like(qr/INCOMPLETE/);
 };
 
+subtest 'check results for every version are shown, not truncated by search()\'s default row limit' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
+    );
+
+    # Two versions with six checks each (12 total) -- more than search()'s default
+    # limit of 10 rows. _plugin_page_stash fetches every version's checks in one
+    # combined query ordered only by check_name, so a version whose checks sort late
+    # alphabetically must still show up in full, not get silently cut off.
+    for my $tag ( 'v1.0.0', 'v2.0.0' ) {
+        my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+            {
+                plugin_id          => $plugin->id,
+                tag_name           => $tag,
+                status             => 'changes_requested',
+                certification_tier => 'INCOMPLETE',
+                error_message      => 'One or more required checks failed.',
+            }
+        );
+        for my $letter ( 'a' .. 'f' ) {
+            KohaPluginStore::Model::ReviewCheck->new( pg => test_pg() )->record(
+                {
+                    plugin_version_id => $version->id,
+                    check_name        => "check_${tag}_${letter}",
+                    required          => 0,
+                    passed            => 1,
+                    message           => undef,
+                }
+            );
+        }
+    }
+
+    $t->get_ok( '/plugins/' . $plugin->slug )
+      ->status_is(200)
+      ->content_like(qr/check_v1\.0\.0_a/)
+      ->content_like(qr/check_v1\.0\.0_f/)
+      ->content_like(qr/check_v2\.0\.0_a/)
+      ->content_like(qr/check_v2\.0\.0_f/);
+
+    $t->get_ok('/logout');
+};
+
 subtest 'a logged-in owner triggers a GitHub releases fetch; a public visitor does not' => sub {
     reset_db();
     $t->app->config->{oauth_mock} = 1;

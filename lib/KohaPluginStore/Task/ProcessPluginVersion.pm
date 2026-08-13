@@ -174,7 +174,7 @@ sub run {
             {
                 status             => 'changes_requested',
                 certification_tier => 'INCOMPLETE',
-                error_message      => 'One or more required checks failed -- see the version page for details.',
+                error_message      => 'One or more required checks failed.',
             }
         );
     }
