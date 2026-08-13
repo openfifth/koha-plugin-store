@@ -325,7 +325,8 @@ subtest 'a published version shows a Signed badge and the explanatory copy; a no
 
     $t->get_ok( '/plugins/' . $plugin->slug )
       ->status_is(200)
-      ->content_like(qr/Signed/)
+      ->content_like(qr/<tr>(?:(?!<\/tr>).)*?v1\.0\.0(?:(?!<\/tr>).)*?<span class="badge text-bg-info">Signed<\/span>(?:(?!<\/tr>).)*?<\/tr>/s)
+      ->content_unlike(qr/<tr>(?:(?!<\/tr>).)*?v1\.1\.0(?:(?!<\/tr>).)*?<span class="badge text-bg-info">Signed<\/span>(?:(?!<\/tr>).)*?<\/tr>/s)
       ->content_like(qr/confirms the file hasn't been altered/i);
 
     $t->get_ok('/logout');
