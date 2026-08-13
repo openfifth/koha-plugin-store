@@ -71,6 +71,7 @@
             <th>Version</th>
             <th>Status</th>
             <th>Certification</th>
+            <th>Signed</th>
             <th>Checks</th>
           </tr>
         </thead>
@@ -84,6 +85,11 @@
             <td>
               % if ($version->certification_tier) {
                 <span class="badge <%= $tier_badge{$version->certification_tier} || 'text-bg-secondary' %>"><%= $version->certification_tier %></span>
+              % }
+            </td>
+            <td>
+              % if ($version->signature) {
+                <span class="badge text-bg-info">Signed</span>
               % }
             </td>
             <td>
@@ -118,6 +124,12 @@
           % }
         </tbody>
       </table>
+
+      <p class="text-muted small">
+        Every published version is signed automatically — this confirms the file hasn't been altered
+        since the store inspected it. It is not a safety or quality check; see each version's
+        certification badge for that.
+      </p>
 
       % if ($is_owner) {
       <h3>Releases from <i class='bx bxl-github'></i> github:</h3>

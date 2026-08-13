@@ -298,4 +298,37 @@ subtest 'public visitor with zero published versions sees empty releases table, 
       ->content_unlike(qr/Syntax error/);
 };
 
+subtest 'a published version shows a Signed badge and the explanatory copy; a non-published one does not' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { name => 'Widget', repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        {
+            plugin_id       => $plugin->id,
+            tag_name        => 'v1.0.0',
+            status          => 'published',
+            signed_manifest => '{"slug":"widget"}',
+            signature       => 'fakesignature==',
+        }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.1.0', status => 'changes_requested', certification_tier => 'INCOMPLETE' }
+    );
+
+    $t->get_ok( '/plugins/' . $plugin->slug )
+      ->status_is(200)
+      ->content_like(qr/Signed/)
+      ->content_like(qr/confirms the file hasn't been altered/i);
+
+    $t->get_ok('/logout');
+};
+
 done_testing();
