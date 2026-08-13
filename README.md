@@ -67,7 +67,9 @@ Every submitted version runs through 11 automated checks (in
   - `perl_critic` — `Koha::QA::PerlCritic` against every `.pm` file
   - `docs_presence` — a `Development.md`, `CONTRIBUTING.md`, `README`/
     `README.md`, or `docs/` exists
-  - `tests_presence` — at least one `t/*.t` file exists
+  - `tests_presence` — at least one `t/*.t` file exists in the tagged source
+    repository (checked via the GitHub API, not the `.kpz`, which never
+    packages tests)
   - `translatable_templates` — any `.tt` file rendering visible markup
     (`<h1>`, `<p>`, `<button>`, etc.) also uses the `[% t(...) %]` translation
     marker somewhere in the file (a per-file heuristic, not a per-string check)

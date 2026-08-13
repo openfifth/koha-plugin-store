@@ -135,8 +135,10 @@ out to separate jobs, since the catalogue is small and only one check
   `CERTIFIED` tier without blocking publish), and `run($extract_dir,
   $metadata, $context)` returning `{ passed => bool, message => str|undef }`.
   `Base` supplies `find_files($dir, $regex)` for the file-scanning checks.
-- `$context` carries `repo_url`/`tag_name`/`github_token` — currently only
-  `gpg_signed_tag` uses it (to call GitHub's tag-verification API).
+- `$context` carries `repo_url`/`tag_name`/`github_token` — `gpg_signed_tag`
+  uses it to call GitHub's tag-verification API, and `tests_presence` uses it
+  to check the tagged commit's tree for a `t/*.t` file, since the `.kpz`
+  never packages tests.
 - A check `die`-ing with a `check_infrastructure_error` prefix (currently only
   `perl_syntax`, if it can't prepare the sandboxed Koha checkout) is treated
   differently from a normal failure: the job sets `status = 'check_error'`
