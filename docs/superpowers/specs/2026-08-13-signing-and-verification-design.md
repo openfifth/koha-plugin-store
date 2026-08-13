@@ -20,8 +20,8 @@ a new digest-lookup endpoint that also covers plugins installed by manually uplo
 ## Section 1: Architecture & components
 
 - **New module `KohaPluginStore::Signing`** — pure functions, no file I/O of its own:
-  - `build_manifest($plugin, $version)` → hashref `{ slug, version, kpz_url, digest, level,
-    published_at }`.
+  - `build_manifest($plugin, $version)` → hashref `{ slug, version, kpz_url, digest,
+    published_at }` — deliberately excludes `certification_tier`; see Section 2.
   - `canonical_json($manifest)` → sorted-key JSON string via `JSON->new->canonical->utf8`
     (`JSON` is already a cpanfile dependency). Deterministic regardless of Perl hash
     iteration order.
@@ -54,14 +54,26 @@ published):
   in this same update)
 - `kpz_url` ← `plugin_versions.kpz_url`
 - `digest` ← the `content_digest` already computed earlier in the same job run
-- `level` ← `certification_tier` (`STRUCTURAL` or `CERTIFIED` — `INCOMPLETE` never reaches
-  this code path, since a required-check failure keeps `status` at `changes_requested`)
 - `published_at` ← computed fresh in Perl at signing time
   (`Mojo::Date->new(time)->to_datetime`), **not** reused from the GitHub release's
   `date_released`. A submission can sit in `changes_requested` for a while before eventually
   passing, so "when the store actually vouched for this" is a distinct, more honest
   timestamp than "when the developer cut the release." No separate DB column is needed for
   it — it only has to exist inside the signed manifest.
+
+**Deliberately excluded: `certification_tier` ("level").** The spec's own §4.3 sketch of the
+manifest shape included `level` alongside the authenticity fields, but that couples two
+things the same section explicitly says must stay independent: *"Authenticity... established
+by a signature. Quality... established by review, independent of signing."* Baking the tier
+into the signed content would mean any future re-certification of an already-published
+release — adding a new check, or fixing a check bug, exactly as happened today with
+`docs_presence` and `perl_syntax` — would either leave the signature attesting to a stale
+tier, or force a needless re-sign of content that never actually changed. `certification_tier`
+stays exactly what it already is: a plain, independently-updatable column, exposed
+alongside the frozen signature (Section 3) rather than frozen inside it. Everything else
+above is a fixed fact about this specific already-published row that never changes after
+signing, so there's no equivalent tension for `slug`/`version`/`kpz_url`/`digest`/
+`published_at`.
 
 **Canonical serialization**: `JSON->new->canonical->utf8->encode($manifest)`. This exact
 string is both what gets signed and what gets stored in `signed_manifest` — nothing ever
@@ -107,9 +119,11 @@ entirely — did the store ever sign matching content?
 - Looks up `plugin_versions` where `content_digest = ?` and `status = 'published'` (belt-
   and-braces alongside `signed_manifest IS NOT NULL`, since both are only ever set together
   at publish time).
-- Found → `200` with exactly `{ signed_manifest, signature }`. The manifest itself already
-  carries `slug`/`version`/`kpz_url`/`digest`/`level`/`published_at`; nothing else needs
-  duplicating at the outer response level.
+- Found → `200` with `{ signed_manifest, signature, certification_tier }`. The manifest
+  itself carries `slug`/`version`/`kpz_url`/`digest`/`published_at` — the fixed authenticity
+  facts. `certification_tier` rides alongside as a plain, current field, not inside the
+  signed content (Section 2), so a caller checking minimum-level enforcement always sees
+  today's assessment, even if it's been re-run since the version was first signed.
 - Not found → `404`. This is the meaningful "no" — the store never signed anything matching
   these exact bytes.
 - `content_digest` isn't a unique column. In the practically-near-impossible case of two
@@ -124,8 +138,10 @@ bytes. Once this endpoint exists, Koha-core's enforcement should move to computi
 of whatever bytes it has and calling `GET /api/plugins/verify` instead — strictly more
 robust even for the discovery-driven case (a digest match is identity; a URL match could
 coincidentally collide or be spoofed), and the only way manual uploads get covered at all.
-This is Koha-core work, not this repo's, and is currently touched by a separate, ongoing
-effort — raise it there rather than implementing it as part of this piece of work.
+This endpoint's `certification_tier` field is exactly what that enforcement would check
+against the `PluginStoreMinimumLevel` threshold. This is Koha-core work, not this repo's, and
+is currently touched by a separate, ongoing effort — raise it there rather than implementing
+it as part of this piece of work.
 
 ## Section 4: UI legibility
 
@@ -172,10 +188,10 @@ provide (a "signed" boolean is simply "does this version have a non-`NULL` `sign
   present (regression test for the curation), while confirming existing fields (`name`,
   `tag_name`, `kpz_url`, etc.) are unchanged.
 - **`t/api_plugins_verify.t`** (new) — unknown digest → `404`; malformed digest (not 64 hex
-  chars) → `400`; known digest matching a published version → `200` with exactly
-  `{signed_manifest, signature}`; a digest belonging to a non-published version → `404`
-  (its `signed_manifest` is `NULL`, since signing only ever happens at publish time); CORS
-  headers present.
+  chars) → `400`; known digest matching a published version → `200` with
+  `{signed_manifest, signature, certification_tier}`; a digest belonging to a non-published
+  version → `404` (its `signed_manifest` is `NULL`, since signing only ever happens at
+  publish time); CORS headers present.
 - **`t/plugins_show.t`** (extend) — a published version's row shows the "Signed" badge and
   the explanatory copy; a non-published version (visible only to the owner, per the earlier
   Details/Releases design) does not show a "Signed" badge, since it has no signature yet.
