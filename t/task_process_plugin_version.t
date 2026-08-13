@@ -82,6 +82,7 @@ subtest 'successful processing publishes the version' => sub {
     *KohaPluginStore::GitHub::fetch_contributors = sub {
         return [ { github_username => 'octocat', avatar_url => 'https://example.com/a.png', contributions_count => 5 } ];
     };
+    *KohaPluginStore::GitHub::fetch_tag_has_test_files    = sub { return 0 };
     *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
     *KohaPluginStore::Check::PerlSyntax::_run_sandboxed = sub { return "syntax OK\n" };
 
@@ -210,6 +211,7 @@ subtest 'a contributors fetch failure does not block publishing' => sub {
         return 1;
     };
     *KohaPluginStore::GitHub::fetch_contributors = sub { die 'GitHub is down' };
+    *KohaPluginStore::GitHub::fetch_tag_has_test_files    = sub { return 0 };
     *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
     *KohaPluginStore::Check::PerlSyntax::_run_sandboxed = sub { return "syntax OK\n" };
 
@@ -261,6 +263,7 @@ PERL
     };
     *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
     *KohaPluginStore::GitHub::fetch_tag_verification       = sub { return 0 };
+    *KohaPluginStore::GitHub::fetch_tag_has_test_files     = sub { return 1 };
     *KohaPluginStore::Check::PerlSyntax::_ensure_checkout  = sub { return 1 };
     *KohaPluginStore::Check::PerlSyntax::_run_sandboxed    = sub { return "syntax OK\n" };
 
@@ -313,6 +316,7 @@ PERL
     };
     *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
     *KohaPluginStore::GitHub::fetch_tag_verification       = sub { return 0 };
+    *KohaPluginStore::GitHub::fetch_tag_has_test_files     = sub { return 0 };
     *KohaPluginStore::Check::PerlSyntax::_ensure_checkout  = sub { return 1 };
     *KohaPluginStore::Check::PerlSyntax::_run_sandboxed    = sub { return "syntax OK\n" };
 
@@ -360,6 +364,7 @@ PERL
     };
     *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
     *KohaPluginStore::GitHub::fetch_tag_verification       = sub { return 0 };
+    *KohaPluginStore::GitHub::fetch_tag_has_test_files     = sub { return 0 };
     *KohaPluginStore::Check::PerlSyntax::_ensure_checkout  = sub { return 1 };
     *KohaPluginStore::Check::PerlSyntax::_run_sandboxed    = sub { return "syntax OK\n" };
 
