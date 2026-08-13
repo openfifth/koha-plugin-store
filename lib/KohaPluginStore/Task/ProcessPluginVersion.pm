@@ -16,6 +16,8 @@ use KohaPluginStore::GitHub;
 use KohaPluginStore::Checks;
 use KohaPluginStore::Model::ReviewCheck;
 
+use KohaPluginStore::Signing;
+
 sub register {
     my ($app) = @_;
     $app->minion->add_task( process_plugin_version => \&run );
@@ -51,20 +53,22 @@ sub run {
 
     my $downloaded = KohaPluginStore::GitHub::download_kpz( $token, $version->kpz_url, $kpz_path );
     unless ($downloaded) {
-        return $version->update(
+        $version->update(
             {
                 status        => 'changes_requested',
                 error_message => 'Could not download the .kpz asset from GitHub -- it may not be publicly accessible.',
             }
         );
+        return;
     }
 
     my $extract_dir = "$tmp_dir/extracted";
     my $zip         = Archive::Zip->new($kpz_path);
     unless ($zip) {
-        return $version->update(
+        $version->update(
             { status => 'changes_requested', error_message => 'The downloaded .kpz file is not a valid zip archive.' }
         );
+        return;
     }
     for my $member ( $zip->members ) {
         $member->extractToFileNamed( "$extract_dir/" . $member->fileName );
@@ -72,35 +76,39 @@ sub run {
 
     my ( $plugin_class_file, $plugin_class_name ) = _find_plugin_class($extract_dir);
     unless ($plugin_class_file) {
-        return $version->update(
+        $version->update(
             {
                 status        => 'changes_requested',
                 error_message => 'Plugin class file not found. Make sure the plugin has a class containing \'use base qw(Koha::Plugins::Base)\'.',
             }
         );
+        return;
     }
     unless ($plugin_class_name) {
-        return $version->update(
+        $version->update(
             {
                 status        => 'changes_requested',
                 error_message => 'Plugin class name not found. Make sure the plugin class file contains \'package Name;\'.',
             }
         );
+        return;
     }
 
     my $metadata = _parse_metadata($plugin_class_file);
     unless ($metadata) {
-        return $version->update(
+        $version->update(
             {
                 status        => 'changes_requested',
                 error_message => 'Plugin metadata not found. Make sure the plugin class contains \'our $metadata = { ... }\'.',
             }
         );
+        return;
     }
     unless ( $metadata->{minimum_version} ) {
-        return $version->update(
+        $version->update(
             { status => 'changes_requested', error_message => 'Plugin metadata is missing \'minimum_version\'.' }
         );
+        return;
     }
 
     my $digest = do {
@@ -148,7 +156,8 @@ sub run {
         my $result = eval { $check->run( $extract_dir, $metadata, $check_context ) };
         if ($@) {
             if ( $@ =~ /^check_infrastructure_error/ ) {
-                return $version->update( { status => 'check_error', error_message => "$check_class: $@" } );
+                $version->update( { status => 'check_error', error_message => "$check_class: $@" } );
+                return;
             }
             die $@;
         }
@@ -170,14 +179,30 @@ sub run {
     }
 
     if ($required_failed) {
-        return $version->update(
+        $version->update(
             {
                 status             => 'changes_requested',
                 certification_tier => 'INCOMPLETE',
                 error_message      => 'One or more required checks failed.',
             }
         );
+        return;
     }
+
+    # Update the in-memory object first (no DB write yet) so build_manifest reads the
+    # values this call is about to persist, rather than stale pre-publish data.
+    $version->content_digest($digest);
+    $version->version( $metadata->{version} );
+
+    my $manifest = KohaPluginStore::Signing::build_manifest( $plugin, $version );
+    my $json     = KohaPluginStore::Signing::canonical_json($manifest);
+
+    my $key_path = $app->config->{signing_key_path};
+    open my $key_fh, '<', $key_path or die "Could not read signing key at $key_path: $!\n";
+    my $private_key_pem = do { local $/; <$key_fh> };
+    close $key_fh;
+
+    my $signature = KohaPluginStore::Signing::sign( $json, $private_key_pem );
 
     $version->update(
         {
@@ -186,8 +211,12 @@ sub run {
             version            => $metadata->{version},
             koha_min_version   => $metadata->{minimum_version},
             certification_tier => $gating_failed ? 'STRUCTURAL' : 'CERTIFIED',
+            signed_manifest    => $json,
+            signature          => $signature,
         }
     );
+
+    return;
 }
 
 sub _find_plugin_class {

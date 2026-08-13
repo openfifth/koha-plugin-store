@@ -15,9 +15,23 @@ use KohaPluginStore::Model::PluginVersion;
 use KohaPluginStore::Model::PluginContributor;
 use KohaPluginStore::Model::ReviewCheck;
 
+use Crypt::PK::Ed25519;
+use JSON qw(decode_json);
+
+use KohaPluginStore::Signing;
+
 reset_db();
 
 my $t = test_app();
+
+my $signing_keypair  = Crypt::PK::Ed25519->new;
+$signing_keypair->generate_key;
+my $signing_key_dir  = tempdir( CLEANUP => 1 );
+my $signing_key_path = "$signing_key_dir/signing_key.pem";
+open my $signing_key_fh, '>', $signing_key_path or die $!;
+print $signing_key_fh $signing_keypair->export_key_pem('private');
+close $signing_key_fh;
+$t->app->config->{signing_key_path} = $signing_key_path;
 
 sub make_kpz {
     my ($plugin_pm_contents) = @_;
@@ -424,6 +438,92 @@ PERL
 
     my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
     is( $reloaded->status, 'check_error', 'status is check_error, not changes_requested' );
+};
+
+subtest 'a successfully published version is signed' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget' }
+    );
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        {
+            plugin_id => $plugin->id,
+            tag_name  => 'v1.0.0',
+            kpz_url   => 'https://example.com/widget.kpz',
+            status    => 'submitted',
+        }
+    );
+
+    my $fixture_zip = make_kpz($valid_plugin_pm);
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::download_kpz = sub {
+        my ( $token, $url, $dest_path ) = @_;
+        copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
+        return 1;
+    };
+    *KohaPluginStore::GitHub::fetch_contributors        = sub { return []; };
+    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
+    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed   = sub { return "syntax OK\n" };
+
+    $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
+    $t->app->minion->perform_jobs_in_foreground;
+
+    my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
+    is( $reloaded->status, 'published', 'status is published' );
+    ok( $reloaded->signed_manifest, 'signed_manifest was recorded' );
+    ok( $reloaded->signature,       'signature was recorded' );
+    ok(
+        KohaPluginStore::Signing::verify(
+            $reloaded->signed_manifest, $reloaded->signature, $signing_keypair->export_key_pem('public')
+        ),
+        'the stored signature verifies against the test public key'
+    );
+
+    my $manifest = decode_json( $reloaded->signed_manifest );
+    is( $manifest->{slug},   $plugin->slug,           'manifest carries the plugin slug' );
+    is( $manifest->{digest}, $reloaded->content_digest, 'manifest digest matches the stored content_digest' );
+    ok( !exists $manifest->{certification_tier}, 'manifest does not embed the certification tier' );
+    ok( !exists $manifest->{level},               'manifest does not embed a level field either' );
+};
+
+subtest 'a missing signing key fails the job loudly instead of publishing unsigned' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget' }
+    );
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', kpz_url => 'https://example.com/widget.kpz', status => 'submitted' }
+    );
+
+    my $fixture_zip = make_kpz($valid_plugin_pm);
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::download_kpz = sub {
+        my ( $token, $url, $dest_path ) = @_;
+        copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
+        return 1;
+    };
+    *KohaPluginStore::GitHub::fetch_contributors        = sub { return []; };
+    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
+    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed   = sub { return "syntax OK\n" };
+
+    my $previous_key_path = $t->app->config->{signing_key_path};
+    $t->app->config->{signing_key_path} = "$signing_key_dir/does-not-exist.pem";
+
+    my $job_id = $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
+    $t->app->minion->perform_jobs_in_foreground;
+
+    my $info = $t->app->minion->job($job_id)->info;
+    is( $info->{state}, 'failed', 'the Minion job failed rather than silently publishing' );
+    like( $info->{result}, qr/Could not read signing key/, 'the failure reason names the signing key problem' );
+
+    my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
+    isnt( $reloaded->status, 'published', 'the version was not published' );
+
+    $t->app->config->{signing_key_path} = $previous_key_path;
 };
 
 done_testing();
