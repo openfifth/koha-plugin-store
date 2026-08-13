@@ -151,16 +151,28 @@ sub list_all ($c) {
     my @plugins = map { $_->unblessed } KohaPluginStore::Model::Plugin->new( pg => $c->pg )->search;
 
     foreach my $plugin (@plugins) {
-        my @releases =
-            map { $_->unblessed } KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->search(
-                { plugin_id => $plugin->{id}, status => 'published' }, { order_by => { -desc => 'date_released' } }
-            );
+        my @releases = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->search(
+            { plugin_id => $plugin->{id}, status => 'published' }, { order_by => { -desc => 'date_released' } }
+        );
 
         foreach my $release (@releases) {
-            next if( $release->{koha_min_version} > $koha_version_release );
+            next if ( $release->koha_min_version > $koha_version_release );
             push(
                 @{ $plugin->{releases} },
-                $release
+                {
+                    name               => $release->name,
+                    tag_name           => $release->tag_name,
+                    version            => $release->version,
+                    koha_min_version   => $release->koha_min_version,
+                    kpz_url            => $release->kpz_url,
+                    date_released      => $release->date_released,
+                    content_digest     => $release->content_digest,
+                    certification_tier => $release->certification_tier,
+                    author_username    => $release->author_username,
+                    author_avatar_url  => $release->author_avatar_url,
+                    signed_manifest    => $release->signed_manifest,
+                    signature          => $release->signature,
+                }
             );
         }
 
