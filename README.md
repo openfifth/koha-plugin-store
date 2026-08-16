@@ -11,187 +11,26 @@ Koha plugin store project consisting of 2 distinct components:
 - Koha plugins database
 
 - Features:
-
   - Restricted access UI for review process of new plugin submissions
   - Authorized community members can access and review plugins
   - Provides REST API to be consumed by core Koha
   - Automatically manage latest version releases for each plugin
 
-- Notes
+Every submitted plugin version runs through an 11-check automated
+certification pipeline before it can publish, and published versions are
+signed by the store — see [docs/CERTIFICATION.md](docs/CERTIFICATION.md).
 
-  - A `koha_plugin_store.conf` file is required. Follow the example from `koha_plugin_store.conf.example`
-    (now also holds `pg_dsn`, the Postgres connection string).
-  - The `kpz_packages` directory is used to store `.kpz` files download from github.
-  - Developer login is GitHub OAuth — there's no password-based login anymore. Local/Docker
-    dev needs a real GitHub OAuth App registered (callback URL matching your `morbo`/Docker
-    host and port), with its `client_id`/`client_secret` added to `koha_plugin_store.conf`'s
-    `oauth_providers` block.
-  - Submitting a plugin now requires the developer to have at least one public GitHub
-    repository — the submission form picks from a list of the developer's own public
-    repos rather than accepting a free-text URL.
-  - Plugin submission is asynchronous: picking a repo+tag creates the plugin/version rows
-    immediately and a Minion background job does the actual download/parse/validation.
-    A Minion worker process must be running for submissions to ever complete -- either
-    `perl script/koha_plugin_store minion worker` locally, or the `worker` service in
-    Docker (already included in `docker-compose.yml`).
-  - To install cpan dependencies, run `cpanm --installdeps .` at the project
-    root dir.
-  - Local Postgres runs via `docker compose up -d postgres` (see `docker-compose.yml`).
+### Quick start (Docker)
 
-- Commands
-  - Start local Postgres: `docker compose up -d postgres`
-  - Apply migrations: `script/koha_plugin_store migrate`
-  - Reset test data: `script/koha_plugin_store reset_test_data`
+```bash
+cp koha_plugin_store.conf.docker.example koha_plugin_store.conf
+docker compose up -d --build
+docker compose exec app script/koha_plugin_store migrate
+```
 
-### Automated checks (certification pipeline)
-
-Every submitted version runs through 11 automated checks (in
-`lib/KohaPluginStore/Check/`) before it can publish, split into three tiers:
-
-- **Required — the actual publish gate.** Fail any one of these and the
-  version stays in `changes_requested` forever, regardless of who submitted
-  it:
-  - `perl_syntax` — runs `perl -cw` against every `.pm` file, inside a
-    network-isolated, read-only Docker sandbox, against a Koha checkout
-    matching the plugin's declared `minimum_version`
-  - `manifest_completeness` — the plugin's `$metadata` hash declares both
-    `version` and `license`
-  - `dependency_allowlist` — a static regex scan for risky code: `system()`/
-    `exec()`/backticks/`qx`, opening sockets or making HTTP requests, opening
-    an absolute filesystem path, or referencing `../` to escape the plugin's
-    own directory
-
-- **Non-required, but gate the certification badge.** These don't block
-  publishing, but a version can only reach the `CERTIFIED` tier if all of
-  them also pass (short of that, it still publishes, just at `STRUCTURAL`):
-  - `perl_critic` — `Koha::QA::PerlCritic` against every `.pm` file
-  - `docs_presence` — a `Development.md`, `CONTRIBUTING.md`, `README`/
-    `README.md`, or `docs/` exists
-  - `tests_presence` — at least one `t/*.t` file exists in the tagged source
-    repository (checked via the GitHub API, not the `.kpz`, which never
-    packages tests)
-  - `translatable_templates` — any `.tt` file rendering visible markup
-    (`<h1>`, `<p>`, `<button>`, etc.) also uses the `[% t(...) %]` translation
-    marker somewhere in the file (a per-file heuristic, not a per-string check)
-  - `plugin_template_wrapper` — every `.tt` file includes the plugin template
-    wrapper include (currently `doc-head-close.inc` — a placeholder pending
-    confirmation against `Koha::Plugins` conventions, see the code comment)
-  - `hardcoded_credentials` — a regex scan for API-key/secret/password-shaped
-    string literals, PEM private key headers, and AWS access key ID patterns
-
-- **Recorded, but don't gate anything — informational only:**
-  - `koha_max_version` — whether `$metadata` declares a `maximum_version`
-  - `gpg_signed_tag` — whether the developer's own release tag was GPG-signed
-    on GitHub
-
-Every check's `required`/`passed`/`message` result is written to the
-`review_checks` table (one row per check per version, upserted on re-run) by
-`KohaPluginStore::Task::ProcessPluginVersion`, which runs all 11 in order once
-per submitted version. Once they've all run:
-
-- Any **required** check failing → `status = 'changes_requested'`,
-  `certification_tier = 'INCOMPLETE'` — the version never publishes.
-- All required checks pass, but at least one certification-gating check
-  fails → publishes at `certification_tier = 'STRUCTURAL'`.
-- Everything passes → publishes at `certification_tier = 'CERTIFIED'`.
-- If a check itself can't run (e.g. the sandboxed Koha checkout for
-  `perl_syntax` can't be prepared) → `status = 'check_error'`, distinct from
-  a normal check failure, so infrastructure problems aren't mistaken for a
-  problem with the plugin.
-
-**What a developer currently sees on a failed submission:** only the
-version's `status` and one generic `error_message` (e.g. "One or more
-required checks failed — see the version page for details."). The per-check
-pass/fail/message detail described above *is* recorded in `review_checks`,
-but the version page doesn't query or display it yet, and
-`certification_tier` isn't shown anywhere either — right now there's no way
-to see *which* check failed or *why* without querying the database directly.
-Surfacing `review_checks` and the tier badge on the version page is the
-natural next step, not something this pipeline does today.
-
-### Docker development
-
-No local Perl or Postgres install needed:
-
-1. `cp koha_plugin_store.conf.docker.example koha_plugin_store.conf` (edit in your
-   `github_user_access_token` if you need GitHub-backed features)
-2. `docker compose up -d --build`
-3. `docker compose exec app script/koha_plugin_store migrate` (first run only)
-4. `docker compose exec app script/koha_plugin_store reset_test_data` (optional demo data)
-5. Visit http://127.0.0.1:3000 — the app port is published on all interfaces (`3000:3000`,
-   not `127.0.0.1:3000:3000`), so it's also reachable from elsewhere on your LAN via the
-   Docker host's own IP or hostname. That matters if you're browsing from a different
-   machine than the Docker host (e.g. testing a real GitHub OAuth App's callback from your
-   laptop against a Docker host running elsewhere on the network) — `127.0.0.1` would only
-   ever mean "this machine," not the Docker host. Postgres stays bound to `127.0.0.1` only —
-   its dev credentials are weak and well-known, so it's never exposed beyond the Docker host.
-
-The `oauth_mock` flag is already enabled in `koha_plugin_store.conf.docker.example`, allowing you to log in instantly as a mock developer without registering a real GitHub OAuth App — just click "GitHub login" and you'll be logged in. To test the real OAuth flow instead, remove or set `oauth_mock => 0` in your `koha_plugin_store.conf`.
-
-Edits to the repo on your host are picked up automatically (`morbo` hot-reloads inside the
-container) — no rebuild needed unless you change `cpanfile` or the `Dockerfile` itself.
-
-This is separate from `koha_plugin_store.conf.example`, used for running directly on the
-host — the two files point at Postgres differently (`postgres` as the hostname inside
-Docker's network vs. `127.0.0.1:55432` on the host).
-
-### Testing developer login (GitHub OAuth)
-
-Two ways to test the login flow, depending on what you're working on.
-
-**Quick path — no GitHub account needed:**
-
-`koha_plugin_store.conf.docker.example` already sets `oauth_mock => 1`. With that in
-place, clicking "Log in with GitHub" logs you in instantly as a fixed `mockdev`
-account, skipping GitHub entirely — good enough for anything that just needs *a*
-logged-in developer (submission flow, ownership checks, etc.), but it never
-exercises the actual OAuth2 code path.
-
-**Real path — testing the OAuth flow itself:**
-
-1. Register an OAuth App at <https://github.com/settings/developers> → OAuth Apps →
-   New OAuth App:
-   - **Homepage URL**: wherever you're reaching the app (e.g. `http://127.0.0.1:3000`
-     for host dev, or your Docker host's LAN address/hostname if you're browsing from
-     another machine)
-   - **Authorization callback URL**: the same host, path `/auth/github` (e.g.
-     `http://127.0.0.1:3000/auth/github`) — must match exactly, GitHub does an exact
-     host:port match. Plain `http://` is fine for local dev; GitHub doesn't require
-     HTTPS here.
-2. Copy the generated **Client ID** and **Client secret** into `koha_plugin_store.conf`'s
-   `oauth_providers` block, and remove (or set to `0`) the `oauth_mock` flag:
-   ```perl
-   oauth_providers => [
-     {
-       key           => 'github',
-       kind          => 'github',
-       display_name  => 'GitHub',
-       client_id     => 'your real Client ID',
-       client_secret => 'your real Client secret',
-     },
-   ],
-   ```
-3. Restart so the app picks up the config change — it's only read at startup, and
-   `morbo`'s auto-reload watches Perl/template files, not `.conf`:
-   ```bash
-   docker compose restart app        # Docker — no rebuild needed
-   ```
-   (for host dev, just re-run `morbo script/koha_plugin_store`)
-
-**Common pitfalls:**
-
-- **Wrong `pg_dsn` host.** `koha_plugin_store.conf.docker.example`'s `pg_dsn` points at
-  `postgres:5432` (the compose service name). If you started from
-  `koha_plugin_store.conf.example` instead, or hand-edited an existing conf, it may
-  still say `127.0.0.1:55432` — not reachable *from inside* the app container.
-  Double-check this if the app fails to connect to Postgres after editing `.conf`.
-- **Testing from another machine on your LAN.** The app's Docker port is published on
-  all interfaces (`3000:3000`), reachable via the Docker host's LAN IP or hostname —
-  but `127.0.0.1` in your OAuth App's callback URL only ever means "this machine."
-  Use whatever hostname/IP your browser will actually use to reach the Docker host,
-  and register that exact value with GitHub.
-- **Clicking "Cancel"/"Deny" on GitHub's authorize screen** renders a plain 400
-  response rather than logging you in — that's expected, not a bug.
+Visit <http://127.0.0.1:3000>. See [DEVELOPMENT.md](DEVELOPMENT.md) for the
+full dev setup, including host-only dev, testing GitHub OAuth login, and
+common pitfalls.
 
 ## Client
 
@@ -211,6 +50,9 @@ exercises the actual OAuth2 code path.
 
 ![new version release](https://github.com/ammopt/koha-plugin-store/blob/main/new-version-release.jpg?raw=true)
 
-### Launch server
+## Documentation
 
-- morbo script/koha_plugin_store
+- [DEVELOPMENT.md](DEVELOPMENT.md) — local dev setup (Docker and host), testing GitHub OAuth login
+- [DEPLOYMENT.md](DEPLOYMENT.md) — running the store in production
+- [docs/CERTIFICATION.md](docs/CERTIFICATION.md) — the automated check pipeline and publish signing
+- [CONTRIBUTING.md](CONTRIBUTING.md) — workflow, testing, code conventions

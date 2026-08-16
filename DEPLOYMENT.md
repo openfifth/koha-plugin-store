@@ -1,0 +1,95 @@
+# Deployment
+
+Running the store in production, outside of the Docker Compose dev setup
+described in [DEVELOPMENT.md](DEVELOPMENT.md). Production runs two long-lived
+processes directly on the host — the web app and a Minion worker — behind
+systemd.
+
+## Prerequisites
+
+- Perl 5.36+, with `build-essential`, `libpq-dev`, `git`, `nodejs`/`npm` and
+  `yarn` available (see `Dockerfile` for the exact package list the dev image
+  installs — production needs the same).
+- A reachable Postgres instance (not the dev-only `docker-compose.yml`
+  Postgres, which binds to `127.0.0.1` with well-known weak credentials).
+- Docker installed on the host, with the deploying user able to reach the
+  Docker socket, plus outbound network access to `git.koha-community.org`.
+  The `perl_syntax` certification check shells out to `docker run` itself
+  (network-isolated, read-only, per-run) to compile-check submitted plugins
+  against a cached Koha checkout — this happens inside the **worker**
+  process, so it's the worker host that needs Docker and that egress, not
+  necessarily the app host if they're split.
+- A dedicated `plugin-store` user and group (matches
+  `koha_plugin_store.service.example`'s `User=`/`Group=`).
+
+## Install
+
+1. Clone the repo to the path you'll run from (the example unit files assume
+   `/opt/plugin-store`):
+   ```bash
+   git clone <repo-url> /opt/plugin-store
+   cd /opt/plugin-store
+   ```
+2. Install CPAN dependencies:
+   ```bash
+   cpanm --installdeps .
+   ```
+   `Koha::QA::PerlCritic` (needed for the `perl_critic` check) isn't on CPAN —
+   see the `cpanfile` comment for the exact `cpanm -L local --force <git-url>@<ref>`
+   command, and set `PERL5LIB` to include that local `lib/` for anything that
+   loads it (the app, `minion worker`, `prove`).
+3. Copy `koha_plugin_store.conf.example` to `koha_plugin_store.conf` and fill in:
+   - `github_app_token` — a fine-grained, public-repos-read-only PAT.
+   - `pg_dsn` — your production Postgres connection string.
+   - `oauth_providers` — a real GitHub OAuth App's `client_id`/`client_secret`
+     (registered at <https://github.com/settings/developers>, callback URL
+     `https://<your-host>/auth/github`). Do **not** set `oauth_mock` in
+     production — it bypasses GitHub login entirely and exists for dev only.
+   - `signing_key_path` — a file path for the store's Ed25519 signing key (see
+     below). Keep the key file itself out of the conf and out of git.
+4. Generate the signing key referenced above (see
+   [docs/CERTIFICATION.md](docs/CERTIFICATION.md) for what it's used for):
+   ```bash
+   script/koha_plugin_store generate_signing_key /opt/plugin-store/signing_key.pem
+   ```
+   Refuses to overwrite an existing file unless `--force` is given — back this
+   file up; losing it means every previously-published version's signature
+   can no longer be verified against a newly-generated key.
+5. Apply migrations:
+   ```bash
+   script/koha_plugin_store migrate
+   ```
+6. Place your TLS certificate and key at `ssl/cert.pem` and `ssl/privkey.pem`
+   (paths the example systemd unit points `MOJO_SSL_CERT`/`MOJO_SSL_PRIV` at).
+   If you're terminating TLS at a reverse proxy instead (e.g. Traefik/nginx in
+   front of the app), skip this and change the unit's `ExecStart` to listen
+   on plain `http` on a loopback/internal port instead.
+
+## systemd units
+
+Two example unit files ship at the repo root — copy both into
+`/etc/systemd/system/`, editing the `User`/`Group`,
+`PERL5LIB`/`WorkingDirectory`, and SSL paths to match your install:
+
+- **`koha_plugin_store.service.example`** → `koha-plugin-store.service` — the
+  web app, run via `prefork` (Mojolicious's multi-worker production server).
+- **`koha_plugin_store-worker.service.example`** → `koha-plugin-store-worker.service`
+  — the Minion worker. Without this running, submissions stay stuck at
+  `status = 'submitted'` forever, identical to forgetting to start the
+  `worker` service in the dev Docker Compose setup.
+
+```bash
+sudo cp koha_plugin_store.service.example /etc/systemd/system/koha-plugin-store.service
+sudo cp koha_plugin_store-worker.service.example /etc/systemd/system/koha-plugin-store-worker.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now koha-plugin-store koha-plugin-store-worker
+```
+
+## Upgrading
+
+```bash
+git pull
+cpanm --installdeps .
+script/koha_plugin_store migrate
+sudo systemctl restart koha-plugin-store koha-plugin-store-worker
+```

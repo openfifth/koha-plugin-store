@@ -1,0 +1,22 @@
+# koha-plugin-store-worker.service
+[Unit]
+Description=Koha Plugin Store Minion Worker
+After=syslog.target network.target koha-plugin-store.service
+
+[Service]
+Type=simple
+## make sure the user & group exist
+User=plugin-store
+Group=plugin-store
+## change the below values to suit your installation
+Environment=PERL5LIB=/opt/plugin-store/lib
+WorkingDirectory=/opt/plugin-store
+## end of config values
+ExecStart=/usr/bin/perl script/koha_plugin_store minion worker
+KillMode=mixed
+Restart=on-failure
+RestartSec=5s
+SyslogIdentifier=koha-plugin-store-worker
+
+[Install]
+WantedBy=multi-user.target
