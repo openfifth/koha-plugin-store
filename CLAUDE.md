@@ -22,6 +22,13 @@ OAuth2 developer login, a levelled trust/review model, federation. It describes 
 target architecture, not the current implementation. Don't assume anything it
 describes (tables, endpoints, auth flow) exists in the code yet.
 
+### Documentation map
+
+- [`DEVELOPMENT.md`](DEVELOPMENT.md) — local dev setup (Docker and host), testing GitHub OAuth login
+- [`DEPLOYMENT.md`](DEPLOYMENT.md) — running the store in production (systemd units, SSL, signing key)
+- [`docs/CERTIFICATION.md`](docs/CERTIFICATION.md) — the automated check pipeline and publish signing
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — workflow, testing, code conventions
+
 ## Commands
 
 ```bash
@@ -39,7 +46,7 @@ copy `koha_plugin_store.conf.example` (host) or `koha_plugin_store.conf.docker.e
 (Docker — these two differ in `pg_dsn`'s host, don't mix them up). It holds
 `github_app_token` (a fine-grained, public-repos-read-only PAT for the store's own
 background GitHub API calls), `pg_dsn` (Postgres connection string), and
-`oauth_providers` (developer login — see README's "Testing developer
+`oauth_providers` (developer login — see DEVELOPMENT.md's "Testing developer
 login" section for the full GitHub OAuth App setup walkthrough and the `oauth_mock`
 shortcut).
 
@@ -137,8 +144,8 @@ the Koha-side Vue client calls; it filters releases by `koha_version_release`
 ### Check pipeline (certification)
 
 `KohaPluginStore::Task::ProcessPluginVersion` runs every class listed in
-`KohaPluginStore::Checks::@ALL` (11 checks, see README's "Automated checks"
-section for what each one verifies) sequentially, in-process, inside the same
+`KohaPluginStore::Checks::@ALL` (11 checks, see `docs/CERTIFICATION.md`
+for what each one verifies) sequentially, in-process, inside the same
 Minion job that already unpacked the `.kpz` and parsed metadata — not fanned
 out to separate jobs, since the catalogue is small and only one check
 (`perl_syntax`) is slow enough to matter.
