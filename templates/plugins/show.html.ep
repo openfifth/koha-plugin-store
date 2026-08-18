@@ -218,3 +218,23 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 % }
+
+<script>
+// Keeps the active tab across the auto-refresh (see the meta-refresh above,
+// active while a version is still processing) -- Bootstrap's own tab state is
+// purely client-side and would otherwise reset to "Details" on every reload.
+document.addEventListener('DOMContentLoaded', function () {
+  var tabList = document.getElementById('plugin-tabs');
+  if (!tabList) return;
+
+  var target = window.location.hash;
+  if (target) {
+    var trigger = tabList.querySelector('[data-bs-target="' + target + '"]');
+    if (trigger) new bootstrap.Tab(trigger).show();
+  }
+
+  tabList.addEventListener('shown.bs.tab', function (event) {
+    history.replaceState(null, '', event.target.getAttribute('data-bs-target'));
+  });
+});
+</script>
