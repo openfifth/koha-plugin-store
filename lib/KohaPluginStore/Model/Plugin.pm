@@ -49,4 +49,62 @@ sub create_with_unique_slug {
     die "Could not generate a unique slug for '$slug_source' after 10 attempts";
 }
 
+my %ORDER_BY = (
+    'name'  => 'p.name ASC',
+    '-name' => 'p.name DESC',
+);
+
+sub _compatible_where_and_binds {
+    my ( $self, $args ) = @_;
+
+    my @clauses = ( "v.status = 'published'", 'v.koha_min_version <= ?', '(v.koha_max_version IS NULL OR v.koha_max_version >= ?)' );
+    my @binds   = ( $args->{koha_version}, $args->{koha_version} );
+
+    if ( defined $args->{q} && length $args->{q} ) {
+        push @clauses, '(p.name ILIKE ? OR p.description ILIKE ?)';
+        push @binds, '%' . $args->{q} . '%', '%' . $args->{q} . '%';
+    }
+
+    return ( join( ' AND ', @clauses ), \@binds );
+}
+
+sub search_compatible {
+    my ( $self, $args ) = @_;
+
+    my ( $where, $binds ) = $self->_compatible_where_and_binds($args);
+    my $order_by = $ORDER_BY{ $args->{order_by} // '' } // $ORDER_BY{name};
+
+    my $rows = $self->pg->db->query(
+        qq{
+            SELECT DISTINCT p.*
+            FROM plugins p
+            JOIN plugin_versions v ON v.plugin_id = p.id
+            WHERE $where
+            ORDER BY $order_by
+            LIMIT ? OFFSET ?
+        },
+        @$binds, $args->{limit}, $args->{offset}
+    )->hashes;
+
+    return [ map { $self->_new_from_row($_) } @$rows ];
+}
+
+sub count_compatible {
+    my ( $self, $args ) = @_;
+
+    my ( $where, $binds ) = $self->_compatible_where_and_binds($args);
+
+    my $count = $self->pg->db->query(
+        qq{
+            SELECT COUNT(DISTINCT p.id)
+            FROM plugins p
+            JOIN plugin_versions v ON v.plugin_id = p.id
+            WHERE $where
+        },
+        @$binds
+    )->array->[0];
+
+    return $count;
+}
+
 1;
