@@ -76,4 +76,65 @@ subtest 'no longer exposes internal review fields' => sub {
     ok( !exists $body->[0]{releases}[0]{status},        'status is not exposed' );
 };
 
+subtest 'q filters by name/description, koha_max_version excludes an incompatible release, X-Total-Count is set' => sub {
+    reset_db();
+    my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => '1', username => 'seeder' }
+    );
+    my $coverflow = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create(
+        { name => 'CoverFlow', description => 'A widget', developer_id => $developer->id }
+    );
+    my $reportkit = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create(
+        { name => 'ReportKit', description => 'Reporting tools', developer_id => $developer->id }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        {
+            plugin_id => $coverflow->id, version => '1.0.0', tag_name => 'v1', status => 'published',
+            koha_min_version => '20.00.00.000',
+        }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        {
+            plugin_id => $reportkit->id, version => '1.0.0', tag_name => 'v1', status => 'published',
+            koha_min_version => '20.00.00.000', koha_max_version => '21.00.00.000',
+        }
+    );
+
+    my $t = test_app();
+
+    $t->get_ok('/api/plugins?koha_version_release=25.00.00.000&q=report')
+      ->status_is(200)
+      ->header_is( 'X-Total-Count' => 0 );
+    is( scalar @{ $t->tx->res->json }, 0, 'ReportKit itself is excluded -- its only release is above koha_max_version' );
+
+    $t->get_ok('/api/plugins?koha_version_release=20.50.00.000&q=report')
+      ->status_is(200)
+      ->json_is( '/0/name' => 'ReportKit' )
+      ->header_is( 'X-Total-Count' => 1 );
+};
+
+subtest '_page and _per_page paginate; _order_by=-name sorts descending' => sub {
+    reset_db();
+    for my $name (qw(Alpha Bravo Charlie)) {
+        my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => $name } );
+        KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+            { plugin_id => $plugin->id, version => '1.0.0', tag_name => 'v1', status => 'published', koha_min_version => '20.00.00.000' }
+        );
+    }
+
+    my $t = test_app();
+
+    $t->get_ok('/api/plugins?koha_version_release=25.00.00.000&_page=1&_per_page=2&_order_by=-name')
+      ->status_is(200)
+      ->json_is( '/0/name' => 'Charlie' )
+      ->json_is( '/1/name' => 'Bravo' )
+      ->header_is( 'X-Total-Count' => 3 );
+    is( scalar @{ $t->tx->res->json }, 2, 'only 2 of 3 returned on page 1' );
+
+    $t->get_ok('/api/plugins?koha_version_release=25.00.00.000&_page=2&_per_page=2&_order_by=-name')
+      ->status_is(200)
+      ->json_is( '/0/name' => 'Alpha' );
+    is( scalar @{ $t->tx->res->json }, 1, 'the remaining plugin is on page 2' );
+};
+
 done_testing();

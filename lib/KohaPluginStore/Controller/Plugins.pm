@@ -144,19 +144,37 @@ sub update_plugin ($c) {
 }
 
 sub list_all ($c) {
-    my $koha_version_release = $c->param('koha_version_release');
+    my $koha_version = $c->param('koha_version_release');
 
-    return $c->render( text => 'koha_version_release required', status => 400 ) unless $koha_version_release;
+    return $c->render( text => 'koha_version_release required', status => 400 ) unless $koha_version;
 
-    my @plugins = map { $_->unblessed } KohaPluginStore::Model::Plugin->new( pg => $c->pg )->search;
+    my $q        = $c->param('q');
+    my $page     = $c->param('_page') || 1;
+    my $per_page = $c->param('_per_page') || 20;
+    my $order_by = $c->param('_order_by');
 
-    foreach my $plugin (@plugins) {
-        my @releases = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->search(
-            { plugin_id => $plugin->{id}, status => 'published' }, { order_by => { -desc => 'date_released' } }
-        );
+    my $args = { koha_version => $koha_version, q => $q, order_by => $order_by };
 
-        foreach my $release (@releases) {
-            next if ( $release->koha_min_version > $koha_version_release );
+    my $plugin_model = KohaPluginStore::Model::Plugin->new( pg => $c->pg );
+    my $total        = $plugin_model->count_compatible($args);
+
+    my @plugins;
+    if ( $per_page == -1 ) {
+        @plugins = @{ $plugin_model->search_compatible( { %$args, limit => $total, offset => 0 } ) };
+    }
+    else {
+        @plugins = @{ $plugin_model->search_compatible( { %$args, limit => $per_page, offset => ( $page - 1 ) * $per_page } ) };
+    }
+
+    my @plugin_hashes = map { $_->unblessed } @plugins;
+    my $releases      = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )
+        ->for_plugin_ids( [ map { $_->{id} } @plugin_hashes ], { koha_version => $koha_version } );
+
+    my %releases_by_plugin_id;
+    push @{ $releases_by_plugin_id{ $_->plugin_id } }, $_ for @$releases;
+
+    for my $plugin (@plugin_hashes) {
+        for my $release ( @{ $releases_by_plugin_id{ $plugin->{id} } // [] } ) {
             push(
                 @{ $plugin->{releases} },
                 {
@@ -184,8 +202,9 @@ sub list_all ($c) {
     $c->res->headers->header( 'Access-Control-Allow-Origin'  => '*' );
     $c->res->headers->header( 'Access-Control-Allow-Headers' => 'content-type,x-koha-request-id' );
     $c->res->headers->header( 'Access-Control-Allow-Methods' => 'get,options' );
+    $c->res->headers->header( 'X-Total-Count'                => $total );
 
-    return $c->render( json => \@plugins, status => 200 );
+    return $c->render( json => \@plugin_hashes, status => 200 );
 }
 
 sub verify ($c) {
