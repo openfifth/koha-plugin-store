@@ -8,7 +8,7 @@ use Test::Mojo;
 our @EXPORT_OK = qw(reset_db test_pg test_app);
 
 my $DSN = $ENV{KOHA_PLUGIN_STORE_TEST_DSN}
-    || 'postgresql://koha_plugin_store:koha_plugin_store@127.0.0.1:55432/koha_plugin_store';
+    || 'postgresql://koha_plugin_store:koha_plugin_store@postgres:5432/koha_plugin_store';
 
 my $PG = Mojo::Pg->new($DSN);
 

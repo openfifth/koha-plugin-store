@@ -17,6 +17,7 @@ use KohaPluginStore::Checks;
 use KohaPluginStore::Model::ReviewCheck;
 
 use KohaPluginStore::Signing;
+use KohaPluginStore::Version qw(normalize);
 
 sub register {
     my ($app) = @_;
@@ -109,6 +110,31 @@ sub run {
             { status => 'changes_requested', error_message => 'Plugin metadata is missing \'minimum_version\'.' }
         );
         return;
+    }
+
+    my $koha_min_version = normalize( $metadata->{minimum_version} );
+    unless ($koha_min_version) {
+        $version->update(
+            {
+                status        => 'changes_requested',
+                error_message => "Plugin metadata's minimum_version ('$metadata->{minimum_version}') is not a valid Koha version string.",
+            }
+        );
+        return;
+    }
+
+    my $koha_max_version;
+    if ( $metadata->{maximum_version} ) {
+        $koha_max_version = normalize( $metadata->{maximum_version} );
+        unless ($koha_max_version) {
+            $version->update(
+                {
+                    status        => 'changes_requested',
+                    error_message => "Plugin metadata's maximum_version ('$metadata->{maximum_version}') is not a valid Koha version string.",
+                }
+            );
+            return;
+        }
     }
 
     my $digest = do {
@@ -209,7 +235,8 @@ sub run {
             status             => 'published',
             content_digest     => $digest,
             version            => $metadata->{version},
-            koha_min_version   => $metadata->{minimum_version},
+            koha_min_version   => $koha_min_version,
+            koha_max_version   => $koha_max_version,
             certification_tier => $gating_failed ? 'STRUCTURAL' : 'CERTIFIED',
             signed_manifest    => $json,
             signature          => $signature,

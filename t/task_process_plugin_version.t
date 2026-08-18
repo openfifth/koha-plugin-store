@@ -106,7 +106,7 @@ subtest 'successful processing publishes the version' => sub {
     my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
     is( $reloaded->status, 'published', 'status is published' );
     ok( $reloaded->content_digest, 'content_digest was computed' );
-    is( $reloaded->koha_min_version, '23.05', 'koha_min_version parsed from metadata' );
+    is( $reloaded->koha_min_version, '23.05.00.000', 'koha_min_version is normalized from metadata' );
 
     my $reloaded_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
     is( $reloaded_plugin->name, 'Widget', 'plugin name populated from metadata' );
@@ -204,6 +204,129 @@ PERL
     my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
     is( $reloaded->status, 'changes_requested', 'status is changes_requested' );
     like( $reloaded->error_message, qr/minimum_version/, 'error message names the missing field' );
+};
+
+subtest 'malformed minimum_version sets changes_requested' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget' }
+    );
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', kpz_url => 'https://example.com/widget.kpz', status => 'submitted' }
+    );
+
+    my $bad_plugin_pm = <<'PERL';
+package Koha::Plugin::Test::Widget;
+use base qw(Koha::Plugins::Base);
+our $metadata = {
+    name => 'Widget',
+    minimum_version => 'not-a-version',
+    version => '1.0.0',
+};
+1;
+PERL
+    my $fixture_zip = make_kpz($bad_plugin_pm);
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::download_kpz = sub {
+        my ( $token, $url, $dest_path ) = @_;
+        copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
+        return 1;
+    };
+    *KohaPluginStore::GitHub::fetch_contributors = sub { return [] };
+
+    $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
+    $t->app->minion->perform_jobs_in_foreground;
+
+    my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
+    is( $reloaded->status, 'changes_requested', 'status is changes_requested' );
+    like( $reloaded->error_message, qr/minimum_version.*not a valid Koha version/, 'error message names the problem' );
+};
+
+subtest 'malformed maximum_version sets changes_requested' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget' }
+    );
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', kpz_url => 'https://example.com/widget.kpz', status => 'submitted' }
+    );
+
+    my $bad_plugin_pm = <<'PERL';
+package Koha::Plugin::Test::Widget;
+use base qw(Koha::Plugins::Base);
+our $metadata = {
+    name => 'Widget',
+    minimum_version => '23.11',
+    maximum_version => 'also-not-a-version',
+    version => '1.0.0',
+};
+1;
+PERL
+    my $fixture_zip = make_kpz($bad_plugin_pm);
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::download_kpz = sub {
+        my ( $token, $url, $dest_path ) = @_;
+        copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
+        return 1;
+    };
+    *KohaPluginStore::GitHub::fetch_contributors = sub { return [] };
+
+    $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
+    $t->app->minion->perform_jobs_in_foreground;
+
+    my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
+    is( $reloaded->status, 'changes_requested', 'status is changes_requested' );
+    like( $reloaded->error_message, qr/maximum_version.*not a valid Koha version/, 'error message names the problem' );
+};
+
+subtest 'valid minimum_version and maximum_version are normalized on publish' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget' }
+    );
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', kpz_url => 'https://example.com/widget.kpz', status => 'submitted' }
+    );
+
+    my $plugin_pm = <<'PERL';
+package Koha::Plugin::Test::Widget;
+use base qw(Koha::Plugins::Base);
+our $metadata = {
+    name => 'Widget',
+    description => 'A test widget',
+    author => 'Someone',
+    minimum_version => '23.11',
+    maximum_version => '25.5',
+    version => '1.0.0',
+    license => 'GPL-3.0',
+};
+1;
+PERL
+    my $fixture_zip = make_kpz($plugin_pm);
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::download_kpz = sub {
+        my ( $token, $url, $dest_path ) = @_;
+        copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
+        return 1;
+    };
+    *KohaPluginStore::GitHub::fetch_contributors = sub { return [] };
+    *KohaPluginStore::GitHub::fetch_tag_has_test_files    = sub { return 0 };
+    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
+    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed   = sub { return "syntax OK\n" };
+
+    $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
+    $t->app->minion->perform_jobs_in_foreground;
+
+    my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
+    is( $reloaded->status, 'published', 'status is published' );
+    is( $reloaded->koha_min_version, '23.11.00.000', 'minimum_version is normalized' );
+    is( $reloaded->koha_max_version, '25.05.00.000', 'maximum_version is normalized' );
 };
 
 subtest 'a contributors fetch failure does not block publishing' => sub {
