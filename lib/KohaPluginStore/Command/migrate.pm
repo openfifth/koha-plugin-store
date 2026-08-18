@@ -161,3 +161,9 @@ ALTER TABLE plugin_versions ADD COLUMN signature TEXT;
 -- 6 down
 ALTER TABLE plugin_versions DROP COLUMN signed_manifest;
 ALTER TABLE plugin_versions DROP COLUMN signature;
+
+-- 7 up
+ALTER TABLE plugin_versions ADD COLUMN koha_max_version TEXT;
+
+-- 7 down
+ALTER TABLE plugin_versions DROP COLUMN koha_max_version;
