@@ -50,8 +50,12 @@ sub create_with_unique_slug {
 }
 
 my %ORDER_BY = (
-    'name'  => 'p.name ASC',
-    '-name' => 'p.name DESC',
+    'name'     => 'p.name ASC',
+    '-name'    => 'p.name DESC',
+    'author'   => 'p.author ASC',
+    '-author'  => 'p.author DESC',
+    'updated'  => 'MAX(v.date_released) ASC',
+    '-updated' => 'MAX(v.date_released) DESC',
 );
 
 sub _compatible_where_and_binds {
@@ -76,10 +80,11 @@ sub search_compatible {
 
     my $rows = $self->pg->db->query(
         qq{
-            SELECT DISTINCT p.*
+            SELECT p.*
             FROM plugins p
             JOIN plugin_versions v ON v.plugin_id = p.id
             WHERE $where
+            GROUP BY p.id
             ORDER BY $order_by
             LIMIT ? OFFSET ?
         },
