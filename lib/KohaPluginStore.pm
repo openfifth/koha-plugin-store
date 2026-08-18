@@ -93,9 +93,10 @@ sub startup ($self) {
         after_dispatch => sub {
             my $c = shift;
             return unless $c->req->url->path =~ m{^/api/v1/plugins(?:/|$)};
-            $c->res->headers->header( 'Access-Control-Allow-Origin'  => '*' );
-            $c->res->headers->header( 'Access-Control-Allow-Headers' => 'content-type,x-koha-request-id' );
-            $c->res->headers->header( 'Access-Control-Allow-Methods' => 'get,options' );
+            $c->res->headers->header( 'Access-Control-Allow-Origin'   => '*' );
+            $c->res->headers->header( 'Access-Control-Allow-Headers'  => 'content-type,x-koha-request-id' );
+            $c->res->headers->header( 'Access-Control-Allow-Methods'  => 'get,options' );
+            $c->res->headers->header( 'Access-Control-Expose-Headers' => 'X-Total-Count' );
         }
     );
 
