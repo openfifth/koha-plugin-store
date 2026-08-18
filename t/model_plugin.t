@@ -148,4 +148,78 @@ subtest 'search_compatible treats a null koha_max_version as no ceiling' => sub 
     );
 };
 
+subtest 'search_compatible sorts by author' => sub {
+    reset_db();
+    my $zeta = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create(
+        { name => 'Zeta', author => 'Zed Author' }
+    );
+    my $alpha = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create(
+        { name => 'Alpha', author => 'Ada Author' }
+    );
+    for my $plugin ( $zeta, $alpha ) {
+        KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+            {
+                plugin_id => $plugin->id, version => '1.0.0', tag_name => 'v1',
+                status => 'published', koha_min_version => '20.00.00.000',
+            }
+        );
+    }
+
+    my $model = KohaPluginStore::Model::Plugin->new( pg => test_pg() );
+
+    my $asc = $model->search_compatible(
+        { koha_version => '24.00.00.000', order_by => 'author', limit => 10, offset => 0 }
+    );
+    is( $asc->[0]->name, 'Alpha', 'author ASC: Ada Author sorts before Zed Author' );
+    is( $asc->[1]->name, 'Zeta', 'author ASC: Zeta is second' );
+
+    my $desc = $model->search_compatible(
+        { koha_version => '24.00.00.000', order_by => '-author', limit => 10, offset => 0 }
+    );
+    is( $desc->[0]->name, 'Zeta', 'author DESC: Zed Author sorts first' );
+    is( $desc->[1]->name, 'Alpha', 'author DESC: Alpha is second' );
+};
+
+subtest 'search_compatible sorts by most-recently-updated, using the latest compatible release per plugin' => sub {
+    reset_db();
+    my $stale = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'StalePlugin' } );
+    my $fresh = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'FreshPlugin' } );
+
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        {
+            plugin_id => $stale->id, version => '1.0.0', tag_name => 'v1', status => 'published',
+            koha_min_version => '20.00.00.000', date_released => '2020-01-01T00:00:00Z',
+        }
+    );
+
+    # FreshPlugin has an older release AND a newer one -- the newer one must win the sort,
+    # not an arbitrary row picked from the join.
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        {
+            plugin_id => $fresh->id, version => '1.0.0', tag_name => 'v1', status => 'published',
+            koha_min_version => '20.00.00.000', date_released => '2019-01-01T00:00:00Z',
+        }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        {
+            plugin_id => $fresh->id, version => '2.0.0', tag_name => 'v2', status => 'published',
+            koha_min_version => '20.00.00.000', date_released => '2025-01-01T00:00:00Z',
+        }
+    );
+
+    my $model = KohaPluginStore::Model::Plugin->new( pg => test_pg() );
+
+    my $desc = $model->search_compatible(
+        { koha_version => '24.00.00.000', order_by => '-updated', limit => 10, offset => 0 }
+    );
+    is( $desc->[0]->name, 'FreshPlugin', "FreshPlugin's 2025 release outranks StalePlugin's 2020 one" );
+    is( $desc->[1]->name, 'StalePlugin', 'StalePlugin is second' );
+
+    my $asc = $model->search_compatible(
+        { koha_version => '24.00.00.000', order_by => 'updated', limit => 10, offset => 0 }
+    );
+    is( $asc->[0]->name, 'StalePlugin', "ascending: StalePlugin (2020) sorts before FreshPlugin (2025, via its newest release)" );
+    is( $asc->[1]->name, 'FreshPlugin', 'FreshPlugin is second ascending' );
+};
+
 done_testing();
