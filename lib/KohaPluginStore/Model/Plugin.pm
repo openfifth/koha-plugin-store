@@ -61,8 +61,8 @@ sub _compatible_where_and_binds {
     my @binds   = ( $args->{koha_version}, $args->{koha_version} );
 
     if ( defined $args->{q} && length $args->{q} ) {
-        push @clauses, '(p.name ILIKE ? OR p.description ILIKE ?)';
-        push @binds, '%' . $args->{q} . '%', '%' . $args->{q} . '%';
+        push @clauses, '(p.name ILIKE ? OR p.description ILIKE ? OR p.author ILIKE ?)';
+        push @binds, ( '%' . $args->{q} . '%' ) x 3;
     }
 
     return ( join( ' AND ', @clauses ), \@binds );
