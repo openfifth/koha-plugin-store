@@ -97,10 +97,6 @@ sub startup ($self) {
     $r->post('/new-plugin')->to('plugins#new_plugin');
     $r->post('/new-plugin-confirm')->to('plugins#new_plugin_confirm');
     $r->post('/new-release')->requires( user_authenticated => 1 )->to('releases#new_release');
-
-    #TODO: Use OpenAPI mojolicious plugin?
-    $r->any('/api/plugins')->to('plugins#list_all');
-    $r->get('/api/plugins/verify')->to('plugins#verify');
 }
 
 sub _add_routes_authorization {

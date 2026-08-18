@@ -60,3 +60,77 @@ paths:
             application/json:
               schema:
                 type: object
+  /plugins:
+    get:
+      operationId: listPlugins
+      x-mojo-to: plugins#list_all
+      parameters:
+        - name: koha_version
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: _page
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: _per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: _order_by
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Compatible, published plugins with their compatible releases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '400':
+          description: koha_version is required
+          content:
+            application/json:
+              schema:
+                type: object
+  /plugins/verify:
+    get:
+      operationId: verifyPluginDigest
+      x-mojo-to: plugins#verify
+      parameters:
+        - name: digest
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Signed manifest, signature, and certification tier for the published version matching this digest
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: digest is not a valid sha256 hex string
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: no published version found for this digest
+          content:
+            application/json:
+              schema:
+                type: object

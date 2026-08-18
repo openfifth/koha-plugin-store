@@ -144,9 +144,9 @@ sub update_plugin ($c) {
 }
 
 sub list_all ($c) {
-    my $koha_version = $c->param('koha_version_release');
+    my $koha_version = $c->param('koha_version');
 
-    return $c->render( text => 'koha_version_release required', status => 400 ) unless $koha_version;
+    return $c->render( openapi => { error => 'koha_version required' }, status => 400 ) unless $koha_version;
 
     my $q        = $c->param('q');
     my $page     = $c->param('_page') || 1;
@@ -204,7 +204,7 @@ sub list_all ($c) {
     $c->res->headers->header( 'Access-Control-Allow-Methods' => 'get,options' );
     $c->res->headers->header( 'X-Total-Count'                => $total );
 
-    return $c->render( json => \@plugin_hashes, status => 200 );
+    return $c->render( openapi => \@plugin_hashes, status => 200 );
 }
 
 sub verify ($c) {
@@ -214,17 +214,17 @@ sub verify ($c) {
     $c->res->headers->header( 'Access-Control-Allow-Headers' => 'content-type,x-koha-request-id' );
     $c->res->headers->header( 'Access-Control-Allow-Methods' => 'get,options' );
 
-    return $c->render( text => 'digest must be a 64-character sha256 hex string', status => 400 )
+    return $c->render( openapi => { error => 'digest must be a 64-character sha256 hex string' }, status => 400 )
         unless $digest =~ /^[0-9a-f]{64}$/i;
 
     my ($version) = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->search(
         { content_digest => $digest, status => 'published' }, { order_by => { -desc => 'id' }, limit => 1 }
     );
 
-    return $c->render( text => 'no signed version found for this digest', status => 404 ) unless $version;
+    return $c->render( openapi => { error => 'no signed version found for this digest' }, status => 404 ) unless $version;
 
     return $c->render(
-        json => {
+        openapi => {
             signed_manifest    => $version->signed_manifest,
             signature          => $version->signature,
             certification_tier => $version->certification_tier,

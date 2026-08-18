@@ -40,15 +40,15 @@ KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
 my $t = test_app();
 
 subtest 'rejects a malformed digest' => sub {
-    $t->get_ok('/api/plugins/verify?digest=not-a-real-digest')->status_is(400);
+    $t->get_ok('/api/v1/plugins/verify?digest=not-a-real-digest')->status_is(400);
 };
 
 subtest 'returns 404 for an unknown digest' => sub {
-    $t->get_ok( '/api/plugins/verify?digest=' . ( 'f' x 64 ) )->status_is(404);
+    $t->get_ok( '/api/v1/plugins/verify?digest=' . ( 'f' x 64 ) )->status_is(404);
 };
 
 subtest 'returns the signed manifest, signature, and tier for a known published digest' => sub {
-    $t->get_ok( '/api/plugins/verify?digest=' . ( 'a' x 64 ) )
+    $t->get_ok( '/api/v1/plugins/verify?digest=' . ( 'a' x 64 ) )
       ->status_is(200)
       ->json_is( '/signed_manifest' => '{"digest":"' . ( 'a' x 64 ) . '"}' )
       ->json_is( '/signature' => 'fakesignaturebase64==' )
@@ -57,7 +57,7 @@ subtest 'returns the signed manifest, signature, and tier for a known published 
 };
 
 subtest 'returns 404 for a digest belonging to a non-published version' => sub {
-    $t->get_ok( '/api/plugins/verify?digest=' . ( 'b' x 64 ) )->status_is(404);
+    $t->get_ok( '/api/v1/plugins/verify?digest=' . ( 'b' x 64 ) )->status_is(404);
 };
 
 done_testing();

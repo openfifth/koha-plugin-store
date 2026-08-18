@@ -44,12 +44,12 @@ KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
 
 my $t = test_app();
 
-subtest 'requires koha_version_release' => sub {
-    $t->get_ok('/api/plugins')->status_is(400);
+subtest 'requires koha_version' => sub {
+    $t->get_ok('/api/v1/plugins')->status_is(400);
 };
 
 subtest 'lists the seeded plugin and its compatible published release' => sub {
-    $t->get_ok('/api/plugins?koha_version_release=20.00')
+    $t->get_ok('/api/v1/plugins?koha_version=20.00')
       ->status_is(200)
       ->json_is( '/0/name' => 'CoverFlow' )
       ->json_is( '/0/releases/0/version' => '2.5.7' )
@@ -57,13 +57,13 @@ subtest 'lists the seeded plugin and its compatible published release' => sub {
 };
 
 subtest 'excludes a non-published release for the same plugin' => sub {
-    my $body = $t->get_ok('/api/plugins?koha_version_release=20.00')->tx->res->json;
+    my $body = $t->get_ok('/api/v1/plugins?koha_version=20.00')->tx->res->json;
     my @versions = map { $_->{version} } @{ $body->[0]{releases} };
     ok( !( grep { $_ eq '2.6.0' } @versions ), 'the changes_requested release is not exposed' );
 };
 
 subtest 'includes the signing manifest, signature, and certification tier' => sub {
-    $t->get_ok('/api/plugins?koha_version_release=20.00')
+    $t->get_ok('/api/v1/plugins?koha_version=20.00')
       ->status_is(200)
       ->json_is( '/0/releases/0/signed_manifest' => '{"digest":"abc123"}' )
       ->json_is( '/0/releases/0/signature' => 'fakesignaturebase64==' )
@@ -71,7 +71,7 @@ subtest 'includes the signing manifest, signature, and certification tier' => su
 };
 
 subtest 'no longer exposes internal review fields' => sub {
-    my $body = $t->get_ok('/api/plugins?koha_version_release=20.00')->tx->res->json;
+    my $body = $t->get_ok('/api/v1/plugins?koha_version=20.00')->tx->res->json;
     ok( !exists $body->[0]{releases}[0]{error_message}, 'error_message is not exposed' );
     ok( !exists $body->[0]{releases}[0]{status},        'status is not exposed' );
 };
@@ -102,12 +102,12 @@ subtest 'q filters by name/description, koha_max_version excludes an incompatibl
 
     my $t = test_app();
 
-    $t->get_ok('/api/plugins?koha_version_release=25.00.00.000&q=report')
+    $t->get_ok('/api/v1/plugins?koha_version=25.00.00.000&q=report')
       ->status_is(200)
       ->header_is( 'X-Total-Count' => 0 );
     is( scalar @{ $t->tx->res->json }, 0, 'ReportKit itself is excluded -- its only release is above koha_max_version' );
 
-    $t->get_ok('/api/plugins?koha_version_release=20.50.00.000&q=report')
+    $t->get_ok('/api/v1/plugins?koha_version=20.50.00.000&q=report')
       ->status_is(200)
       ->json_is( '/0/name' => 'ReportKit' )
       ->header_is( 'X-Total-Count' => 1 );
@@ -124,14 +124,14 @@ subtest '_page and _per_page paginate; _order_by=-name sorts descending' => sub 
 
     my $t = test_app();
 
-    $t->get_ok('/api/plugins?koha_version_release=25.00.00.000&_page=1&_per_page=2&_order_by=-name')
+    $t->get_ok('/api/v1/plugins?koha_version=25.00.00.000&_page=1&_per_page=2&_order_by=-name')
       ->status_is(200)
       ->json_is( '/0/name' => 'Charlie' )
       ->json_is( '/1/name' => 'Bravo' )
       ->header_is( 'X-Total-Count' => 3 );
     is( scalar @{ $t->tx->res->json }, 2, 'only 2 of 3 returned on page 1' );
 
-    $t->get_ok('/api/plugins?koha_version_release=25.00.00.000&_page=2&_per_page=2&_order_by=-name')
+    $t->get_ok('/api/v1/plugins?koha_version=25.00.00.000&_page=2&_per_page=2&_order_by=-name')
       ->status_is(200)
       ->json_is( '/0/name' => 'Alpha' );
     is( scalar @{ $t->tx->res->json }, 1, 'the remaining plugin is on page 2' );
