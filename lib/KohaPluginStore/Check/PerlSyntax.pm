@@ -183,6 +183,7 @@ sub _build_sandbox_cmd {
         'timeout', '--signal=KILL', '60',
         'docker', 'run', '--rm', '--network', 'none',
         '--memory', '512m', '--cpus', '0.5', '--read-only', '--tmpfs', '/tmp',
+        '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
         '-v', _host_path($checkout_dir) . ':/kohadevbox/koha:ro',
         '-v', _host_path($extract_dir) . ':/plugin:ro',
         "koha/koha-testing:$image_tag",
