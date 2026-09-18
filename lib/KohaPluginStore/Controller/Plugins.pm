@@ -148,12 +148,18 @@ sub list_all ($c) {
 
     return $c->render( openapi => { error => 'koha_version required' }, status => 400 ) unless $koha_version;
 
-    my $q        = $c->param('q');
-    my $page     = $c->param('_page') || 1;
-    my $per_page = $c->param('_per_page') || 20;
-    my $order_by = $c->param('_order_by');
+    my $q                   = $c->param('q');
+    my $page                = $c->param('_page') || 1;
+    my $per_page            = $c->param('_per_page') || 20;
+    my $order_by            = $c->param('_order_by');
+    my $include_unsupported = $c->param('include_unsupported') ? 1 : 0;
 
-    my $args = { koha_version => $koha_version, q => $q, order_by => $order_by };
+    my $args = {
+        koha_version        => $koha_version,
+        q                   => $q,
+        order_by            => $order_by,
+        include_unsupported => $include_unsupported,
+    };
 
     my $plugin_model = KohaPluginStore::Model::Plugin->new( pg => $c->pg );
     my $total        = $plugin_model->count_compatible($args);
@@ -167,8 +173,10 @@ sub list_all ($c) {
     }
 
     my @plugin_hashes = map { $_->unblessed } @plugins;
-    my $releases      = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )
-        ->for_plugin_ids( [ map { $_->{id} } @plugin_hashes ], { koha_version => $koha_version } );
+    my $releases      = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->for_plugin_ids(
+        [ map { $_->{id} } @plugin_hashes ],
+        { koha_version => $koha_version, include_unsupported => $include_unsupported }
+    );
 
     my %releases_by_plugin_id;
     push @{ $releases_by_plugin_id{ $_->plugin_id } }, $_ for @$releases;
@@ -182,6 +190,7 @@ sub list_all ($c) {
                     tag_name           => $release->tag_name,
                     version            => $release->version,
                     koha_min_version   => $release->koha_min_version,
+                    koha_max_version   => $release->koha_max_version,
                     kpz_url            => $release->kpz_url,
                     date_released      => $release->date_released,
                     content_digest     => $release->content_digest,

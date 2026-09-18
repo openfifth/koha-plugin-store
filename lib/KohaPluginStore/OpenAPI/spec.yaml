@@ -90,6 +90,15 @@ paths:
           required: false
           schema:
             type: string
+        - name: include_unsupported
+          in: query
+          required: false
+          description: >-
+            When true, also return plugins whose releases don't declare
+            koha_version as within their koha_min_version/koha_max_version
+            range. Used by the discovery UI's "show unsupported plugins" toggle.
+          schema:
+            type: boolean
       responses:
         '200':
           description: Compatible, published plugins with their compatible releases

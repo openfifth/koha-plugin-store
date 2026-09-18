@@ -130,6 +130,37 @@ subtest 'search_compatible respects koha_max_version as an upper bound' => sub {
     );
 };
 
+subtest 'search_compatible include_unsupported bypasses the koha_version range entirely' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'OldPlugin' } );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        {
+            plugin_id => $plugin->id, version => '1.0.0', tag_name => 'v1', status => 'published',
+            koha_min_version => '20.00.00.000', koha_max_version => '23.00.00.000',
+        }
+    );
+
+    my $model = KohaPluginStore::Model::Plugin->new( pg => test_pg() );
+
+    is(
+        scalar @{ $model->search_compatible( { koha_version => '24.00.00.000', limit => 10, offset => 0 } ) }, 0,
+        'without include_unsupported, a version above koha_max_version is excluded, as before'
+    );
+    is(
+        scalar @{
+            $model->search_compatible(
+                { koha_version => '24.00.00.000', include_unsupported => 1, limit => 10, offset => 0 }
+            )
+        },
+        1,
+        'include_unsupported returns it anyway'
+    );
+    is(
+        $model->count_compatible( { koha_version => '24.00.00.000', include_unsupported => 1 } ), 1,
+        'count_compatible respects include_unsupported the same way'
+    );
+};
+
 subtest 'search_compatible treats a null koha_max_version as no ceiling' => sub {
     reset_db();
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'ForeverPlugin' } );

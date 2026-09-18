@@ -19,17 +19,24 @@ sub for_plugin_ids {
 
     my $placeholders = join ',', ('?') x scalar(@$plugin_ids);
 
+    my @clauses = ( "status = 'published'", "plugin_id IN ($placeholders)" );
+    my @binds   = @$plugin_ids;
+
+    unless ( $args->{include_unsupported} ) {
+        push @clauses, 'koha_min_version <= ?', '(koha_max_version IS NULL OR koha_max_version >= ?)';
+        push @binds, ( $args->{koha_version} ) x 2;
+    }
+
+    my $where = join ' AND ', @clauses;
+
     my $rows = $self->pg->db->query(
         qq{
             SELECT *
             FROM plugin_versions
-            WHERE status = 'published'
-              AND plugin_id IN ($placeholders)
-              AND koha_min_version <= ?
-              AND (koha_max_version IS NULL OR koha_max_version >= ?)
+            WHERE $where
             ORDER BY date_released DESC
         },
-        @$plugin_ids, $args->{koha_version}, $args->{koha_version}
+        @binds
     )->hashes;
 
     return [ map { $self->_new_from_row($_) } @$rows ];

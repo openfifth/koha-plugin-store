@@ -61,8 +61,13 @@ my %ORDER_BY = (
 sub _compatible_where_and_binds {
     my ( $self, $args ) = @_;
 
-    my @clauses = ( "v.status = 'published'", 'v.koha_min_version <= ?', '(v.koha_max_version IS NULL OR v.koha_max_version >= ?)' );
-    my @binds   = ( $args->{koha_version}, $args->{koha_version} );
+    my @clauses = ("v.status = 'published'");
+    my @binds;
+
+    unless ( $args->{include_unsupported} ) {
+        push @clauses, 'v.koha_min_version <= ?', '(v.koha_max_version IS NULL OR v.koha_max_version >= ?)';
+        push @binds, ( $args->{koha_version} ) x 2;
+    }
 
     if ( defined $args->{q} && length $args->{q} ) {
         push @clauses, '(p.name ILIKE ? OR p.description ILIKE ? OR p.author ILIKE ?)';

@@ -56,6 +56,31 @@ subtest 'for_plugin_ids batch-fetches published, compatible releases for exactly
     is_deeply( \@plugin_ids, [ sort ( $a->id, $b->id ) ], 'exactly A and B, not C' );
 };
 
+subtest 'for_plugin_ids include_unsupported bypasses the koha_version range' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'OldPlugin' } );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        {
+            plugin_id => $plugin->id, version => '1.0.0', tag_name => 'v1', status => 'published',
+            koha_min_version => '20.00.00.000', koha_max_version => '23.00.00.000',
+        }
+    );
+
+    my $model = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() );
+
+    is(
+        scalar @{ $model->for_plugin_ids( [ $plugin->id ], { koha_version => '24.00.00.000' } ) }, 0,
+        'without include_unsupported, a release above koha_max_version is excluded, as before'
+    );
+    is(
+        scalar @{
+            $model->for_plugin_ids( [ $plugin->id ], { koha_version => '24.00.00.000', include_unsupported => 1 } )
+        },
+        1,
+        'include_unsupported returns it anyway'
+    );
+};
+
 subtest 'for_plugin_ids returns an empty arrayref for an empty id list' => sub {
     reset_db();
     is_deeply(
