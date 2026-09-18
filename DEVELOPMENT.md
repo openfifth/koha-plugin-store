@@ -37,6 +37,8 @@ plugin runs through, see [docs/CERTIFICATION.md](docs/CERTIFICATION.md).
 - Apply migrations: `script/koha_plugin_store migrate`
 - Reset test data: `script/koha_plugin_store reset_test_data`
 - Run tests: `prove -l t/`
+- Run the syntax-sandbox broker's own tests (separate `lib/`, see
+  [sandbox_broker/](sandbox_broker/)): `(cd sandbox_broker && prove -l -I lib t/)`
 
 ## Docker development
 

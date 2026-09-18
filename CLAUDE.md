@@ -172,23 +172,41 @@ out to separate jobs, since the catalogue is small and only one check
   `status` stays `changes_requested`; otherwise any gating-check failure →
   `STRUCTURAL`; otherwise `CERTIFIED`. Both are set together with `status =>
   'published'` in one `update`.
-- `perl_syntax` is the one check that shells out to Docker (`docker run --rm
-  --network none --memory 256m --cpus 0.5 --read-only`, wrapped in `timeout
-  --signal=KILL 30`) to run `perl -cw` against a cached shallow clone of the
-  Koha tag matching the plugin's `minimum_version`. This means the app's own
-  container (or host) needs Docker socket access and network egress to
-  `git.koha-community.org` the first time each Koha version is needed;
-  subsequent checks reuse the cached checkout under `/app/tmp/koha-checkouts`
-  (overridable via `$context->{koha_checkout_cache_dir}`). In the Docker
-  Compose dev setup, `worker` reaches Docker by bind-mounting the *host's*
-  socket (`/var/run/docker.sock`) rather than running a nested `dockerd` --
-  which means bind-mount sources it passes to `docker run` (this cache dir,
-  and the plugin extraction tempdir in `ProcessPluginVersion`) must be paths
-  that resolve identically on the true host and inside `worker`, since the
-  host's daemon is what actually resolves them. `/app/...` works because
-  `docker-compose.yml` already bind-mounts the whole worktree there; the
-  container's own private `/tmp` would not work and would silently bind-mount
-  an empty directory instead of the real one.
+- `perl_syntax` (`KohaPluginStore::Check::PerlSyntax`) doesn't run the
+  sandboxed compile-check itself -- it's a thin HTTP client that POSTs the
+  plugin's `.pm` files and `minimum_version` to a separate **syntax-sandbox
+  broker** service (`sandbox_broker/`, its own small Mojolicious app, own
+  Dockerfile, own `docker-compose.yml` service) over a Unix socket, and
+  turns the response into a check result. The broker is the one that shells
+  out to Docker (`docker run --rm --network none --cap-drop ALL
+  --security-opt no-new-privileges --memory 512m --cpus 0.5 --read-only`,
+  wrapped in `timeout --signal=KILL 60`) to run `perl -cw` against a cached
+  shallow clone of the Koha tag matching `minimum_version`, and is the
+  *only* container in the whole stack with the host's Docker socket
+  mounted in (`/var/run/docker.sock`, Docker-outside-of-Docker -- nothing
+  here runs a nested `dockerd`). This split exists because `worker` handles
+  untrusted plugin content earlier in the same job (parsing submitted
+  metadata, unzipping a submitted `.kpz`) -- keeping Docker socket access
+  out of that process means an RCE there doesn't also mean host root.
+  `worker` reaches the broker via a Unix socket shared through the
+  `sandbox_broker_api` Docker volume (`Mojo::UserAgent`'s `http+unix://`
+  scheme, socket path percent-encoded in *both* the client URL and the
+  broker's own `-l` listen argument -- Mojolicious requires this on both
+  ends, not just the client). See `lib/KohaPluginStore/Check/PerlSyntax.pm`
+  and `sandbox_broker/lib/SandboxBroker.pm` for the respective sides.
+  A connection failure, or the broker itself reporting it couldn't prepare
+  the checkout or run the sandbox, still surfaces as a
+  `check_infrastructure_error` (see below), same semantics as before.
+  The broker keeps a persistent checkout cache under `/data/checkouts`
+  (overridable via `$ENV{SANDBOX_CHECKOUT_DIR}`) and stages each request's
+  plugin files under `/data/scratch`; both are bind-mounted from
+  `sandbox_broker/tmp/` on the host (not a Docker named volume -- a
+  container talking to the *host's* Docker daemon needs `-v` sources the
+  host can actually resolve, and named volumes get silently prefixed with
+  the Compose project name, which differs per worktree; a host bind-mount
+  plus `$ENV{HOST_PROJECT_DIR}`-based translation, mirroring the pattern
+  this file already needed before the split, sidesteps that entirely). Test
+  the broker on its own with `(cd sandbox_broker && prove -l -I lib t/)`.
 - `perl_critic` depends on `Koha::QA::PerlCritic`, which — unlike everything
   else in `cpanfile` — isn't on CPAN. See the `cpanfile` comment for the
   exact `cpanm -L local --force <git-url>@<ref>` install command; it must

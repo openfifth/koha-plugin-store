@@ -10,6 +10,10 @@ User=plugin-store
 Group=plugin-store
 ## change the below values to suit your installation
 Environment=PERL5LIB=/opt/plugin-store/lib
+## Path to the syntax-sandbox broker's socket (see
+## koha-plugin-store-sandbox-broker.service.example) -- this user must be a
+## supplementary member of that unit's group to reach it.
+Environment=SANDBOX_BROKER_SOCKET=/run/koha-plugin-store/broker.sock
 WorkingDirectory=/opt/plugin-store
 ## end of config values
 ExecStart=/usr/bin/perl script/koha_plugin_store minion worker

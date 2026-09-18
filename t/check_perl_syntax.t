@@ -5,29 +5,33 @@ use File::Slurp qw(write_file);
 
 use KohaPluginStore::Check::PerlSyntax;
 
-subtest 'passes when the sandbox wrapper reports PASS for every file' => sub {
+# The actual sandboxed-compile-check logic (parsing PASS/FAIL output,
+# preparing a Koha checkout, running docker) now lives in the syntax-sandbox
+# broker service -- see sandbox_broker/t/broker.t for those tests. This
+# file only tests PerlSyntax's own job: resolving a tag, calling the
+# broker, and turning its response (or its absence) into a check result.
+
+subtest 'passes when the broker reports passed' => sub {
     my $dir = tempdir( CLEANUP => 1 );
     write_file( "$dir/Widget.pm", "package Widget;\n1;\n" );
 
     no strict 'refs';
     no warnings 'redefine';
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed   = sub { return "PASS Widget.pm\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     my $check  = KohaPluginStore::Check::PerlSyntax->new;
     my $result = $check->run( $dir, { minimum_version => '23.05' }, {} );
     ok( $result->{passed}, 'passed' );
 };
 
-subtest 'fails and reports the sandboxed compile error' => sub {
+subtest 'fails and reports the broker\'s message' => sub {
     my $dir = tempdir( CLEANUP => 1 );
     write_file( "$dir/Widget.pm", "package Widget\n1;\n" );    # missing semicolon
 
     no strict 'refs';
     no warnings 'redefine';
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed   = sub {
-        return "FAIL Widget.pm\nsyntax error at /plugin/Widget.pm line 2, near \"1;\"\n/plugin/Widget.pm had compilation errors.\n";
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub {
+        return { passed => 0, message => 'Widget.pm: syntax error at ... near "1;"' };
     };
 
     my $check  = KohaPluginStore::Check::PerlSyntax->new;
@@ -36,26 +40,13 @@ subtest 'fails and reports the sandboxed compile error' => sub {
     like( $result->{message}, qr/syntax error/, 'message includes the compile error' );
 };
 
-subtest 'runtime warnings from a real Koha checkout (no koha-conf.xml) are not mistaken for a compile error' => sub {
+subtest 'a minimum_version that cannot be resolved to a tag fails clearly, without calling the broker' => sub {
     my $dir = tempdir( CLEANUP => 1 );
     write_file( "$dir/Widget.pm", "package Widget;\n1;\n" );
 
     no strict 'refs';
     no warnings 'redefine';
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed   = sub {
-        return "unable to locate Koha configuration file koha-conf.xml at /kohadevbox/koha/C4/Context.pm line 171.\n"
-            . "PASS Widget.pm\n";
-    };
-
-    my $check  = KohaPluginStore::Check::PerlSyntax->new;
-    my $result = $check->run( $dir, { minimum_version => '23.05' }, {} );
-    ok( $result->{passed}, 'passed despite noisy BEGIN-time warnings preceding the PASS line' );
-};
-
-subtest 'a minimum_version that cannot be resolved to a tag fails clearly' => sub {
-    my $dir = tempdir( CLEANUP => 1 );
-    write_file( "$dir/Widget.pm", "package Widget;\n1;\n" );
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { die 'should not be called' };
 
     my $check  = KohaPluginStore::Check::PerlSyntax->new;
     my $result = $check->run( $dir, { minimum_version => 'not-a-version' }, {} );
@@ -63,13 +54,27 @@ subtest 'a minimum_version that cannot be resolved to a tag fails clearly' => su
     like( $result->{message}, qr/Could not resolve/, 'message explains why' );
 };
 
-subtest 'a checkout preparation failure dies as a check_infrastructure_error' => sub {
+subtest 'no .pm files means an automatic pass, without calling the broker' => sub {
+    my $dir = tempdir( CLEANUP => 1 );
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { die 'should not be called' };
+
+    my $check  = KohaPluginStore::Check::PerlSyntax->new;
+    my $result = $check->run( $dir, { minimum_version => '23.05' }, {} );
+    ok( $result->{passed}, 'passed' );
+};
+
+subtest 'a broker failure dies as a check_infrastructure_error' => sub {
     my $dir = tempdir( CLEANUP => 1 );
     write_file( "$dir/Widget.pm", "package Widget;\n1;\n" );
 
     no strict 'refs';
     no warnings 'redefine';
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 0 };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub {
+        die "check_infrastructure_error: sandbox broker request failed: unreachable\n";
+    };
 
     my $check = KohaPluginStore::Check::PerlSyntax->new;
     eval { $check->run( $dir, { minimum_version => '23.05' }, {} ) };

@@ -97,8 +97,7 @@ subtest 'successful processing publishes the version' => sub {
         return [ { github_username => 'octocat', avatar_url => 'https://example.com/a.png', contributions_count => 5 } ];
     };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files    = sub { return 0 };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
@@ -159,8 +158,7 @@ subtest 'a zip with no plugin class file sets changes_requested' => sub {
         copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
         return 1;
     };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
@@ -195,8 +193,7 @@ PERL
         return 1;
     };
     *KohaPluginStore::GitHub::fetch_contributors = sub { return [] };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
@@ -317,8 +314,7 @@ PERL
     };
     *KohaPluginStore::GitHub::fetch_contributors = sub { return [] };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files    = sub { return 0 };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed   = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
@@ -349,8 +345,7 @@ subtest 'a contributors fetch failure does not block publishing' => sub {
     };
     *KohaPluginStore::GitHub::fetch_contributors = sub { die 'GitHub is down' };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files    = sub { return 0 };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
@@ -401,8 +396,7 @@ PERL
     *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
     *KohaPluginStore::GitHub::fetch_tag_verification       = sub { return 0 };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files     = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout  = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed    = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
@@ -454,8 +448,7 @@ PERL
     *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
     *KohaPluginStore::GitHub::fetch_tag_verification       = sub { return 0 };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files     = sub { return 0 };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout  = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed    = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
@@ -502,8 +495,7 @@ PERL
     *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
     *KohaPluginStore::GitHub::fetch_tag_verification       = sub { return 0 };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files     = sub { return 0 };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout  = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed    = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
@@ -553,8 +545,9 @@ PERL
         copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
         return 1;
     };
-    *KohaPluginStore::GitHub::fetch_contributors          = sub { return [] };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 0 };
+    *KohaPluginStore::GitHub::fetch_contributors = sub { return [] };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker =
+        sub { die "check_infrastructure_error: sandbox broker request failed: unreachable\n" };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
@@ -587,8 +580,7 @@ subtest 'a successfully published version is signed' => sub {
         return 1;
     };
     *KohaPluginStore::GitHub::fetch_contributors        = sub { return []; };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed   = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
@@ -630,8 +622,7 @@ subtest 'a missing signing key fails the job loudly instead of publishing unsign
         return 1;
     };
     *KohaPluginStore::GitHub::fetch_contributors        = sub { return []; };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed   = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     my $previous_key_path = $t->app->config->{signing_key_path};
     $t->app->config->{signing_key_path} = "$signing_key_dir/does-not-exist.pem";
@@ -683,8 +674,7 @@ PERL
         return 1;
     };
     *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout  = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed    = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
@@ -759,8 +749,7 @@ PERL
         return 1;
     };
     *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
-    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout  = sub { return 1 };
-    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed    = sub { return "syntax OK\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;

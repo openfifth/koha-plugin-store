@@ -1,15 +1,16 @@
 FROM perl:5.36-slim
 
-# docker.io gives us the `docker` CLI the worker's PerlSyntax check shells out
-# to (against the host's socket, mounted in by docker-compose.yml) -- Debian
-# bundles dockerd in the same package, but nothing here ever starts it.
+# No docker.io here, deliberately: the perl_syntax check's sandboxed
+# compile-check now runs in a separate syntax-sandbox broker service (see
+# sandbox_broker/), which is the only container in the stack with a docker
+# CLI or Docker socket access. This image (used by both app and worker)
+# never touches Docker at all.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     git \
     nodejs \
     npm \
-    docker.io \
     && rm -rf /var/lib/apt/lists/* \
     && npm install -g yarn
 

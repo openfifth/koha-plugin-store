@@ -1,26 +1,36 @@
 # Deployment
 
 Running the store in production, outside of the Docker Compose dev setup
-described in [DEVELOPMENT.md](DEVELOPMENT.md). Production runs two long-lived
-processes directly on the host — the web app and a Minion worker — behind
-systemd.
+described in [DEVELOPMENT.md](DEVELOPMENT.md). Production runs three
+long-lived processes directly on the host — the web app, a Minion worker,
+and the syntax-sandbox broker — behind systemd.
 
 ## Prerequisites
 
 - Perl 5.36+, with `build-essential`, `libpq-dev`, `git`, `nodejs`/`npm` and
   `yarn` available (see `Dockerfile` for the exact package list the dev image
-  installs — production needs the same).
+  installs — production needs the same). The syntax-sandbox broker
+  (`sandbox_broker/`) is a much smaller, separate Perl app — it only needs
+  `git` and the `docker` CLI, see its own `Dockerfile` for the exact list.
 - A reachable Postgres instance (not the dev-only `docker-compose.yml`
   Postgres, which binds to `127.0.0.1` with well-known weak credentials).
-- Docker installed on the host, with the deploying user able to reach the
-  Docker socket, plus outbound network access to `git.koha-community.org`.
-  The `perl_syntax` certification check shells out to `docker run` itself
-  (network-isolated, read-only, per-run) to compile-check submitted plugins
-  against a cached Koha checkout — this happens inside the **worker**
-  process, so it's the worker host that needs Docker and that egress, not
-  necessarily the app host if they're split.
+- Docker installed on the host, plus outbound network access to
+  `git.koha-community.org`. **Only the syntax-sandbox broker needs Docker
+  socket access** — it's a separate process/systemd unit/user from the main
+  app and worker, deliberately: the worker handles untrusted plugin content
+  (parsing submitted metadata, unzipping a submitted `.kpz`) before the
+  `perl_syntax` check ever runs, so keeping Docker socket access out of that
+  process means a bug there doesn't also mean host root. Do **not** add the
+  `plugin-store` user to the `docker` group — see
+  `koha_plugin_store-sandbox-broker.service.example` for the dedicated user
+  it should run as instead.
 - A dedicated `plugin-store` user and group (matches
-  `koha_plugin_store.service.example`'s `User=`/`Group=`).
+  `koha_plugin_store.service.example`'s `User=`/`Group=`), and a separate
+  `plugin-store-sandbox` user and group for the syntax-sandbox broker
+  (matches `koha_plugin_store-sandbox-broker.service.example`) — the latter
+  needs to be in the `docker` group; the former should NOT be, and instead
+  needs to be a supplementary member of `plugin-store-sandbox` to reach the
+  broker's socket.
 
 ## Install
 
@@ -38,6 +48,12 @@ systemd.
    see the `cpanfile` comment for the exact `cpanm -L local --force <git-url>@<ref>`
    command, and set `PERL5LIB` to include that local `lib/` for anything that
    loads it (the app, `minion worker`, `prove`).
+
+   The syntax-sandbox broker has its own, much smaller dependency set —
+   install it separately:
+   ```bash
+   (cd sandbox_broker && cpanm --installdeps .)
+   ```
 3. Copy `koha_plugin_store.conf.example` to `koha_plugin_store.conf` and fill in:
    - `github_app_token` — a fine-grained, public-repos-read-only PAT.
    - `pg_dsn` — your production Postgres connection string.
@@ -75,7 +91,7 @@ systemd.
 
 ## systemd units
 
-Two example unit files ship at the repo root — copy both into
+Three example unit files ship at the repo root — copy all three into
 `/etc/systemd/system/`, editing the `User`/`Group`,
 `PERL5LIB`/`WorkingDirectory`, and SSL paths to match your install:
 
@@ -85,12 +101,20 @@ Two example unit files ship at the repo root — copy both into
   — the Minion worker. Without this running, submissions stay stuck at
   `status = 'submitted'` forever, identical to forgetting to start the
   `worker` service in the dev Docker Compose setup.
+- **`koha_plugin_store-sandbox-broker.service.example`** →
+  `koha-plugin-store-sandbox-broker.service` — the `perl_syntax` check's
+  sandboxed compile-check, run as its own dedicated user with Docker socket
+  access (see Prerequisites above). Without this running, every submission
+  fails its required `perl_syntax` check with a `check_error` status rather
+  than publishing.
 
 ```bash
 sudo cp koha_plugin_store.service.example /etc/systemd/system/koha-plugin-store.service
 sudo cp koha_plugin_store-worker.service.example /etc/systemd/system/koha-plugin-store-worker.service
+sudo cp koha_plugin_store-sandbox-broker.service.example /etc/systemd/system/koha-plugin-store-sandbox-broker.service
+sudo usermod -aG plugin-store-sandbox plugin-store
 sudo systemctl daemon-reload
-sudo systemctl enable --now koha-plugin-store koha-plugin-store-worker
+sudo systemctl enable --now koha-plugin-store koha-plugin-store-worker koha-plugin-store-sandbox-broker
 ```
 
 ## Upgrading
@@ -98,6 +122,7 @@ sudo systemctl enable --now koha-plugin-store koha-plugin-store-worker
 ```bash
 git pull
 cpanm --installdeps .
+(cd sandbox_broker && cpanm --installdeps .)
 script/koha_plugin_store migrate
-sudo systemctl restart koha-plugin-store koha-plugin-store-worker
+sudo systemctl restart koha-plugin-store koha-plugin-store-worker koha-plugin-store-sandbox-broker
 ```

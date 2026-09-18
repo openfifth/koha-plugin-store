@@ -13,24 +13,45 @@ services:
     build: .
     depends_on:
       - postgres
-    environment:
-      # PerlSyntax's sandboxed compile check passes bind-mount sources to the
-      # HOST's Docker daemon (see the socket mount below), which resolves them
-      # against its own filesystem, not this container's -- so it needs to
-      # know the real host path this worktree lives at, to translate its own
-      # /app/... paths back before using them as -v sources. ${PWD} is
-      # expanded by `docker compose` itself, on the host, at parse time --
-      # assumes `docker compose` is always run from this worktree's root, as
-      # this project's tooling already does throughout.
-      - HOST_PROJECT_DIR=${PWD}
+      - sandbox-broker
     volumes:
       - .:/app
       - koha_plugin_store_local:/app/local
-      # PerlSyntax's sandboxed compile check shells out to `docker run` --
-      # this is Docker-outside-of-Docker (the host's daemon, not one running
-      # inside this container), so no separate dockerd needs starting here.
-      - /var/run/docker.sock:/var/run/docker.sock
+      # Reaches the syntax-sandbox broker (see sandbox-broker below) over a
+      # Unix socket shared via this volume -- this container never touches
+      # Docker directly. See PerlSyntax.pm for why.
+      - sandbox_broker_api:/run/broker:ro
     command: ["perl", "script/koha_plugin_store", "minion", "worker"]
+
+  # The only service in this stack with access to the host's Docker socket.
+  # It runs the perl_syntax certification check's sandboxed compile-check in
+  # a one-shot, network-isolated container, on behalf of `worker` -- which
+  # asks for that over the narrow HTTP API on sandbox_broker_api, rather
+  # than holding the socket itself. Deliberately built from its own small
+  # image with no access to the main app's config, DB, GitHub token, or
+  # signing key: an RCE in `worker` (which does handle untrusted plugin
+  # content) no longer means host root by construction. See
+  # sandbox_broker/lib/SandboxBroker.pm for the full rationale.
+  sandbox-broker:
+    build: ./sandbox_broker
+    environment:
+      # SandboxBroker's sandboxed compile check passes bind-mount sources to
+      # the HOST's Docker daemon (see the socket mount below), which
+      # resolves them against its own filesystem, not this container's --
+      # so it needs to know the real host path its own ./tmp bind-mount
+      # (below) corresponds to, to translate its own /data/... paths back
+      # before using them as -v sources. ${PWD} is expanded by `docker
+      # compose` itself, on the host, at parse time -- assumes `docker
+      # compose` is always run from this worktree's root, as this project's
+      # tooling already does throughout.
+      - HOST_PROJECT_DIR=${PWD}
+    volumes:
+      - ./sandbox_broker/tmp:/data
+      - sandbox_broker_api:/run/broker
+      # Docker-outside-of-Docker: talks to the HOST's daemon, not one
+      # running inside this container -- nothing here ever starts a dockerd
+      # of its own.
+      - /var/run/docker.sock:/var/run/docker.sock
 
   postgres:
     image: postgres:16-alpine
@@ -46,3 +67,6 @@ services:
 volumes:
   koha_plugin_store_pgdata:
   koha_plugin_store_local:
+  # Carries only the broker's Unix socket file between `worker` and
+  # `sandbox-broker`.
+  sandbox_broker_api:

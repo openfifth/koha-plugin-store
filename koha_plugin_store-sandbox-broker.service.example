@@ -1,0 +1,53 @@
+# koha-plugin-store-sandbox-broker.service
+#
+# The perl_syntax certification check's sandboxed compile-check. Runs as a
+# SEPARATE user from `plugin-store`: this is the only process in the whole
+# deployment that needs Docker socket access (to run the sandboxed
+# `perl -cw` container), and it's kept deliberately isolated from
+# `plugin-store`, which parses untrusted plugin content earlier in the same
+# job (submitted metadata, a submitted .kpz archive) but has no need for
+# Docker at all. Add THIS unit's user to the `docker` group (or otherwise
+# grant it ACL access to /var/run/docker.sock) -- do NOT add `plugin-store`
+# itself to it, so an RCE in the worker's plugin-handling code doesn't also
+# mean host root via Docker socket access.
+#
+# `plugin-store` (running koha-plugin-store-worker.service) needs to be
+# added as a supplementary member of the `plugin-store-sandbox` group below
+# to be able to connect to this unit's socket -- `sudo usermod -aG
+# plugin-store-sandbox plugin-store`.
+[Unit]
+Description=Koha Plugin Store Syntax-Sandbox Broker
+After=syslog.target network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+## make sure the user & group exist, and this user is in the `docker` group
+User=plugin-store-sandbox
+Group=plugin-store-sandbox
+## change the below values to suit your installation
+Environment=PERL5LIB=/opt/plugin-store/sandbox_broker/local/lib/perl5
+Environment=SANDBOX_CHECKOUT_DIR=/opt/plugin-store/sandbox_broker/data/checkouts
+Environment=SANDBOX_SCRATCH_DIR=/opt/plugin-store/sandbox_broker/data/scratch
+## HOST_PROJECT_DIR is a Docker-Compose-dev-only concern (translating this
+## process's own container-local paths back to host paths before handing
+## them to `docker run -v`) -- leave it unset here, since this process
+## already runs directly on the real host, so the paths above are already
+## correct as `-v` sources with no translation needed.
+WorkingDirectory=/opt/plugin-store/sandbox_broker
+## RuntimeDirectory creates /run/koha-plugin-store, owned by this unit's
+## User/Group, removed automatically on stop -- the socket file lands at
+## /run/koha-plugin-store/broker.sock. Group-readable/writable (0750) so a
+## supplementary member of plugin-store-sandbox (i.e. plugin-store itself,
+## see above) can connect to it.
+RuntimeDirectory=koha-plugin-store
+RuntimeDirectoryMode=0750
+## end of config values
+ExecStart=/usr/bin/perl script/sandbox_broker daemon -l "http+unix://%2Frun%2Fkoha-plugin-store%2Fbroker.sock"
+KillMode=mixed
+Restart=on-failure
+RestartSec=5s
+SyslogIdentifier=koha-plugin-store-sandbox-broker
+
+[Install]
+WantedBy=multi-user.target
