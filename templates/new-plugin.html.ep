@@ -13,6 +13,7 @@
 
 <p>
 %= form_for 'new-plugin' => (method => 'POST', id => 'new_plugin_form') => begin
+  %= csrf_field
   <div class="mb-3">
     % if (@$repos) {
     <select required class="form-select" name="plugin_repo" id="plugin_repo" aria-describedby="repoHelp">
@@ -42,6 +43,7 @@
 </p>
 
 %= form_for '/developer/repos/refresh' => (method => 'POST') => begin
+  %= csrf_field
   <button type="submit" class="btn btn-outline-secondary btn-sm">
     <i class='bx bx-refresh'></i> Refresh my GitHub repos
   </button>

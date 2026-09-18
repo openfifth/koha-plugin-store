@@ -21,6 +21,29 @@ sub startup ($self) {
 
     $self->plugin('Config');
 
+    # Explicit, rotatable secret rather than relying on Mojolicious's
+    # auto-generated per-process default -- without this, a restart
+    # invalidates every session, and in a multi-process prefork deployment
+    # each worker could in principle end up with a different secret.
+    $self->secrets( $self->config->{secrets} ) if $self->config->{secrets};
+
+    # Session cookie hardening. `secure` is gated on production mode so the
+    # plain-HTTP dev Docker Compose setup (and KTD-style local testing)
+    # still works -- browsers silently drop Secure cookies over HTTP.
+    $self->sessions->secure(1) if $self->mode eq 'production';
+
+    # SameSite=Lax on every outgoing cookie (Mojo::Cookie::Response has no
+    # global default for this, so it's set per-response here rather than
+    # per-cookie at each call site) -- defense in depth against CSRF
+    # alongside the per-form csrf_token check, not a replacement for it: an
+    # embedded webview or older client may not enforce SameSite at all.
+    $self->hook(
+        after_dispatch => sub {
+            my $c = shift;
+            $_->samesite('Lax') for @{ $c->res->cookies };
+        }
+    );
+
     # Validate signing_key_path configuration if present
     if ( my $key_path = $self->config->{signing_key_path} ) {
         unless ( -e $key_path && -r $key_path ) {

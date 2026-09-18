@@ -6,6 +6,7 @@ use Mojo::Promise;
 
 use lib 't/lib';
 use TestDB qw(reset_db test_app test_pg);
+use CsrfHelper qw(csrf_token);
 
 use KohaPluginStore::Model::Developer;
 use KohaPluginStore::Model::Plugin;
@@ -67,7 +68,9 @@ subtest 'a different developer cannot submit a release for someone else\'s plugi
 
 subtest 'the owning developer can submit a release' => sub {
     login_as($owner);
-    $t->post_ok( '/new-release' => form => { plugin_id => $plugin->id, tag_name => 'v1.0.0' } )
+    $t->post_ok(
+        '/new-release' => form => { plugin_id => $plugin->id, tag_name => 'v1.0.0', csrf_token => csrf_token($t) }
+    )
       ->status_is(302)
       ->header_is( Location => '/plugins/coverflow' );
 
@@ -81,7 +84,9 @@ subtest 'the owning developer can submit a release' => sub {
 };
 
 subtest 'submitting the same tag again is rejected' => sub {
-    $t->post_ok( '/new-release' => form => { plugin_id => $plugin->id, tag_name => 'v1.0.0' } )->status_is(409);
+    $t->post_ok(
+        '/new-release' => form => { plugin_id => $plugin->id, tag_name => 'v1.0.0', csrf_token => csrf_token($t) }
+    )->status_is(409);
 };
 
 done_testing();

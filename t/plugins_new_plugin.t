@@ -5,6 +5,7 @@ use Test::Mojo;
 
 use lib 't/lib';
 use TestDB qw(reset_db test_app test_pg);
+use CsrfHelper qw(csrf_token);
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
 
@@ -38,7 +39,10 @@ subtest 'shows a list of releases to choose from, eligible ones selectable' => s
         ];
     };
 
-    $t->post_ok( '/new-plugin' => form => { plugin_repo => 'https://github.com/octocat/Hello-World' } )
+    $t->post_ok(
+        '/new-plugin' => form =>
+            { plugin_repo => 'https://github.com/octocat/Hello-World', csrf_token => csrf_token($t) }
+    )
       ->status_is(200)
       ->element_exists('input[type="radio"][value="v1.0.0"]')
       ->element_exists_not('input[type="radio"][value="v0.9.0"]');
@@ -65,6 +69,7 @@ subtest 'submitting a chosen tag creates rows and enqueues a job' => sub {
         '/new-plugin-confirm' => form => {
             plugin_repo => 'https://github.com/octocat/Hello-World',
             tag_name    => 'v1.0.0',
+            csrf_token  => csrf_token($t),
         }
     )->status_is(302);
 
@@ -119,6 +124,7 @@ subtest 'rejects duplicate submission of same release with constraint violation'
         '/new-plugin-confirm' => form => {
             plugin_repo => 'https://github.com/octocat/Hello-World',
             tag_name    => 'v1.0.0',
+            csrf_token  => csrf_token($t),
         }
     )->status_is(200);
 

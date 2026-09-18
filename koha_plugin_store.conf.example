@@ -14,6 +14,13 @@
   # Postgres connection string
   pg_dsn => 'postgresql://koha_plugin_store:koha_plugin_store@127.0.0.1:55432/koha_plugin_store',
 
+  # Optional: an explicit, rotatable secret used to sign session cookies.
+  # Without this, Mojolicious auto-generates one per process -- fine for dev,
+  # but a restart invalidates every session, and it's not something you
+  # control or rotate. Recommended for production. Generate with e.g.:
+  #   perl -MMojo::Util=b64_encode -e 'print b64_encode(pack("Q*", map { rand(2**64) } 1..4))'
+  # secrets => ['YOUR_RANDOM_SECRET_HERE'],
+
   # OAuth providers for developer login. 'github' is a built-in provider name
   # recognised by Mojolicious::Plugin::OAuth2 -- register an OAuth App at
   # https://github.com/settings/developers to get a client_id/client_secret.

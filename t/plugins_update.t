@@ -5,6 +5,7 @@ use Test::Mojo;
 
 use lib 't/lib';
 use TestDB qw(reset_db test_app test_pg);
+use CsrfHelper qw(csrf_token);
 
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::Developer;
@@ -53,7 +54,7 @@ subtest 'a blank required field re-renders the page with an error and preserves 
         'widget', { name => 'Widget', description => 'Original', repo_url => 'https://github.com/dev/widget', author => 'Dev', developer_id => $owner->id }
     );
 
-    $t->post_ok( '/plugins/' . $plugin->slug . '/edit' => form => { name => 'Widget', description => '', repo_url => 'https://github.com/dev/widget', author => 'Dev' } )
+    $t->post_ok( '/plugins/' . $plugin->slug . '/edit' => form => { name => 'Widget', description => '', repo_url => 'https://github.com/dev/widget', author => 'Dev', csrf_token => csrf_token($t) } )
       ->status_is(200)
       ->content_like(qr/required/i)
       ->element_exists('input[name="name"][value="Widget"]');
@@ -78,7 +79,7 @@ subtest 'a valid update persists and redirects to the plugin page' => sub {
     );
 
     $t->post_ok( '/plugins/' . $plugin->slug . '/edit' =>
-        form => { name => 'Widget', description => 'Updated description', repo_url => 'https://github.com/dev/widget', author => 'Dev' } )
+        form => { name => 'Widget', description => 'Updated description', repo_url => 'https://github.com/dev/widget', author => 'Dev', csrf_token => csrf_token($t) } )
       ->status_is(302)
       ->header_is( Location => '/plugins/' . $plugin->slug );
 

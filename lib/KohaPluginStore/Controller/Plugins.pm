@@ -46,6 +46,9 @@ sub add_form {
 sub refresh_repos {
     my $c = shift;
 
+    return $c->render( text => 'Invalid CSRF token', status => 403 )
+        if $c->validation->csrf_protect->has_error('csrf_token');
+
     my $developer = $c->logged_in_user;
     my $repos      = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
     $developer->refresh_cached_repos($repos);
@@ -127,6 +130,12 @@ sub update_plugin ($c) {
     return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
     return $c->render( text => 'Unauthorized', status => 401 )
         unless $c->session->{developer} && $c->session->{developer}->{id} == $plugin->developer_id;
+
+    # Checked after the ownership check, not before -- an unauthenticated or
+    # non-owner request is already rejected on its own merits above, and a
+    # 404/401 there shouldn't become a CSRF-shaped 403 instead.
+    return $c->render( text => 'Invalid CSRF token', status => 403 )
+        if $c->validation->csrf_protect->has_error('csrf_token');
 
     my %fields = map { $_ => $c->param($_) } qw(name description repo_url author);
 
@@ -245,6 +254,9 @@ sub verify ($c) {
 sub new_plugin ($c) {
     my $plugin_repo = $c->param('plugin_repo');
 
+    return $c->render( text => 'Invalid CSRF token', status => 403 )
+        if $c->validation->csrf_protect->has_error('csrf_token');
+
     my $developer_repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
     my $repo_is_owned   = grep { $_->{html_url} eq $plugin_repo } @$developer_repos;
     return $c->_exit_with_error_message(
@@ -279,6 +291,9 @@ sub new_plugin_confirm ($c) {
     unless ( $c->session->{developer} ) {
         return $c->render( text => 'Unauthorized', status => 401 );
     }
+
+    return $c->render( text => 'Invalid CSRF token', status => 403 )
+        if $c->validation->csrf_protect->has_error('csrf_token');
 
     my $developer_repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
     my $repo_is_owned   = grep { $_->{html_url} eq $plugin_repo } @$developer_repos;

@@ -5,6 +5,7 @@ use Test::Mojo;
 
 use lib 't/lib';
 use TestDB qw(reset_db test_app test_pg);
+use CsrfHelper qw(csrf_token);
 
 use KohaPluginStore::Model::Developer;
 
@@ -29,7 +30,8 @@ $t->app->config->{oauth_mock} = 0;
 }
 
 subtest 'fetches, caches, and redirects back to the picker' => sub {
-    $t->post_ok('/developer/repos/refresh')->status_is(302)->header_is( Location => '/new-plugin' );
+    $t->post_ok( '/developer/repos/refresh' => form => { csrf_token => csrf_token($t) } )
+      ->status_is(302)->header_is( Location => '/new-plugin' );
 
     my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )
       ->find( { oauth_provider_key => 'github', provider_user_id => 'mock' } );
@@ -46,7 +48,7 @@ subtest 'refreshing again replaces the cached list wholesale' => sub {
     no warnings 'redefine';
     *KohaPluginStore::GitHub::fetch_all_repos = sub { return []; };
 
-    $t->post_ok('/developer/repos/refresh')->status_is(302);
+    $t->post_ok( '/developer/repos/refresh' => form => { csrf_token => csrf_token($t) } )->status_is(302);
 
     my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )
       ->find( { oauth_provider_key => 'github', provider_user_id => 'mock' } );

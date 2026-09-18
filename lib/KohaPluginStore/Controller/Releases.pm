@@ -13,6 +13,11 @@ sub new_release ($c) {
     return $c->render( text => 'Unauthorized', status => 401 )
         unless $c->session->{developer}->{id} == $plugin->developer_id;
 
+    # Checked after the ownership check, not before -- see update_plugin's
+    # identical comment in Controller::Plugins.
+    return $c->render( text => 'Invalid CSRF token', status => 403 )
+        if $c->validation->csrf_protect->has_error('csrf_token');
+
     my $config  = $c->app->plugin('Config');
     my $token   = $config->{github_app_token};
     my $release = KohaPluginStore::GitHub::fetch_release_by_tag( $token, $plugin->repo_url, $tag_name );

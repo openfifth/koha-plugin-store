@@ -5,6 +5,7 @@ use Test::Mojo;
 
 use lib 't/lib';
 use TestDB qw(reset_db test_app test_pg);
+use CsrfHelper qw(csrf_token);
 
 reset_db();
 
@@ -29,7 +30,10 @@ subtest 'rejects a repo not in the developer\'s own list, without calling GitHub
         die 'should not be called for an unowned repo';
     };
 
-    $t->post_ok( '/new-plugin' => form => { plugin_repo => 'https://github.com/someone-else/not-mine' } )
+    $t->post_ok(
+        '/new-plugin' => form =>
+            { plugin_repo => 'https://github.com/someone-else/not-mine', csrf_token => csrf_token($t) }
+    )
       ->status_is(200)
       ->text_like( 'li.text-danger' => qr/not in the list of your public GitHub repositories/ );
 };
@@ -49,7 +53,9 @@ subtest 'accepts a repo beyond a single page of results' => sub {
     };
     *KohaPluginStore::GitHub::fetch_releases = sub { return []; };
 
-    $t->post_ok( '/new-plugin' => form => { plugin_repo => 'https://github.com/acme/repo101' } )
+    $t->post_ok(
+        '/new-plugin' => form => { plugin_repo => 'https://github.com/acme/repo101', csrf_token => csrf_token($t) }
+    )
       ->status_is(200)
       ->text_unlike( 'li.text-danger' => qr/not in the list of your public GitHub repositories/ );
 };

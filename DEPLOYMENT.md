@@ -47,6 +47,14 @@ systemd.
      production — it bypasses GitHub login entirely and exists for dev only.
    - `signing_key_path` — a file path for the store's Ed25519 signing key (see
      below). Keep the key file itself out of the conf and out of git.
+   - `secrets` — a random string used to sign session cookies (see the
+     comment above it in the example file for how to generate one).
+     Optional, but recommended: without it, Mojolicious auto-generates one
+     per process, so a restart invalidates every session. The app also
+     marks session cookies `Secure` automatically whenever it's running in
+     `production` mode (the default unless `MOJO_MODE`/`PLACK_ENV` says
+     otherwise) — make sure you're actually serving over HTTPS (see the TLS
+     step below) before relying on that.
 4. Generate the signing key referenced above (see
    [docs/CERTIFICATION.md](docs/CERTIFICATION.md) for what it's used for):
    ```bash

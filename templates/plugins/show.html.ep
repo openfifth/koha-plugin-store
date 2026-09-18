@@ -160,6 +160,7 @@
               %= t td => $release->{message}->{error}
               % } else {
               %= t td => form_for '/new-release' => (method => 'POST') => begin
+                %= csrf_field
                 <input type="hidden" name="plugin_id" value="<%= $plugin->id %>">
                 <input type="hidden" name="tag_name" value="<%= $release->{tag_name} %>">
                 <button type="submit" class="btn btn-primary">Add this release</button>
@@ -179,6 +180,7 @@
   <div class="modal-dialog">
     <div class="modal-content">
       %= form_for '/plugins/'.$plugin->slug.'/edit' => (method => 'POST') => begin
+        %= csrf_field
         <div class="modal-header">
           <h5 class="modal-title" id="edit-plugin-modal-label">Edit plugin</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

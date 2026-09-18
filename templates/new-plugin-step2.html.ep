@@ -20,6 +20,7 @@
   % end
 % } else {
   %= form_for 'new-plugin-confirm' => (method => 'POST') => begin
+    %= csrf_field
     <input type="hidden" name="plugin_repo" value="<%= $plugin_repo %>">
     <table class="table">
       <thead>
