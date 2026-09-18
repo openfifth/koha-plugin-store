@@ -72,7 +72,25 @@ sub run {
         return;
     }
     for my $member ( $zip->members ) {
-        $member->extractToFileNamed( "$extract_dir/" . $member->fileName );
+        my $name = $member->fileName;
+
+        # Zip Slip guard: reject any entry whose path would land outside
+        # $extract_dir. Nothing under $extract_dir exists yet for a
+        # symlink-based trick to hide behind, so checking the raw name for a
+        # leading '/' (absolute) or a literal '..' segment is sufficient --
+        # no need to resolve against the filesystem.
+        ( my $normalized = $name ) =~ s{\\}{/}g;
+        if ( $normalized =~ m{^/} || $normalized =~ m{(?:^|/)\.\.(?:/|$)} ) {
+            $version->update(
+                {
+                    status        => 'changes_requested',
+                    error_message => "The .kpz archive contains an unsafe path ('$name').",
+                }
+            );
+            return;
+        }
+
+        $member->extractToFileNamed("$extract_dir/$name");
     }
 
     my ( $plugin_class_file, $plugin_class_name ) = _find_plugin_class($extract_dir);
@@ -292,35 +310,92 @@ sub _parse_metadata {
 
     return unless $plugin_class_file;
 
-    my $metadata_contents = read_file($plugin_class_file);
-    my $plugin_metadata;
+    my $contents = read_file($plugin_class_file);
 
-    if ( $metadata_contents =~ /our \$metadata = (\{.*?\});(?!\w)/si ) {
-        my $extracted_metadata = $1;
-        my $metadata_variables;
-        while ( $extracted_metadata =~ /\$([a-zA-Z_]+)\b/g ) {
-            my $variable = $1;
-            if ( $metadata_contents =~ /(our \$$variable.*?= .*?;)/si ) {
-                my $value = $1;
-                $value =~ s/our \$$variable.*?= //;
-                $value =~ s/;//;
-                $value = trim($value);
-                $metadata_variables->{ '$' . $variable } = $value;
-            }
-        }
+    my $block = _extract_metadata_block($contents);
+    return unless defined $block;
 
-        for my $key ( keys %$metadata_variables ) {
-            $extracted_metadata =~ s/\Q$key\E/$metadata_variables->{$key}/;
-        }
-
-        eval( '$plugin_metadata = ' . $extracted_metadata . ';' );
-        if ($@) {
-            warn "Error evaluating metadata: $@";
-        }
+    my %metadata;
+    while ( $block =~ /
+        ([A-Za-z_]\w*|'[^']*'|"[^"]*")
+        \s*=>\s*
+        ( '(?:\\.|[^'\\])*'
+        | "(?:\\.|[^"\\])*"
+        | \$[A-Za-z_]\w*
+        | \d+(?:\.\d+)*
+        )
+    /gx
+    ) {
+        my $key   = _strip_quotes($1);
+        my $value = _resolve_scalar_value( $2, $contents );
+        next unless defined $value;
+        $metadata{$key} = $value;
     }
 
-    return unless ref($plugin_metadata) eq 'HASH' && scalar keys %$plugin_metadata > 0;
-    return $plugin_metadata;
+    return unless %metadata;
+    return \%metadata;
+}
+
+# Finds the exact `{ ... }` text of `our $metadata = { ... }` by hand-tracking
+# nested braces and quotes, rather than a non-greedy regex up to the first
+# `};` -- a value containing its own `{}` would otherwise truncate the block
+# early. Returns undef if there's no such assignment, or the braces never
+# balance (truncated/malformed file).
+sub _extract_metadata_block {
+    my ($contents) = @_;
+
+    return unless $contents =~ /our\s+\$metadata\s*=\s*\{/;
+    my $start = $+[0];
+
+    my $depth = 1;
+    my $i     = $start;
+    my $len   = length $contents;
+    my $quote;
+
+    while ( $i < $len && $depth > 0 ) {
+        my $c = substr( $contents, $i, 1 );
+        if ($quote) {
+            if ( $c eq '\\' ) { $i++; }
+            elsif ( $c eq $quote ) { $quote = undef; }
+        }
+        elsif ( $c eq q{'} || $c eq q{"} ) { $quote = $c; }
+        elsif ( $c eq '{' ) { $depth++; }
+        elsif ( $c eq '}' ) { $depth--; }
+        $i++;
+    }
+
+    return if $depth != 0;
+    return substr( $contents, $start, $i - $start - 1 );
+}
+
+sub _strip_quotes {
+    my ($token) = @_;
+    return $token unless $token =~ /^['"]/;
+    my $inner = substr( $token, 1, -1 );
+    $inner =~ s/\\(.)/$1/g;
+    return $inner;
+}
+
+# Resolves a hash-literal value token to its literal string -- never
+# executes anything. A bare scalar variable (e.g. `version => $VERSION`) is
+# resolved by finding its own plain `our $name = '...';` assignment
+# elsewhere in the file; anything else this doesn't recognise (a method
+# call, string concatenation, a ternary, a do{} block, ...) is simply
+# dropped, same as any other malformed/missing metadata field run() already
+# validates for below.
+sub _resolve_scalar_value {
+    my ( $token, $contents ) = @_;
+
+    return _strip_quotes($token) if $token =~ /^['"]/;
+    return $token if $token =~ /^\d/;
+
+    my ($name) = $token =~ /^\$(\w+)$/;
+    return unless $name;
+
+    if ( $contents =~ /\bour\s+\$\Q$name\E\s*=\s*('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")\s*;/s ) {
+        return _strip_quotes($1);
+    }
+    return;
 }
 
 1;

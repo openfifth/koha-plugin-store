@@ -649,4 +649,82 @@ subtest 'a missing signing key fails the job loudly instead of publishing unsign
     $t->app->config->{signing_key_path} = $previous_key_path;
 };
 
+subtest 'malicious metadata code is never executed, only ignored' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget' }
+    );
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', kpz_url => 'https://example.com/widget.kpz', status => 'submitted' }
+    );
+
+    my $marker_dir  = tempdir( CLEANUP => 1 );
+    my $marker_file = "$marker_dir/pwned";
+
+    my $evil_plugin_pm = <<PERL;
+package Koha::Plugin::Test::Evil;
+use base qw(Koha::Plugins::Base);
+our \$metadata = {
+    name            => do { system('touch', '$marker_file'); 'Evil' },
+    description     => 'x',
+    author          => 'x',
+    minimum_version => '23.05',
+    version         => '1.0.0',
+};
+1;
+PERL
+    my $fixture_zip = make_kpz($evil_plugin_pm);
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::download_kpz = sub {
+        my ( $token, $url, $dest_path ) = @_;
+        copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
+        return 1;
+    };
+    *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
+    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout  = sub { return 1 };
+    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed    = sub { return "syntax OK\n" };
+
+    $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
+    $t->app->minion->perform_jobs_in_foreground;
+
+    ok( !-e $marker_file, 'the system() call embedded in the metadata never ran' );
+
+    my $reloaded_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    is( $reloaded_plugin->name, undef, "the 'name' field, whose value wasn't a plain literal, was dropped rather than executed" );
+};
+
+subtest 'a Zip Slip path in the .kpz is rejected rather than extracted outside the sandbox' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget' }
+    );
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', kpz_url => 'https://example.com/widget.kpz', status => 'submitted' }
+    );
+
+    my $fixture_zip = make_multi_file_kpz(
+        {
+            'Widget.pm'          => $valid_plugin_pm,
+            '../../escaped.conf' => "malicious content\n",
+        }
+    );
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::download_kpz = sub {
+        my ( $token, $url, $dest_path ) = @_;
+        copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
+        return 1;
+    };
+
+    $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
+    $t->app->minion->perform_jobs_in_foreground;
+
+    my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
+    is( $reloaded->status, 'changes_requested', 'status is changes_requested' );
+    like( $reloaded->error_message, qr/unsafe path/, 'error message names the problem' );
+};
+
 done_testing();
