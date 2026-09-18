@@ -8,6 +8,7 @@ use File::Find;
 use File::Slurp;
 use String::Util 'trim';
 use Archive::Zip;
+use PPI::Document;
 
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
@@ -310,90 +311,124 @@ sub _parse_metadata {
 
     return unless $plugin_class_file;
 
-    my $contents = read_file($plugin_class_file);
+    # PPI is a pure lexer/parser -- it never executes the code it reads (and
+    # doesn't even need the modules it references to be installed), unlike
+    # the string eval() this used to run on regex-extracted text. It also
+    # correctly understands Perl's actual grammar (comments, heredocs,
+    # nested structures, ...), so a stray quote character inside a comment
+    # can't desync a parse the way a from-scratch text scanner's quote
+    # tracking could.
+    my $doc = PPI::Document->new($plugin_class_file);
+    return unless $doc;
 
-    my $block = _extract_metadata_block($contents);
-    return unless defined $block;
+    my $constructor = _find_metadata_constructor($doc);
+    return unless $constructor;
 
     my %metadata;
-    while ( $block =~ /
-        ([A-Za-z_]\w*|'[^']*'|"[^"]*")
-        \s*=>\s*
-        ( '(?:\\.|[^'\\])*'
-        | "(?:\\.|[^"\\])*"
-        | \$[A-Za-z_]\w*
-        | \d+(?:\.\d+)*
-        )
-    /gx
-    ) {
-        my $key   = _strip_quotes($1);
-        my $value = _resolve_scalar_value( $2, $contents );
-        next unless defined $value;
-        $metadata{$key} = $value;
-    }
+    _extract_hash_pairs( $constructor, $doc, \%metadata );
 
     return unless %metadata;
     return \%metadata;
 }
 
-# Finds the exact `{ ... }` text of `our $metadata = { ... }` by hand-tracking
-# nested braces and quotes, rather than a non-greedy regex up to the first
-# `};` -- a value containing its own `{}` would otherwise truncate the block
-# early. Returns undef if there's no such assignment, or the braces never
-# balance (truncated/malformed file).
-sub _extract_metadata_block {
-    my ($contents) = @_;
+# Finds the `{ ... }` hash-literal constructor on the right-hand side of
+# `our $metadata = { ... };` anywhere in the document.
+sub _find_metadata_constructor {
+    my ($doc) = @_;
 
-    return unless $contents =~ /our\s+\$metadata\s*=\s*\{/;
-    my $start = $+[0];
+    my $variables = $doc->find('PPI::Statement::Variable') || [];
+    for my $stmt (@$variables) {
+        next unless $stmt->type eq 'our';
+        my @vars = $stmt->variables;
+        next unless @vars == 1 && $vars[0] eq '$metadata';
 
-    my $depth = 1;
-    my $i     = $start;
-    my $len   = length $contents;
-    my $quote;
+        my ($constructor) = grep { $_->isa('PPI::Structure::Constructor') } $stmt->schildren;
+        return $constructor if $constructor && $constructor->start->content eq '{';
+    }
+    return;
+}
 
-    while ( $i < $len && $depth > 0 ) {
-        my $c = substr( $contents, $i, 1 );
-        if ($quote) {
-            if ( $c eq '\\' ) { $i++; }
-            elsif ( $c eq $quote ) { $quote = undef; }
+# Splits the constructor's contents into key => value groups on top-level
+# commas and resolves each value that's safe to resolve -- see
+# _resolve_value_tokens for what "safe" means here. Anything else (a
+# do{} block, a method call, string concatenation, a ternary, ...) is
+# silently skipped rather than executed, the same fail-safe behaviour as
+# any other malformed/missing metadata field run() already validates for
+# below.
+sub _extract_hash_pairs {
+    my ( $constructor, $doc, $metadata ) = @_;
+
+    my @kids = $constructor->schildren;
+    return unless @kids;
+
+    my @tokens = $kids[0]->isa('PPI::Statement') ? $kids[0]->children : @kids;
+
+    my @groups = ( [] );
+    for my $tok (@tokens) {
+        next if $tok->isa('PPI::Token::Whitespace') || $tok->isa('PPI::Token::Comment');
+        if ( $tok->isa('PPI::Token::Operator') && $tok->content eq ',' ) {
+            push @groups, [];
+            next;
         }
-        elsif ( $c eq q{'} || $c eq q{"} ) { $quote = $c; }
-        elsif ( $c eq '{' ) { $depth++; }
-        elsif ( $c eq '}' ) { $depth--; }
-        $i++;
+        push @{ $groups[-1] }, $tok;
     }
 
-    return if $depth != 0;
-    return substr( $contents, $start, $i - $start - 1 );
+    for my $group (@groups) {
+        next unless @$group;
+        my ( $key_tok, $fat_comma, @value_toks ) = @$group;
+        next unless $fat_comma && $fat_comma->isa('PPI::Token::Operator') && $fat_comma->content eq '=>';
+
+        my $key = _bareword_or_string($key_tok);
+        next unless defined $key;
+
+        my $value = _resolve_value_tokens( \@value_toks, $doc );
+        next unless defined $value;
+
+        $metadata->{$key} = $value;
+    }
 }
 
-sub _strip_quotes {
-    my ($token) = @_;
-    return $token unless $token =~ /^['"]/;
-    my $inner = substr( $token, 1, -1 );
-    $inner =~ s/\\(.)/$1/g;
-    return $inner;
+sub _bareword_or_string {
+    my ($tok) = @_;
+    return unless $tok;
+    return $tok->content if $tok->isa('PPI::Token::Word');
+    return $tok->string  if $tok->isa('PPI::Token::Quote');
+    return;
 }
 
-# Resolves a hash-literal value token to its literal string -- never
-# executes anything. A bare scalar variable (e.g. `version => $VERSION`) is
-# resolved by finding its own plain `our $name = '...';` assignment
-# elsewhere in the file; anything else this doesn't recognise (a method
-# call, string concatenation, a ternary, a do{} block, ...) is simply
-# dropped, same as any other malformed/missing metadata field run() already
-# validates for below.
-sub _resolve_scalar_value {
-    my ( $token, $contents ) = @_;
+# Resolves a value that's exactly one recognised token: a quoted string, a
+# number, or a bare scalar variable (resolved against its own plain literal
+# assignment elsewhere in the document, one level deep). Anything spanning
+# more than one token, or a token type not listed here, is deliberately
+# left unresolved.
+sub _resolve_value_tokens {
+    my ( $value_toks, $doc ) = @_;
+    return unless @$value_toks == 1;
 
-    return _strip_quotes($token) if $token =~ /^['"]/;
-    return $token if $token =~ /^\d/;
+    my ($tok) = @$value_toks;
 
-    my ($name) = $token =~ /^\$(\w+)$/;
-    return unless $name;
+    return $tok->string  if $tok->isa('PPI::Token::Quote');
+    return $tok->literal if $tok->isa('PPI::Token::Number');
 
-    if ( $contents =~ /\bour\s+\$\Q$name\E\s*=\s*('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")\s*;/s ) {
-        return _strip_quotes($1);
+    if ( $tok->isa('PPI::Token::Symbol') ) {
+        return _resolve_symbol( $tok->content, $doc );
+    }
+
+    return;
+}
+
+sub _resolve_symbol {
+    my ( $symbol, $doc ) = @_;
+
+    my $variables = $doc->find('PPI::Statement::Variable') || [];
+    for my $stmt (@$variables) {
+        my @vars = $stmt->variables;
+        next unless @vars == 1 && $vars[0] eq $symbol;
+
+        my @kids = grep { !$_->isa('PPI::Token::Whitespace') && !$_->isa('PPI::Token::Structure') } $stmt->schildren;
+        my $rhs = $kids[-1];
+        return $rhs->string  if $rhs && $rhs->isa('PPI::Token::Quote');
+        return $rhs->literal if $rhs && $rhs->isa('PPI::Token::Number');
     }
     return;
 }

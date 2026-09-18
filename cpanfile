@@ -12,6 +12,15 @@ requires 'String::Util';
 requires 'IO::Socket::SSL';
 requires 'Net::SSLeay';
 requires 'File::Slurp';
+# Used directly by ProcessPluginVersion's metadata parser and the
+# DependencyAllowlist/HardcodedCredentials checks to safely inspect
+# submitted plugin source without executing it. It's also a transitive
+# dependency of Perl::Critic below (installed into the project-local
+# 'local/' lib, see its comment), but that's an implementation detail of
+# how Perl::Critic happens to be installed here -- code that depends on PPI
+# directly should declare it directly, not rely on riding along with
+# another package's install path.
+requires 'PPI';
 # Koha::QA isn't on CPAN, and plain `cpanm --installdeps` ignores this line's
 # git=>/ref=> meta entirely (it always does a bare CPAN name lookup, which
 # fails) -- it must be installed explicitly, to a project-local 'local/'

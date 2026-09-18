@@ -727,4 +727,49 @@ subtest 'a Zip Slip path in the .kpz is rejected rather than extracted outside t
     like( $reloaded->error_message, qr/unsafe path/, 'error message names the problem' );
 };
 
+subtest 'a comment containing an apostrophe inside the metadata block does not break parsing' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget' }
+    );
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', kpz_url => 'https://example.com/widget.kpz', status => 'submitted' }
+    );
+
+    my $plugin_pm = <<'PERL';
+package Koha::Plugin::Test::Widget;
+use base qw(Koha::Plugins::Base);
+our $metadata = {
+    name => 'Widget', # don't break this
+    description => "A test widget",
+    author => "Someone",
+    minimum_version => '23.05',
+    version => '1.0.0',
+    license => 'GPL-3.0',
+};
+1;
+PERL
+    my $fixture_zip = make_kpz($plugin_pm);
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::download_kpz = sub {
+        my ( $token, $url, $dest_path ) = @_;
+        copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
+        return 1;
+    };
+    *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
+    *KohaPluginStore::Check::PerlSyntax::_ensure_checkout  = sub { return 1 };
+    *KohaPluginStore::Check::PerlSyntax::_run_sandboxed    = sub { return "syntax OK\n" };
+
+    $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
+    $t->app->minion->perform_jobs_in_foreground;
+
+    my $reloaded = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
+    is( $reloaded->status, 'published', 'status is published despite the comment containing an apostrophe' );
+
+    my $reloaded_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    is( $reloaded_plugin->name, 'Widget', 'metadata after the commented field still parsed correctly' );
+};
+
 done_testing();
