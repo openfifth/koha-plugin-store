@@ -9,7 +9,10 @@ Type=simple
 User=plugin-store
 Group=plugin-store
 ## change the below values to suit your installation
-Environment=PERL5LIB=/opt/plugin-store/lib
+## Must be local/lib/perl5, not lib/ -- this is where Perl::Critic/Koha::QA
+## get installed (see the cpanfile comment); loading KohaPluginStore at all
+## transitively requires Koha::QA::PerlCritic to be on @INC.
+Environment=PERL5LIB=/opt/plugin-store/local/lib/perl5
 ## Path to the syntax-sandbox broker's socket (see
 ## koha-plugin-store-sandbox-broker.service.example) -- this user must be a
 ## supplementary member of that unit's group to reach it.

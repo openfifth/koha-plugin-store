@@ -26,7 +26,10 @@ Type=simple
 User=plugin-store-sandbox
 Group=plugin-store-sandbox
 ## change the below values to suit your installation
-Environment=PERL5LIB=/opt/plugin-store/sandbox_broker/local/lib/perl5
+## No PERL5LIB needed here: unlike the main app, sandbox_broker's cpanfile
+## (just Mojolicious) is installed with a plain `cpanm --installdeps .`,
+## with no project-local -L local step -- it lands in the normal system/
+## vendor Perl lib, already on @INC.
 Environment=SANDBOX_CHECKOUT_DIR=/opt/plugin-store/sandbox_broker/data/checkouts
 Environment=SANDBOX_SCRATCH_DIR=/opt/plugin-store/sandbox_broker/data/scratch
 ## HOST_PROJECT_DIR is a Docker-Compose-dev-only concern (translating this
