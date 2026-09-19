@@ -3,7 +3,6 @@ package KohaPluginStore::Task::ProcessPluginVersion;
 use Modern::Perl;
 use Digest::SHA qw(sha256_hex);
 use File::Temp qw(tempdir);
-use File::Path qw(make_path);
 use File::Find;
 use File::Slurp;
 use String::Util 'trim';
@@ -39,18 +38,12 @@ sub run {
     my $config = $app->config;
     my $token  = $config->{github_app_token};
 
-    # PerlSyntax's check bind-mounts $extract_dir into a sandbox container via
-    # the HOST's Docker daemon (docker-compose mounts the host socket into
-    # this worker, rather than running a nested dockerd) -- Docker resolves
-    # bind-mount sources against the true host filesystem, not this
-    # container's own private one, so a tempdir() under the default /tmp
-    # (invisible outside this container) would silently bind-mount an empty
-    # directory. /app/tmp is safe because docker-compose.yml already bind-
-    # mounts the whole worktree at /app, so paths under it are identical on
-    # the host and in here.
-    my $sandbox_scratch_dir = '/app/tmp';
-    make_path($sandbox_scratch_dir) unless -d $sandbox_scratch_dir;
-    my $tmp_dir  = tempdir( DIR => $sandbox_scratch_dir, CLEANUP => 1 );
+    # A plain ephemeral tempdir is enough here: perl_syntax's sandboxed
+    # compile-check now runs in the separate syntax-sandbox broker service
+    # (see sandbox_broker/), reached over HTTP with file *contents*, not a
+    # shared bind-mount path -- so unlike before that split, nothing here
+    # needs this directory to be visible to the host's Docker daemon.
+    my $tmp_dir  = tempdir( CLEANUP => 1 );
     my $kpz_path = "$tmp_dir/plugin.kpz";
 
     my $downloaded = KohaPluginStore::GitHub::download_kpz( $token, $version->kpz_url, $kpz_path );

@@ -10,8 +10,10 @@ plugin runs through, see [docs/CERTIFICATION.md](docs/CERTIFICATION.md).
   `koha_plugin_store.conf.example` (host dev) or
   `koha_plugin_store.conf.docker.example` (Docker dev) — these two differ in
   `pg_dsn`'s host, don't mix them up.
-- The `kpz_packages` directory is used to store `.kpz` files downloaded from
-  GitHub.
+- `.kpz` files downloaded from GitHub land in an ephemeral `File::Temp`
+  directory (the system temp dir, both in Docker and host dev), cleaned up
+  automatically once each submission's checks finish — there's no
+  persistent package directory to look in.
 - Developer login is GitHub OAuth — there's no password-based login anymore.
   Local/Docker dev needs a real GitHub OAuth App registered (callback URL
   matching your `morbo`/Docker host and port), with its `client_id`/
