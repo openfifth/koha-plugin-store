@@ -150,22 +150,34 @@ sudo useradd --system --no-create-home plugin-store-sandbox
      `production` mode (the default unless `MOJO_MODE`/`PLACK_ENV` says
      otherwise) — make sure you're actually serving over HTTPS (see the TLS
      step below) before relying on that.
-4. Generate the signing key referenced above (see
+4. Apply migrations — needs the Postgres instance from above already
+   running and `pg_dsn` already pointed at it correctly (not the
+   `koha_plugin_store.conf.example` placeholder, which points at
+   `127.0.0.1:55432`, the dev-only Docker Compose port):
+   ```bash
+   PERL5LIB=/opt/plugin-store/local/lib/perl5 script/koha_plugin_store migrate
+   ```
+   This creates the application's own tables (`plugins`, `plugin_versions`,
+   `developers`, ...) in the database you created — there's nothing else to
+   set up on the Postgres side first. If this fails with a `DBI connect(...)
+   Connection refused` error, Postgres isn't reachable at the `pg_dsn`
+   you've configured — double check it's actually running
+   (`sudo systemctl status postgresql`) and that `pg_dsn`'s host/port match.
+5. Generate the signing key referenced above (see
    [docs/CERTIFICATION.md](docs/CERTIFICATION.md) for what it's used for):
    ```bash
    PERL5LIB=/opt/plugin-store/local/lib/perl5 script/koha_plugin_store generate_signing_key /opt/plugin-store/signing_key.pem
    ```
    Refuses to overwrite an existing file unless `--force` is given — back this
    file up; losing it means every previously-published version's signature
-   can no longer be verified against a newly-generated key.
-5. Apply migrations (needs the Postgres instance from above already
-   reachable and `pg_dsn` already set):
-   ```bash
-   PERL5LIB=/opt/plugin-store/local/lib/perl5 script/koha_plugin_store migrate
-   ```
-   This creates the application's own tables (`plugins`, `plugin_versions`,
-   `developers`, ...) in the database you created — there's nothing else to
-   set up on the Postgres side first.
+   can no longer be verified against a newly-generated key. **This also
+   needs Postgres reachable**, same as every `script/koha_plugin_store`
+   command — not because generating a keypair touches the database, but
+   because `KohaPluginStore->startup()` unconditionally registers Minion
+   against Postgres before any command runs, so booting the app at all
+   fails if step 4 isn't already working. Doing step 4 first means you hit
+   that failure mode somewhere more obviously DB-related if it's going to
+   happen.
 6. Place your TLS certificate and key at `ssl/cert.pem` and `ssl/privkey.pem`
    (paths the example systemd unit points `MOJO_SSL_CERT`/`MOJO_SSL_PRIV` at).
    If you're terminating TLS at a reverse proxy instead (e.g. Traefik/nginx in
