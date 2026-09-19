@@ -9,10 +9,8 @@ Type=simple
 User=plugin-store
 Group=plugin-store
 ## change the below values to suit your installation
-## Must be local/lib/perl5, not lib/ -- this is where Perl::Critic/Koha::QA
-## get installed (see the cpanfile comment), and loading KohaPluginStore at
-## all transitively requires Koha::QA::PerlCritic to be on @INC, even
-## though this is the web app, not the worker that actually runs checks.
+## Carton installs dependencies into a project-local local/, not the
+## system/vendor Perl lib -- see DEPLOYMENT.md's Install section.
 Environment=PERL5LIB=/opt/plugin-store/local/lib/perl5
 Environment=MOJO_MODE=production
 Environment=MOJO_HTTP_PORT=443

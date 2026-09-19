@@ -29,7 +29,16 @@ plugin runs through, see [docs/CERTIFICATION.md](docs/CERTIFICATION.md).
   `perl script/koha_plugin_store minion worker` locally, or the `worker`
   service in Docker (already included in `docker-compose.yml`).
 - To install cpan dependencies for host dev, run `cpanm --installdeps .` at
-  the project root dir.
+  the project root dir. Dev/Docker deliberately stays on plain `cpanm`
+  (fast, no lockfile overhead) — production installs from a committed
+  `cpanfile.snapshot` via Carton instead, for reproducible deploys. See
+  [DEPLOYMENT.md](DEPLOYMENT.md). If you add or change a dependency in
+  `cpanfile` (either the root one or `sandbox_broker/cpanfile`), regenerate
+  the matching snapshot and commit it, even though dev itself doesn't use
+  it:
+  ```bash
+  cpanm --notest Carton && carton install   # updates cpanfile.snapshot
+  ```
 - Local Postgres runs via `docker compose up -d postgres` (see
   `docker-compose.yml`).
 
