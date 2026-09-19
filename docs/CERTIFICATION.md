@@ -11,10 +11,12 @@ Every submitted version runs through 11 automated checks (in
     matching the plugin's declared `minimum_version`
   - `manifest_completeness` — the plugin's `$metadata` hash declares both
     `version` and `license`
-  - `dependency_allowlist` — a static regex scan for risky code: `system()`/
-    `exec()`/backticks/`qx`, opening sockets or making HTTP requests, opening
-    an absolute filesystem path, or referencing `../` to escape the plugin's
-    own directory
+  - `dependency_allowlist` — a static analysis (via PPI, so it looks at real
+    parsed syntax, not raw text — a mention of `system(` in a comment or
+    string doesn't false-positive) for risky code: `system()`/`exec()`/
+    backticks/`qx`, `use`ing a networking module (`IO::Socket`, `Net::*`,
+    `LWP`/`HTTP::Tiny`), `open()`ing an absolute filesystem path, or a
+    string referencing `../` to escape the plugin's own directory
 
 - **Non-required, but gate the certification badge.** These don't block
   publishing, but a version can only reach the `CERTIFIED` tier if all of
@@ -31,8 +33,12 @@ Every submitted version runs through 11 automated checks (in
   - `plugin_template_wrapper` — every `.tt` file includes the plugin template
     wrapper include (currently `doc-head-close.inc` — a placeholder pending
     confirmation against `Koha::Plugins` conventions, see the code comment)
-  - `hardcoded_credentials` — a regex scan for API-key/secret/password-shaped
-    string literals, PEM private key headers, and AWS access key ID patterns
+  - `hardcoded_credentials` — a credential-shaped key or variable name (e.g.
+    `api_key`, `password`) assigned a literal string, found via PPI against
+    real parsed syntax rather than raw text (so a comment or docstring that
+    merely *describes* such an assignment doesn't false-positive), plus a
+    plain content scan for PEM private key headers and AWS access key ID
+    patterns
 
 - **Recorded, but don't gate anything — informational only:**
   - `koha_max_version` — whether `$metadata` declares a `maximum_version`
@@ -54,20 +60,18 @@ per submitted version. Once they've all run:
   a normal check failure, so infrastructure problems aren't mistaken for a
   problem with the plugin.
 
-**What a developer currently sees on a failed submission:** only the
-version's `status` and one generic `error_message` (e.g. "One or more
-required checks failed — see the version page for details."). The per-check
-pass/fail/message detail described above *is* recorded in `review_checks`,
-but the version page doesn't query or display it yet, and
-`certification_tier` isn't shown anywhere either — right now there's no way
-to see *which* check failed or *why* without querying the database directly.
-Surfacing `review_checks` and the tier badge on the version page is the
-natural next step, not something this pipeline does today.
+**What a developer sees on a failed submission:** the plugin's version page
+(`templates/plugins/show.html.ep`) shows the version's `status`, a
+`certification_tier` badge, a "Signed" badge if applicable, the generic
+`error_message`, and a full per-check breakdown (name, required/advisory,
+pass/fail, message) from `review_checks` — not just the generic message
+alone.
 
 ## Publish signing
 
 On publish, `KohaPluginStore::Signing` builds and signs a small manifest
-(`slug`, `version`, `kpz_url`, `digest`, `level`, `published_at`) with the
+(`slug`, `version`, `kpz_url`, `digest`, `published_at` — deliberately no
+`certification_tier`/`level` field, see below) with the
 store's Ed25519 key (`koha_plugin_store.conf`'s `signing_key_path`, generated
 via `script/koha_plugin_store generate_signing_key`), storing both the exact
 signed JSON string (`plugin_versions.signed_manifest`) and the signature

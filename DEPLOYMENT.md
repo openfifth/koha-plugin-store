@@ -14,8 +14,12 @@ and the syntax-sandbox broker — behind systemd.
   `git` and the `docker` CLI, see its own `Dockerfile` for the exact list.
 - A reachable Postgres instance (not the dev-only `docker-compose.yml`
   Postgres, which binds to `127.0.0.1` with well-known weak credentials).
-- Docker installed on the host, plus outbound network access to
-  `git.koha-community.org`. **Only the syntax-sandbox broker needs Docker
+- Docker installed on the **syntax-sandbox broker's** host, with outbound
+  network access from that host to `git.koha-community.org` (to clone each
+  Koha release tag the first time it's needed) and to wherever
+  `koha/koha-testing` images are pulled from (Docker Hub by default —
+  `docker run` pulls a missing tag automatically, no separate `docker pull`
+  step is scripted here). **Only the syntax-sandbox broker needs Docker
   socket access** — it's a separate process/systemd unit/user from the main
   app and worker, deliberately: the worker handles untrusted plugin content
   (parsing submitted metadata, unzipping a submitted `.kpz`) before the
@@ -23,7 +27,9 @@ and the syntax-sandbox broker — behind systemd.
   process means a bug there doesn't also mean host root. Do **not** add the
   `plugin-store` user to the `docker` group — see
   `koha_plugin_store-sandbox-broker.service.example` for the dedicated user
-  it should run as instead.
+  it should run as instead. The app and worker hosts themselves need no
+  Docker install or egress to either of these at all if split onto separate
+  hosts from the broker.
 - A dedicated `plugin-store` user and group (matches
   `koha_plugin_store.service.example`'s `User=`/`Group=`), and a separate
   `plugin-store-sandbox` user and group for the syntax-sandbox broker
