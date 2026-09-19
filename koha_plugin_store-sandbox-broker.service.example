@@ -45,7 +45,10 @@ WorkingDirectory=/opt/plugin-store/sandbox_broker
 RuntimeDirectory=koha-plugin-store
 RuntimeDirectoryMode=0750
 ## end of config values
-ExecStart=/usr/bin/perl script/sandbox_broker daemon -l "http+unix://%2Frun%2Fkoha-plugin-store%2Fbroker.sock"
+## %% escapes a literal '%' -- systemd treats a bare '%' as the start of a
+## unit specifier (%n, %h, ...) even inside a quoted argument, and errors
+## out ("Invalid slot") on the %2F percent-encoding this URL needs.
+ExecStart=/usr/bin/perl script/sandbox_broker daemon -l "http+unix://%%2Frun%%2Fkoha-plugin-store%%2Fbroker.sock"
 KillMode=mixed
 Restart=on-failure
 RestartSec=5s
