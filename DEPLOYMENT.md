@@ -100,39 +100,92 @@ broker's socket.
 
 ```bash
 sudo useradd --system --create-home --home-dir /opt/plugin-store plugin-store
-sudo useradd --system --no-create-home plugin-store-sandbox
+sudo useradd --system --create-home plugin-store-sandbox
+sudo usermod -aG plugin-store-sandbox plugin-store
 ```
+
+`plugin-store-sandbox` needs a real home directory too (the default
+`/home/plugin-store-sandbox` is fine — it's only for tool caches like
+`cpanm`'s build cache, not application data, which lives entirely under
+`/opt/plugin-store/sandbox_broker/`, handed to this user in the Install
+section below). `--no-create-home` looked more minimal but doesn't
+actually create anything at the `$HOME` path it still assigns, and `cpanm`
+fails outright without a writable one (`Can't write to cpanm home
+'/home/plugin-store-sandbox/.cpanm'`) — confirmed by hitting this for
+real running through this doc's own Install steps end to end.
 
 ## Install
 
-1. Clone the repo to the path you'll run from (the example unit files assume
-   `/opt/plugin-store`):
+**Run each step as the user noted in its heading, not as `root`.** The
+systemd units run the app as `plugin-store`/`plugin-store-sandbox` (see
+Users, above); anything installed or generated as `root` instead —
+`local/` (Carton's install), `koha_plugin_store.conf`, `signing_key.pem`,
+`sandbox_broker/`'s own `local/` and data directories — won't necessarily
+be readable (or in the sandbox broker's case, writable) by the account
+that actually runs the service, and the service will fail at startup with
+a permissions error. `sudo -u <user> <command>` works fine for this even
+though these are `--system` accounts with no real login shell; you don't
+need `su -`/`sudo -i`. If you've already run some of this as `root` (mixed
+ownership), see "Fixing mixed ownership" at the end of this section before
+starting the systemd units.
+
+1. **(as `plugin-store`)** Clone the repo to the path you'll run from (the
+   example unit files assume `/opt/plugin-store`, already `plugin-store`'s
+   home directory from the `useradd --create-home` above, so it can write
+   there):
    ```bash
-   git clone <repo-url> /opt/plugin-store
+   sudo -u plugin-store git clone <repo-url> /opt/plugin-store
    cd /opt/plugin-store
    ```
-2. Install CPAN dependencies with **Carton**, not plain `cpanm`. Dev/Docker
-   stays on plain `cpanm --installdeps .` (fast, no lockfile overhead), but
-   production installs from `cpanfile.snapshot` — a lockfile committed to
-   this repo pinning exact dependency versions — so every deploy gets
-   identical versions instead of whatever `cpanm` resolves to on CPAN that
-   day:
+   Then hand the `sandbox_broker/` subdirectory over to the other user, since
+   its own service needs to write to it (installing its dependencies next,
+   then its checkout cache and staging area at runtime):
    ```bash
-   cpanm --notest Carton
-   carton install --deployment
+   sudo chown -R plugin-store-sandbox:plugin-store-sandbox sandbox_broker
    ```
-   This installs everything into a project-local `local/` directory (both
+2. **(as `root`)** Install **Carton** itself, once, system-wide — it's
+   build tooling shared by both apps below, not a per-app runtime
+   dependency, so it belongs in the normal system Perl paths rather than
+   either service user's own tree:
+   ```bash
+   sudo cpanm --notest Carton
+   ```
+   Don't run this particular command as `plugin-store`/`plugin-store-sandbox`
+   — `cpanm` running as a non-root user with no write access to the system
+   Perl directories silently falls back to installing into that user's own
+   `~/perl5`, which isn't on `PATH`/`@INC` for a plain `sudo -u <user>
+   <command>` invocation (there's no login shell involved to source the
+   `local::lib` environment `cpanm` would otherwise set up) — the next step
+   would then fail with `carton: command not found`.
+
+   Then install this project's actual dependencies from **Carton**, not
+   plain `cpanm`. Dev/Docker stays on plain `cpanm --installdeps .` (fast,
+   no lockfile overhead), but production installs from
+   `cpanfile.snapshot` — a lockfile committed to this repo pinning exact
+   dependency versions — so every deploy gets identical versions instead of
+   whatever `cpanm` resolves to on CPAN that day. This part *does* run as
+   the service user, since it's writing into this project's own
+   `local/` directory:
+   ```bash
+   # (as plugin-store)
+   sudo -u plugin-store carton install --deployment
+   ```
    `cpanfile.snapshot` and `Carton` itself resolve `Koha::QA` — needed for
    the `perl_critic` check — as an ordinary CPAN distribution; no special
-   install steps or extra tooling needed for it specifically). The
-   systemd units set `PERL5LIB` to point at it — see below.
+   install steps or extra tooling needed for it specifically. The
+   systemd units set `PERL5LIB` to point at the resulting `local/` — see
+   below.
 
    The syntax-sandbox broker has its own, separate `cpanfile`/
-   `cpanfile.snapshot` (just Mojolicious) — install it the same way:
+   `cpanfile.snapshot` (just Mojolicious) — install it the same way, as its
+   own user, now that it owns that subdirectory (Carton itself is already
+   installed system-wide from the step above, shared by both):
    ```bash
-   (cd sandbox_broker && cpanm --notest Carton && carton install --deployment)
+   # (as plugin-store-sandbox)
+   sudo -u plugin-store-sandbox bash -c 'cd sandbox_broker && carton install --deployment'
    ```
-3. Copy `koha_plugin_store.conf.example` to `koha_plugin_store.conf` and fill in:
+3. **(as `plugin-store`)** Copy `koha_plugin_store.conf.example` to
+   `koha_plugin_store.conf` and fill in:
    - `github_app_token` — a fine-grained, public-repos-read-only PAT.
    - `pg_dsn` — your production Postgres connection string (see Postgres,
      above).
@@ -150,12 +203,18 @@ sudo useradd --system --no-create-home plugin-store-sandbox
      `production` mode (the default unless `MOJO_MODE`/`PLACK_ENV` says
      otherwise) — make sure you're actually serving over HTTPS (see the TLS
      step below) before relying on that.
-4. Apply migrations — needs the Postgres instance from above already
-   running and `pg_dsn` already pointed at it correctly (not the
-   `koha_plugin_store.conf.example` placeholder, which points at
+
+   `koha_plugin_store.conf` holds a GitHub PAT, an OAuth client secret, your
+   Postgres password, and the session secret — lock it down:
+   ```bash
+   sudo -u plugin-store chmod 600 koha_plugin_store.conf
+   ```
+4. **(as `plugin-store`)** Apply migrations — needs the Postgres instance
+   from above already running and `pg_dsn` already pointed at it correctly
+   (not the `koha_plugin_store.conf.example` placeholder, which points at
    `127.0.0.1:55432`, the dev-only Docker Compose port):
    ```bash
-   PERL5LIB=/opt/plugin-store/local/lib/perl5 script/koha_plugin_store migrate
+   sudo -u plugin-store env PERL5LIB=/opt/plugin-store/local/lib/perl5 script/koha_plugin_store migrate
    ```
    This creates the application's own tables (`plugins`, `plugin_versions`,
    `developers`, ...) in the database you created — there's nothing else to
@@ -163,10 +222,11 @@ sudo useradd --system --no-create-home plugin-store-sandbox
    Connection refused` error, Postgres isn't reachable at the `pg_dsn`
    you've configured — double check it's actually running
    (`sudo systemctl status postgresql`) and that `pg_dsn`'s host/port match.
-5. Generate the signing key referenced above (see
+5. **(as `plugin-store`)** Generate the signing key referenced above (see
    [docs/CERTIFICATION.md](docs/CERTIFICATION.md) for what it's used for):
    ```bash
-   PERL5LIB=/opt/plugin-store/local/lib/perl5 script/koha_plugin_store generate_signing_key /opt/plugin-store/signing_key.pem
+   sudo -u plugin-store env PERL5LIB=/opt/plugin-store/local/lib/perl5 script/koha_plugin_store generate_signing_key /opt/plugin-store/signing_key.pem
+   sudo -u plugin-store chmod 600 /opt/plugin-store/signing_key.pem
    ```
    Refuses to overwrite an existing file unless `--force` is given — back this
    file up; losing it means every previously-published version's signature
@@ -177,12 +237,39 @@ sudo useradd --system --no-create-home plugin-store-sandbox
    against Postgres before any command runs, so booting the app at all
    fails if step 4 isn't already working. Doing step 4 first means you hit
    that failure mode somewhere more obviously DB-related if it's going to
-   happen.
+   happen. Running it as `plugin-store` (not `root`) means the key comes
+   out already owned by the account that needs to read it, with no chown
+   needed afterward.
 6. Place your TLS certificate and key at `ssl/cert.pem` and `ssl/privkey.pem`
    (paths the example systemd unit points `MOJO_SSL_CERT`/`MOJO_SSL_PRIV` at).
    If you're terminating TLS at a reverse proxy instead (e.g. Traefik/nginx in
    front of the app), skip this and change the unit's `ExecStart` to listen
-   on plain `http` on a loopback/internal port instead.
+   on plain `http` on a loopback/internal port instead. Make sure
+   `plugin-store` can read both files (`sudo chown plugin-store:plugin-store
+   ssl/cert.pem ssl/privkey.pem`, and `chmod 600` the private key) if
+   whatever process obtained them (e.g. certbot) left them owned by `root`.
+
+### Fixing mixed ownership
+
+If you ran any of the above as `root` instead of the noted user — an easy
+mistake, since `root` can write anywhere and won't hit a permissions error
+until the *service* tries to start — fix it before enabling the systemd
+units, rather than discovering it as a startup failure (or worse, not
+discovering it at all, if a permissive default umask made the affected
+files world-readable):
+
+```bash
+sudo chown -R plugin-store:plugin-store /opt/plugin-store
+sudo chown -R plugin-store-sandbox:plugin-store-sandbox /opt/plugin-store/sandbox_broker
+sudo chmod 600 /opt/plugin-store/koha_plugin_store.conf
+sudo chmod 600 /opt/plugin-store/signing_key.pem
+sudo chmod 600 /opt/plugin-store/ssl/privkey.pem   # if present
+```
+
+The order matters: the first `chown -R` covers the whole tree including
+`sandbox_broker/`, then the second one narrows just that subdirectory back
+to its own user — running them in the other order would leave
+`sandbox_broker/` owned by `plugin-store` again.
 
 ## systemd units
 
@@ -207,7 +294,6 @@ Three example unit files ship at the repo root — copy all three into
 sudo cp koha_plugin_store.service.example /etc/systemd/system/koha-plugin-store.service
 sudo cp koha_plugin_store-worker.service.example /etc/systemd/system/koha-plugin-store-worker.service
 sudo cp koha_plugin_store-sandbox-broker.service.example /etc/systemd/system/koha-plugin-store-sandbox-broker.service
-sudo usermod -aG plugin-store-sandbox plugin-store
 sudo systemctl daemon-reload
 sudo systemctl enable --now koha-plugin-store koha-plugin-store-worker koha-plugin-store-sandbox-broker
 ```
@@ -215,10 +301,11 @@ sudo systemctl enable --now koha-plugin-store koha-plugin-store-worker koha-plug
 ## Upgrading
 
 ```bash
-git pull
-carton install --deployment
-(cd sandbox_broker && carton install --deployment)
-script/koha_plugin_store migrate
+cd /opt/plugin-store
+sudo -u plugin-store git pull
+sudo -u plugin-store carton install --deployment
+sudo -u plugin-store-sandbox bash -c 'cd sandbox_broker && carton install --deployment'
+sudo -u plugin-store env PERL5LIB=/opt/plugin-store/local/lib/perl5 script/koha_plugin_store migrate
 sudo systemctl restart koha-plugin-store koha-plugin-store-worker koha-plugin-store-sandbox-broker
 ```
 
