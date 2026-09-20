@@ -249,6 +249,51 @@ starting the systemd units.
    ssl/cert.pem ssl/privkey.pem`, and `chmod 600` the private key) if
    whatever process obtained them (e.g. certbot) left them owned by `root`.
 
+   **If you're using certbot** (the actual production setup this app runs
+   under, as of 2026-09), point these at certbot's own `live/` symlinks
+   rather than copying the files:
+   ```bash
+   sudo -u plugin-store ln -sf /etc/letsencrypt/live/<your-domain>/fullchain.pem /opt/plugin-store/ssl/cert.pem
+   sudo -u plugin-store ln -sf /etc/letsencrypt/live/<your-domain>/privkey.pem /opt/plugin-store/ssl/privkey.pem
+   ```
+   A one-off `chown`/`chmod` isn't enough here: certbot writes a **fresh**
+   file into `/etc/letsencrypt/archive/<your-domain>/` on every renewal, with
+   its own default `root:root 600`, then swaps the `live/` symlink to point
+   at it — silently discarding whatever ownership fix you applied to the
+   previous generation, breaking the site again at the next renewal (found
+   the hard way: a real deploy's cert had drifted to permissive `777` after
+   repeated manual fixes, each undone by the next renewal). Install a
+   certbot deploy hook to reapply it automatically, every time:
+   ```bash
+   sudo tee /etc/letsencrypt/renewal-hooks/deploy/koha-plugin-store.sh > /dev/null <<'SCRIPT'
+   #!/bin/sh
+   set -e
+
+   # Runs after EVERY certbot renewal on this host, for every cert it
+   # manages -- guard on $RENEWED_LINEAGE (set by certbot for each deploy
+   # hook invocation) rather than assuming this is the only cert here.
+   case "$RENEWED_LINEAGE" in
+       */<your-domain>)
+           chown plugin-store:plugin-store "$RENEWED_LINEAGE/privkey.pem" "$RENEWED_LINEAGE/fullchain.pem"
+           chmod 600 "$RENEWED_LINEAGE/privkey.pem"
+           chmod 644 "$RENEWED_LINEAGE/fullchain.pem"
+           systemctl restart koha-plugin-store
+           ;;
+   esac
+   SCRIPT
+   sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/koha-plugin-store.sh
+   ```
+   Certbot picks up everything under `renewal-hooks/deploy/` automatically —
+   no further registration needed. Verify the script itself before trusting
+   it to run unattended overnight: `sh -n` it for syntax, then invoke it
+   manually once with `$RENEWED_LINEAGE` pointed at the real `live/`
+   directory (safe — it's idempotent) to confirm it actually fixes
+   permissions and restarts the app cleanly, rather than waiting for the
+   next real renewal to find out:
+   ```bash
+   sudo env RENEWED_LINEAGE=/etc/letsencrypt/live/<your-domain> /etc/letsencrypt/renewal-hooks/deploy/koha-plugin-store.sh
+   ```
+
 ### Fixing mixed ownership
 
 If you ran any of the above as `root` instead of the noted user — an easy
