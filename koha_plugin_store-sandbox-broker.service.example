@@ -44,6 +44,15 @@ WorkingDirectory=/opt/plugin-store/sandbox_broker
 ## see above) can connect to it.
 RuntimeDirectory=koha-plugin-store
 RuntimeDirectoryMode=0750
+## Mojolicious's daemon creates the socket file itself using the process's
+## umask -- the systemd default (022) strips the group-write bit, leaving
+## the socket at 0755 (rwxr-xr-x). Connecting to a Unix domain socket
+## requires WRITE permission on the socket file itself (not just execute/
+## traverse on its directory), so a supplementary group member (i.e.
+## plugin-store, see above) can list/stat the socket but still gets
+## EACCES on connect(). UMask=0007 makes the daemon create it at 0770
+## (rwxrwx---) instead, matching RuntimeDirectoryMode's group access.
+UMask=0007
 ## end of config values
 ## %% escapes a literal '%' -- systemd treats a bare '%' as the start of a
 ## unit specifier (%n, %h, ...) even inside a quoted argument, and errors

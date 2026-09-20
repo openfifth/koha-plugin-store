@@ -57,9 +57,16 @@ sub _call_broker {
         { path => $relative, content => scalar read_file($path) };
     } @$pm_files;
 
-    my $tx = Mojo::UserAgent->new->post(
-        $broker_url => json => { minimum_version => $minimum_version, files => \@files }
-    );
+    my $tx = eval {
+        Mojo::UserAgent->new->post(
+            $broker_url => json => { minimum_version => $minimum_version, files => \@files }
+        );
+    };
+    if ($@) {
+        my $reason = $@;
+        chomp $reason;
+        die "check_infrastructure_error: sandbox broker request failed: $reason\n";
+    }
 
     my $res = $tx->result;
     unless ( $res && $res->is_success ) {

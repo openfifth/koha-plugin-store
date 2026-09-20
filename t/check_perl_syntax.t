@@ -81,4 +81,16 @@ subtest 'a broker failure dies as a check_infrastructure_error' => sub {
     like( $@, qr/^check_infrastructure_error/, 'dies with the infrastructure-error prefix' );
 };
 
+subtest '_call_broker wraps a raw transport exception as a check_infrastructure_error' => sub {
+    # A Unix-socket connect() failure (e.g. wrong permissions on the socket
+    # file) makes Mojo::UserAgent's post() throw directly, before a $tx is
+    # ever returned to inspect -- this bypasses the ->is_success guard below
+    # entirely unless the call itself is wrapped. Point at a nonexistent
+    # socket path to provoke the same class of raw exception.
+    my $bad_url = 'http+unix://%2Fnonexistent%2Fpath%2Fbroker.sock/check';
+
+    eval { KohaPluginStore::Check::PerlSyntax::_call_broker( $bad_url, '23.05', '/tmp', [] ) };
+    like( $@, qr/^check_infrastructure_error/, 'raw connect failure still dies with the infrastructure-error prefix' );
+};
+
 done_testing();
