@@ -126,6 +126,7 @@ sub startup ($self) {
     my $r = $self->routes;
 
     $r->any('/')->to('site#index');
+    $r->get('/verification-key')->to('site#verification_key');
     $r->any('/plugins')->to('plugins#index');
     $r->get('/login')->to( template => 'login' );
     $r->get('/auth/github')->to('auth#github');

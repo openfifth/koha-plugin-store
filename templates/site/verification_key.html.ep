@@ -1,0 +1,50 @@
+% title "Verification key";
+% layout 'default';
+
+% content_for 'sidebar' => begin
+  %= include 'partial/side_menu'
+% end
+
+<h2>Verification key</h2>
+
+% if ($public_key) {
+  <p>
+    This is the Ed25519 public key this store signs published plugins with. A Koha
+    instance uses it to verify a plugin's signature before installing it -- set it as
+    the <code>PluginStorePublicKey</code> system preference (Administration &gt; System
+    preferences), or point <code>koha-conf.xml</code>'s
+    <code>plugin_store_public_key_file</code> at a file containing it.
+  </p>
+  <textarea class="form-control" rows="6" readonly id="verification-key-value"><%= $public_key %></textarea>
+  <p class="mt-3">
+    <button type="button" class="btn btn-default" id="copy-verification-key">
+      <i class='bx bx-copy'></i> <span id="copy-verification-key-label">Copy to clipboard</span>
+    </button>
+  </p>
+  <script>
+    document.getElementById('copy-verification-key').addEventListener('click', function () {
+      var textarea = document.getElementById('verification-key-value');
+      var label = document.getElementById('copy-verification-key-label');
+      var original = label.textContent;
+      var showCopied = function () {
+        label.textContent = 'Copied!';
+        setTimeout(function () { label.textContent = original; }, 2000);
+      };
+      // navigator.clipboard only exists in secure contexts (HTTPS); fall back to the
+      // legacy copy command (relying on the select() below) for plain-HTTP deployments.
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textarea.value).then(showCopied);
+      } else {
+        textarea.select();
+        document.execCommand('copy');
+        showCopied();
+      }
+    });
+  </script>
+% } else {
+  <div class="alert alert-warning" role="alert">
+    No signing key is configured for this store (<code>signing_key_path</code> in
+    <code>koha_plugin_store.conf</code>), or the configured file couldn't be read --
+    there's nothing to display here yet.
+  </div>
+% }
