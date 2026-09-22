@@ -125,9 +125,10 @@ sub startup ($self) {
 
     my $r = $self->routes;
 
-    $r->any('/')->to('site#index');
+    $r->any('/')->to('plugins#index');
+    $r->any('/developers')->to('site#index');
     $r->get('/verification-key')->to('site#verification_key');
-    $r->any('/plugins')->to('plugins#index');
+    $r->get('/profile')->requires( user_authenticated => 1 )->to('site#profile');
     $r->get('/login')->to( template => 'login' );
     $r->get('/auth/github')->to('auth#github');
     $r->get('/logout')->to('site#logout');

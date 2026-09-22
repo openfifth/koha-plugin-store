@@ -24,7 +24,7 @@ subtest 'only plugins with a published version are listed' => sub {
         { plugin_id => $draft->id, tag_name => 'v1', status => 'submitted' }
     );
 
-    $t->get_ok('/plugins')
+    $t->get_ok('/')
       ->status_is(200)
       ->content_like(qr/Published/)
       ->content_unlike(qr/DraftOnly/);
@@ -37,7 +37,7 @@ subtest 'no koha_version query param is required, unlike the API endpoint' => su
         { plugin_id => $plugin->id, tag_name => 'v1', status => 'published', koha_min_version => '99.00.00.000' }
     );
 
-    $t->get_ok('/plugins')->status_is(200)->content_like(qr/AnyVersion/);
+    $t->get_ok('/')->status_is(200)->content_like(qr/AnyVersion/);
 };
 
 subtest 'q filters the card list' => sub {
@@ -51,7 +51,7 @@ subtest 'q filters the card list' => sub {
         { plugin_id => $reportkit->id, tag_name => 'v1', status => 'published' }
     );
 
-    $t->get_ok('/plugins?q=report')
+    $t->get_ok('/?q=report')
       ->status_is(200)
       ->content_like(qr/ReportKit/)
       ->content_unlike(qr/CoverFlow/);
@@ -68,7 +68,7 @@ subtest 'certification_tier filters the card list' => sub {
         { plugin_id => $structural->id, tag_name => 'v1', status => 'published', certification_tier => 'STRUCTURAL' }
     );
 
-    $t->get_ok('/plugins?certification_tier=CERTIFIED')
+    $t->get_ok('/?certification_tier=CERTIFIED')
       ->status_is(200)
       ->content_like(qr/Certified/)
       ->content_unlike(qr/Structural/);
@@ -83,7 +83,7 @@ subtest '_order_by=-name sorts descending' => sub {
         );
     }
 
-    my $html = $t->get_ok('/plugins?_order_by=-name')->tx->res->body;
+    my $html = $t->get_ok('/?_order_by=-name')->tx->res->body;
     ok( index( $html, 'Bravo' ) < index( $html, 'Alpha' ), 'Bravo (Z-ward) appears before Alpha in the markup' );
 };
 
