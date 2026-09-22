@@ -167,3 +167,11 @@ ALTER TABLE plugin_versions ADD COLUMN koha_max_version TEXT;
 
 -- 7 down
 ALTER TABLE plugin_versions DROP COLUMN koha_max_version;
+
+-- 8 up
+ALTER TABLE plugins ADD COLUMN readme_html TEXT;
+ALTER TABLE plugins ADD COLUMN issue_tracker_url TEXT;
+
+-- 8 down
+ALTER TABLE plugins DROP COLUMN issue_tracker_url;
+ALTER TABLE plugins DROP COLUMN readme_html;

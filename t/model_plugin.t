@@ -253,4 +253,67 @@ subtest 'search_compatible sorts by most-recently-updated, using the latest comp
     is( $asc->[1]->name, 'FreshPlugin', 'FreshPlugin is second ascending' );
 };
 
+subtest 'latest_published_version returns undef when nothing is published' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'DraftOnly' } );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, version => '1.0.0', tag_name => 'v1', status => 'submitted' }
+    );
+
+    is( $plugin->latest_published_version, undef, 'no published version yet' );
+};
+
+subtest 'latest_published_version ignores a newer non-published version' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'Widget' } );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, version => '1.0.0', tag_name => 'v1', status => 'published' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, version => '2.0.0', tag_name => 'v2', status => 'submitted' }
+    );
+
+    my $latest = $plugin->latest_published_version;
+    is( $latest->tag_name, 'v1', "the submitted v2 is skipped in favour of the published v1" );
+};
+
+subtest 'search_compatible and count_compatible filter by certification_tier' => sub {
+    reset_db();
+    my $certified = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'Certified' } );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $certified->id, version => '1.0.0', tag_name => 'v1', status => 'published', certification_tier => 'CERTIFIED' }
+    );
+    my $structural = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'Structural' } );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $structural->id, version => '1.0.0', tag_name => 'v1', status => 'published', certification_tier => 'STRUCTURAL' }
+    );
+
+    my $model = KohaPluginStore::Model::Plugin->new( pg => test_pg() );
+
+    my $filtered = $model->search_compatible(
+        { include_unsupported => 1, certification_tier => 'CERTIFIED', order_by => 'name', limit => 10, offset => 0 }
+    );
+    is( scalar @$filtered, 1, 'only the CERTIFIED plugin matches' );
+    is( $filtered->[0]->name, 'Certified', 'the CERTIFIED plugin is returned' );
+
+    is(
+        $model->count_compatible( { include_unsupported => 1, certification_tier => 'CERTIFIED' } ), 1,
+        'count_compatible respects the same filter'
+    );
+};
+
+subtest 'search_compatible with include_unsupported and no koha_version returns every published plugin, unfiltered by version' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'AnyVersion' } );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, version => '1.0.0', tag_name => 'v1', status => 'published', koha_min_version => '99.00.00.000' }
+    );
+
+    my $model = KohaPluginStore::Model::Plugin->new( pg => test_pg() );
+    is(
+        scalar @{ $model->search_compatible( { include_unsupported => 1, order_by => 'name', limit => 10, offset => 0 } ) }, 1,
+        'no koha_version needed when include_unsupported is set -- this is what the public index page (Task 4) relies on'
+    );
+};
+
 done_testing();

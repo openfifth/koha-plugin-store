@@ -11,7 +11,7 @@ sub _table {
 }
 
 sub _columns {
-    return [qw(id repo_url name class_name description author thumbnail developer_id timestamp slug documentation_url)];
+    return [qw(id repo_url name class_name description author thumbnail developer_id timestamp slug documentation_url readme_html issue_tracker_url)];
 }
 
 sub releases {
@@ -29,6 +29,14 @@ sub latest_version {
 
     my ($version) = KohaPluginStore::Model::PluginVersion->new( pg => $self->pg )
       ->search( { plugin_id => $self->id }, { order_by => { -desc => 'id' }, limit => 1 } );
+    return $version;
+}
+
+sub latest_published_version {
+    my ($self) = @_;
+
+    my ($version) = KohaPluginStore::Model::PluginVersion->new( pg => $self->pg )
+      ->search( { plugin_id => $self->id, status => 'published' }, { order_by => { -desc => 'id' }, limit => 1 } );
     return $version;
 }
 
@@ -72,6 +80,11 @@ sub _compatible_where_and_binds {
     if ( defined $args->{q} && length $args->{q} ) {
         push @clauses, '(p.name ILIKE ? OR p.description ILIKE ? OR p.author ILIKE ?)';
         push @binds, ( '%' . $args->{q} . '%' ) x 3;
+    }
+
+    if ( defined $args->{certification_tier} && length $args->{certification_tier} ) {
+        push @clauses, 'v.certification_tier = ?';
+        push @binds, $args->{certification_tier};
     }
 
     return ( join( ' AND ', @clauses ), \@binds );
