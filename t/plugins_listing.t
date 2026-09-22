@@ -28,10 +28,10 @@ subtest 'links to the detail page and shows the latest version\'s status' => sub
     $t->get_ok('/plugins')
       ->status_is(200)
       ->element_exists( qq{a[href="/plugins/} . $plugin->slug . qq{"]} )
-      ->text_like( 'td.plugin-status span' => qr/published/ );
+      ->content_like( qr/Widget/ );
 };
 
-subtest 'a plugin with no versions yet shows a placeholder, not an error' => sub {
+subtest 'a plugin with no versions yet does not appear on the public page' => sub {
     reset_db();
     my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
         { oauth_provider_key => 'github', provider_user_id => '1', username => 'dev' }
@@ -40,7 +40,7 @@ subtest 'a plugin with no versions yet shows a placeholder, not an error' => sub
         'bare', { name => 'Bare', repo_url => 'https://github.com/dev/bare', developer_id => $developer->id }
     );
 
-    $t->get_ok('/plugins')->status_is(200)->text_like( 'td.plugin-status' => qr/^\s*-\s*$/ );
+    $t->get_ok('/plugins')->status_is(200)->content_unlike(qr/Bare/);
 };
 
 subtest 'My Plugins shows the same link and status' => sub {
@@ -63,7 +63,7 @@ subtest 'My Plugins shows the same link and status' => sub {
       ->text_like( 'td.plugin-status span' => qr/checks_running/ );
 };
 
-subtest 'a version stuck in check_error shows its own badge' => sub {
+subtest 'a version stuck in check_error does not appear on the public page' => sub {
     reset_db();
     my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
         { oauth_provider_key => 'github', provider_user_id => '1', username => 'dev' }
@@ -76,8 +76,7 @@ subtest 'a version stuck in check_error shows its own badge' => sub {
 
     $t->get_ok('/plugins')
       ->status_is(200)
-      ->element_exists('td.plugin-status span.bg-warning')
-      ->text_like( 'td.plugin-status span' => qr/check_error/ );
+      ->content_unlike(qr/Widget/);
 };
 
 done_testing();

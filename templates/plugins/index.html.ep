@@ -1,10 +1,74 @@
 % title "Plugins";
 % layout 'default';
 
+% my %tier_badge = ( CERTIFIED => 'text-bg-success', STRUCTURAL => 'text-bg-warning', INCOMPLETE => 'text-bg-danger' );
+
 % content_for 'sidebar' => begin
   %= include 'partial/side_menu'
 % end
 
 <h2><%= title %></h2>
-%= include 'partial/table/plugins', plugins => $plugins
 
+%= form_for '/plugins' => (method => 'GET', class => 'row g-2 mb-4') => begin
+  <div class="col-md-5">
+    <input type="search" class="form-control" name="q" placeholder="Search plugins..." value="<%= $q // '' %>">
+  </div>
+  <div class="col-md-3">
+    <select class="form-select" name="_order_by">
+      % for my $option ( [ 'name' => 'Name (A-Z)' ], [ '-name' => 'Name (Z-A)' ], [ '-updated' => 'Recently updated' ] ) {
+        <option value="<%= $option->[0] %>" <%= $order_by eq $option->[0] ? 'selected' : '' %>><%= $option->[1] %></option>
+      % }
+    </select>
+  </div>
+  <div class="col-md-3">
+    <select class="form-select" name="certification_tier">
+      <option value="">Any certification</option>
+      % for my $tier (qw(CERTIFIED STRUCTURAL INCOMPLETE)) {
+        <option value="<%= $tier %>" <%= ( $certification_tier // '' ) eq $tier ? 'selected' : '' %>><%= $tier %></option>
+      % }
+    </select>
+  </div>
+  <div class="col-md-1">
+    <button type="submit" class="btn btn-primary w-100">Go</button>
+  </div>
+% end
+
+% if (@$plugins) {
+<div class="row row-cols-1 row-cols-md-3 g-4">
+  % for my $plugin (@$plugins) {
+  % my $latest = $plugin->latest_published_version;
+  <div class="col">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">
+          %= link_to $plugin->name => '/plugins/'.$plugin->slug
+        </h5>
+        % if ($latest && $latest->certification_tier) {
+        <p><span class="badge <%= $tier_badge{$latest->certification_tier} || 'text-bg-secondary' %>"><%= $latest->certification_tier %></span></p>
+        % }
+        % if ($plugin->description) {
+        <p class="card-text text-muted"><%= $plugin->description %></p>
+        % }
+      </div>
+    </div>
+  </div>
+  % }
+</div>
+% } else {
+<p class="text-muted">No plugins found.</p>
+% }
+
+% if ($total_pages > 1) {
+<nav class="mt-4" aria-label="Plugin list pagination">
+  <ul class="pagination">
+    % for my $p (1 .. $total_pages) {
+    % my %query_params = ( _order_by => $order_by, _page => $p );
+    % $query_params{q} = $q if $q;
+    % $query_params{certification_tier} = $certification_tier if $certification_tier;
+    <li class="page-item <%= $p == $page ? 'active' : '' %>">
+      <a class="page-link" href="<%= url_for('/plugins')->query(\%query_params) %>"><%= $p %></a>
+    </li>
+    % }
+  </ul>
+</nav>
+% }

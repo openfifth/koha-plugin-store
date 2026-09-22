@@ -10,8 +10,35 @@ use JSON;
 sub index {
     my $c = shift;
 
-    my @plugins = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->search;
-    $c->stash( plugins => \@plugins );
+    my $q                  = $c->param('q');
+    my $order_by           = $c->param('_order_by') || 'name';
+    my $certification_tier = $c->param('certification_tier');
+    my $page               = $c->param('_page') || 1;
+    my $per_page           = 24;
+
+    my $args = {
+        q                   => $q,
+        order_by            => $order_by,
+        certification_tier  => $certification_tier,
+        include_unsupported => 1,
+    };
+
+    my $plugin_model = KohaPluginStore::Model::Plugin->new( pg => $c->pg );
+    my $total        = $plugin_model->count_compatible($args);
+    my $plugins      = $plugin_model->search_compatible(
+        { %$args, limit => $per_page, offset => ( $page - 1 ) * $per_page }
+    );
+
+    my $total_pages = int( ( $total + $per_page - 1 ) / $per_page );
+
+    $c->stash(
+        plugins            => $plugins,
+        q                  => $q,
+        order_by           => $order_by,
+        certification_tier => $certification_tier,
+        page               => $page,
+        total_pages        => $total_pages,
+    );
     $c->render;
 }
 
