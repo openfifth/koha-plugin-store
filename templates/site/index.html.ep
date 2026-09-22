@@ -29,9 +29,9 @@
   </p>
 
   <div class="alert alert-info" role="alert">
-    <strong>This site is for plugin developers.</strong> If you're a librarian or other
-    Koha staff member looking for plugins to install, you'll find them from within your
-    Koha staff client, not here.
+    <strong>This page is for plugin developers.</strong> Looking for plugins to install
+    instead? Browse the <a href="/">catalogue</a> or search from within your Koha staff
+    client -- no account needed for either.
   </div>
 
   <h3>How to join</h3>
