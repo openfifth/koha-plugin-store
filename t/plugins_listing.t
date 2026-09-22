@@ -28,7 +28,7 @@ subtest 'shows the latest published version, not earlier submitted versions' => 
     $t->get_ok('/plugins')
       ->status_is(200)
       ->element_exists( qq{a[href="/plugins/} . $plugin->slug . qq{"]} )
-      ->content_like( qr/CERTIFIED/ );
+      ->element_exists('span.badge.text-bg-success');
 };
 
 subtest 'a plugin with no versions yet does not appear on the public page' => sub {
