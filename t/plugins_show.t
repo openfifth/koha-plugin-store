@@ -332,4 +332,93 @@ subtest 'a published version shows a Signed badge and the explanatory copy; a no
     $t->get_ok('/logout');
 };
 
+subtest 'readme_html renders as the primary content when present' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { name => 'Widget', repo_url => 'https://github.com/dev/widget', readme_html => '<h1>Widget README</h1>' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'published' }
+    );
+
+    $t->get_ok( '/plugins/' . $plugin->slug )
+      ->status_is(200)
+      ->content_like(qr/<h1>Widget README<\/h1>/, 'readme_html rendered unescaped');
+};
+
+subtest 'a plugin with no readme_html falls back gracefully' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { name => 'Widget', repo_url => 'https://github.com/dev/widget' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'published' }
+    );
+
+    $t->get_ok( '/plugins/' . $plugin->slug )
+      ->status_is(200)
+      ->content_like(qr/No README is available/);
+};
+
+subtest 'issue_tracker_url link appears only when set' => sub {
+    reset_db();
+    my $with_tracker = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget-a', { name => 'WidgetA', repo_url => 'https://github.com/dev/widget-a', issue_tracker_url => 'https://github.com/dev/widget-a/issues' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $with_tracker->id, tag_name => 'v1.0.0', status => 'published' }
+    );
+    my $without_tracker = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget-b', { name => 'WidgetB', repo_url => 'https://github.com/dev/widget-b' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $without_tracker->id, tag_name => 'v1.0.0', status => 'published' }
+    );
+
+    $t->get_ok( '/plugins/' . $with_tracker->slug )
+      ->status_is(200)
+      ->element_exists('a[href="https://github.com/dev/widget-a/issues"]');
+
+    $t->get_ok( '/plugins/' . $without_tracker->slug )
+      ->status_is(200)
+      ->content_unlike(qr/Issue tracker/);
+};
+
+subtest 'the technical report tab still shows every check for is_owner and only published-version checks for everyone else' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
+    );
+    my $published = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'published' }
+    );
+    my $draft = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v2.0.0', status => 'changes_requested', certification_tier => 'INCOMPLETE' }
+    );
+    KohaPluginStore::Model::ReviewCheck->new( pg => test_pg() )->record(
+        { plugin_version_id => $published->id, check_name => 'docs_presence', required => 0, passed => 1, message => undef }
+    );
+    KohaPluginStore::Model::ReviewCheck->new( pg => test_pg() )->record(
+        { plugin_version_id => $draft->id, check_name => 'perl_syntax', required => 1, passed => 0, message => 'boom' }
+    );
+
+    $t->get_ok( '/plugins/' . $plugin->slug )
+      ->status_is(200)
+      ->content_like(qr/docs_presence/)
+      ->content_like(qr/perl_syntax/);
+
+    $t->get_ok('/logout');
+    $t->get_ok( '/plugins/' . $plugin->slug )
+      ->status_is(200)
+      ->content_like(qr/docs_presence/)
+      ->content_unlike(qr/perl_syntax/);
+};
+
 done_testing();
