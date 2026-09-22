@@ -302,6 +302,33 @@ subtest 'search_compatible and count_compatible filter by certification_tier' =>
     );
 };
 
+subtest 'search_compatible and count_compatible match q against slug, not just name/description/author' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'Cover Flow', { name => 'Cover Flow', description => 'A widget', author => 'Some Dev' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, version => '1.0.0', tag_name => 'v1', status => 'published', koha_min_version => '20.00.00.000' }
+    );
+
+    my $model = KohaPluginStore::Model::Plugin->new( pg => test_pg() );
+
+    # 'cover-flow' (the slug) does not appear in the name, description, or author,
+    # so this only matches if the q clause also checks p.slug.
+    is( $plugin->slug, 'cover-flow', 'sanity check: the slug does not textually match name/description/author' );
+
+    my $found = $model->search_compatible(
+        { koha_version => '24.00.00.000', q => 'cover-flow', order_by => 'name', limit => 10, offset => 0 }
+    );
+    is( scalar @$found, 1, 'q matching the slug finds the plugin via search_compatible' );
+    is( $found->[0]->name, 'Cover Flow', 'the matching plugin is returned' );
+
+    is(
+        $model->count_compatible( { koha_version => '24.00.00.000', q => 'cover-flow' } ), 1,
+        'count_compatible also matches q against the slug'
+    );
+};
+
 subtest 'search_compatible with include_unsupported and no koha_version returns every published plugin, unfiltered by version' => sub {
     reset_db();
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'AnyVersion' } );

@@ -78,8 +78,8 @@ sub _compatible_where_and_binds {
     }
 
     if ( defined $args->{q} && length $args->{q} ) {
-        push @clauses, '(p.name ILIKE ? OR p.description ILIKE ? OR p.author ILIKE ?)';
-        push @binds, ( '%' . $args->{q} . '%' ) x 3;
+        push @clauses, '(p.name ILIKE ? OR p.description ILIKE ? OR p.author ILIKE ? OR p.slug ILIKE ?)';
+        push @binds, ( '%' . $args->{q} . '%' ) x 4;
     }
 
     if ( defined $args->{certification_tier} && length $args->{certification_tier} ) {

@@ -20,10 +20,16 @@ subtest 'shows the latest published version, not earlier submitted versions' => 
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
         'widget', { name => 'Widget', repo_url => 'https://github.com/dev/widget', developer_id => $developer->id }
     );
+    # The published, certified version is created FIRST (lower id) and the
+    # submitted version SECOND (higher id) -- deliberately so that a template
+    # wrongly using latest_version (highest id, no status filter) would land
+    # on the submitted version below and fail the badge assertion, while
+    # latest_published_version (status-filtered) still correctly finds this
+    # earlier one. Real-world tag/version ordering isn't what's under test here.
     KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )
-      ->create( { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'submitted' } );
+      ->create( { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'published', certification_tier => 'CERTIFIED' } );
     KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )
-      ->create( { plugin_id => $plugin->id, tag_name => 'v1.0.1', status => 'published', certification_tier => 'CERTIFIED' } );
+      ->create( { plugin_id => $plugin->id, tag_name => 'v1.0.1', status => 'submitted' } );
 
     $t->get_ok('/plugins')
       ->status_is(200)

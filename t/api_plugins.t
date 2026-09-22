@@ -76,6 +76,15 @@ subtest 'no longer exposes internal review fields' => sub {
     ok( !exists $body->[0]{releases}[0]{status},        'status is not exposed' );
 };
 
+subtest 'does not expose readme_html, but does expose issue_tracker_url' => sub {
+    KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } )
+      ->update( { readme_html => '<h1>CoverFlow</h1><p>Big README</p>', issue_tracker_url => 'https://github.com/dev/coverflow/issues' } );
+
+    my $body = $t->get_ok('/api/v1/plugins?koha_version=20.00')->tx->res->json;
+    ok( !exists $body->[0]{readme_html}, 'readme_html is stripped from the listing response, even though it is genuinely set' );
+    is( $body->[0]{issue_tracker_url}, 'https://github.com/dev/coverflow/issues', 'issue_tracker_url is still exposed' );
+};
+
 subtest 'q filters by name/description, koha_max_version excludes an incompatible release, X-Total-Count is set' => sub {
     reset_db();
     my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(

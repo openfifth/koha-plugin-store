@@ -209,7 +209,13 @@ sub list_all ($c) {
     }
 
     my @plugin_hashes = map { $_->unblessed } @plugins;
-    my $releases      = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->for_plugin_ids(
+
+    # The Koha-side client only ever needs README HTML on the store's own web
+    # pages, not in this discovery listing -- strip it here rather than ship
+    # every plugin's full pre-rendered README in every /api/v1/plugins response.
+    delete $_->{readme_html} for @plugin_hashes;
+
+    my $releases = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->for_plugin_ids(
         [ map { $_->{id} } @plugin_hashes ],
         { koha_version => $koha_version, include_unsupported => $include_unsupported }
     );
