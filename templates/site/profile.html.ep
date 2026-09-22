@@ -1,0 +1,30 @@
+% my %provider_label = ( github => 'GitHub' );
+% my $user = logged_in_user;
+% title 'Profile';
+% layout 'default';
+
+% content_for 'sidebar' => begin
+  %= include 'partial/side_menu'
+% end
+
+<h2><%= title %></h2>
+
+<div class="d-flex align-items-center mb-4">
+  % if ($user->avatar_url) {
+  <img src="<%= $user->avatar_url %>" alt="" class="rounded-circle me-3" width="64" height="64">
+  % }
+  <h3 class="mb-0"><%= $user->username %></h3>
+</div>
+
+<dl class="row">
+  <dt class="col-sm-3">Signed in via</dt>
+  <dd class="col-sm-9"><%= $provider_label{$user->oauth_provider_key} || ucfirst($user->oauth_provider_key) %></dd>
+
+  <dt class="col-sm-3">Member since</dt>
+  <dd class="col-sm-9"><%= substr($user->created_at, 0, 10) %></dd>
+
+  % if ($user->oauth_provider_key eq 'github') {
+  <dt class="col-sm-3">Profile</dt>
+  <dd class="col-sm-9"><a href="https://github.com/<%= $user->username %>" target="_blank" rel="noopener">github.com/<%= $user->username %></a></dd>
+  % }
+</dl>

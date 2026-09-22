@@ -23,19 +23,19 @@
         <div class="navbar-header">
           <a class="navbar-brand" href="/"><img src="/img/koha_128dpi.png" alt="Logo" height="24" class="d-inline-block align-text-top"> <%= app->site_name %></a>
         </div>
-        <!-- Development environment warning -->
-        <div class="row text-center text-warning bg-dark">
-          <h2><i class='bx bx-error'></i> This is a test environment <i class='bx bx-error'></i></h2>
-        </div>
-        <!-- !Development environment warning -->
         <div class="navbar-header float-right text-white">
         % if ( logged_in_user ) {
-          %= link_to '/my-plugins' => (class => 'link-underline link-underline-opacity-0 text-white') => begin
-            <i class='bx bx-user'></i> <%= logged_in_user->username %>
-          % end
-          %= link_to '/logout' => (class => 'link-underline link-underline-opacity-0 text-danger') => begin
-            <i class='bx bx-log-out'></i> Log Out
-          % end
+          <div class="dropdown">
+            <a href="#" role="button" id="account-menu-toggle" data-bs-toggle="dropdown" aria-expanded="false" class="link-underline link-underline-opacity-0 text-white dropdown-toggle">
+              <i class='bx bx-user'></i> <%= logged_in_user->username %>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="account-menu-toggle">
+              <li><a class="dropdown-item" href="/my-plugins"><i class='bx bx-list-ol'></i> My Plugins</a></li>
+              <li><a class="dropdown-item" href="/profile"><i class='bx bx-id-card'></i> Profile</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="/logout"><i class='bx bx-log-out'></i> Log Out</a></li>
+            </ul>
+          </div>
         % }
         </div>
       </div>

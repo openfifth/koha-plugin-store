@@ -31,7 +31,7 @@ subtest 'shows the latest published version, not earlier submitted versions' => 
     KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )
       ->create( { plugin_id => $plugin->id, tag_name => 'v1.0.1', status => 'submitted' } );
 
-    $t->get_ok('/plugins')
+    $t->get_ok('/')
       ->status_is(200)
       ->element_exists( qq{a[href="/plugins/} . $plugin->slug . qq{"]} )
       ->element_exists('span.badge.text-bg-success');
@@ -46,7 +46,7 @@ subtest 'a plugin with no versions yet does not appear on the public page' => su
         'bare', { name => 'Bare', repo_url => 'https://github.com/dev/bare', developer_id => $developer->id }
     );
 
-    $t->get_ok('/plugins')->status_is(200)->content_unlike(qr/Bare/);
+    $t->get_ok('/')->status_is(200)->content_unlike(qr/Bare/);
 };
 
 subtest 'My Plugins shows the same link and status' => sub {
@@ -80,7 +80,7 @@ subtest 'a version stuck in check_error does not appear on the public page' => s
     KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )
       ->create( { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'check_error' } );
 
-    $t->get_ok('/plugins')
+    $t->get_ok('/')
       ->status_is(200)
       ->content_unlike(qr/Widget/);
 };

@@ -1,4 +1,4 @@
-% title 'Login';
+% title 'Developer login';
 % layout 'default';
 
 % content_for 'sidebar' => begin
@@ -6,6 +6,7 @@
 % end
 
 <h2><%= title %></h2>
+<p class="text-muted">Only plugin developers need to log in here -- browsing and installing plugins doesn't require an account.</p>
 
 <p>
   %= link_to '/auth/github' => (class => 'btn btn-dark') => begin

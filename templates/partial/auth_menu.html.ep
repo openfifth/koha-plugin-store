@@ -12,7 +12,7 @@
     % end
   % } else{
     %= link_to '/login' => (class => 'list-group-item list-group-item-action ' . (current_route eq 'login' ? 'active' : '' )) => begin
-      <i class='bx bx-log-in'></i> Log In
+      <i class='bx bx-log-in'></i> Developer login
     % end
   % }
   </ul>
