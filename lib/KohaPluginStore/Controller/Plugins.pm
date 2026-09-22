@@ -137,7 +137,7 @@ sub update_plugin ($c) {
     return $c->render( text => 'Invalid CSRF token', status => 403 )
         if $c->validation->csrf_protect->has_error('csrf_token');
 
-    my %fields = map { $_ => $c->param($_) } qw(name description repo_url author);
+    my %fields = map { $_ => $c->param($_) } qw(name description repo_url author issue_tracker_url);
 
     for my $field (qw(name description repo_url author)) {
         next if defined $fields{$field} && length $fields{$field};

@@ -89,4 +89,53 @@ subtest 'a valid update persists and redirects to the plugin page' => sub {
     $t->get_ok('/logout');
 };
 
+subtest 'issue_tracker_url is optional -- omitting it does not block a valid update' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { name => 'Widget', description => 'Original', repo_url => 'https://github.com/dev/widget', author => 'Dev', developer_id => $owner->id }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/edit' =>
+        form => { name => 'Widget', description => 'Original', repo_url => 'https://github.com/dev/widget', author => 'Dev', csrf_token => csrf_token($t) } )
+      ->status_is(302);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    is( $reloaded->issue_tracker_url, undef, 'left unset when omitted from the form' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'issue_tracker_url persists when provided' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { name => 'Widget', description => 'Original', repo_url => 'https://github.com/dev/widget', author => 'Dev', developer_id => $owner->id }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/edit' =>
+        form => {
+            name => 'Widget', description => 'Original', repo_url => 'https://github.com/dev/widget', author => 'Dev',
+            issue_tracker_url => 'https://github.com/dev/widget/issues', csrf_token => csrf_token($t),
+        } )
+      ->status_is(302);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    is( $reloaded->issue_tracker_url, 'https://github.com/dev/widget/issues', 'issue_tracker_url was saved' );
+
+    $t->get_ok('/logout');
+};
+
 done_testing();
