@@ -117,6 +117,28 @@ sub fetch_contributors {
     ];
 }
 
+sub fetch_readme_html {
+    my ( $access_token, $owner_repo ) = @_;
+
+    my $api_repo = $owner_repo =~ s{^https://github\.com/}{https://api.github.com/repos/}r;
+    my $tx = _get_readme( "$api_repo/readme", $access_token );
+
+    return unless $tx->result->code == 200;
+
+    return $tx->result->body;
+}
+
+# Test seam, separate from _get: the README endpoint's pre-rendered-HTML Accept
+# header is unique to this call, and the response body is used as-is (not
+# ->json-decoded like every other _get call).
+sub _get_readme {
+    my ( $url, $access_token ) = @_;
+
+    return Mojo::UserAgent->new->get(
+        $url => { Accept => 'application/vnd.github.html+json', _auth_header($access_token) }
+    );
+}
+
 # An annotated tag (`git tag -a`/`-s`) has its own tag object with its own
 # signature, separate from the commit it points at -- a GPG-signed tag
 # pointing at an otherwise-unsigned commit is common and valid. GitHub's

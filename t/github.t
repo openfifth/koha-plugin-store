@@ -305,4 +305,44 @@ subtest 'fetch_tag_has_test_files requires a tag_name but not a token' => sub {
     );
 };
 
+subtest 'fetch_readme_html returns the raw HTML body on success' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get_readme = sub {
+        my $res = Mojo::Message::Response->new;
+        $res->code(200);
+        $res->body('<h1>Widget</h1><p>Docs.</p>');
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    is(
+        KohaPluginStore::GitHub::fetch_readme_html( 'token', 'https://github.com/dev/widget' ),
+        '<h1>Widget</h1><p>Docs.</p>',
+        'raw pre-rendered HTML returned as-is, not JSON-decoded'
+    );
+};
+
+subtest 'fetch_readme_html returns undef on a non-200 response (no README, rate-limited, ...)' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get_readme = sub {
+        my $res = Mojo::Message::Response->new;
+        $res->code(404);
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    is( KohaPluginStore::GitHub::fetch_readme_html( 'token', 'https://github.com/dev/widget' ), undef, 'undef, not a die' );
+};
+
+subtest 'fetch_readme_html still makes a request with no token configured' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    my @seen_args;
+    *KohaPluginStore::GitHub::_get_readme = sub { push @seen_args, [@_]; return _fake_tx(); };
+
+    KohaPluginStore::GitHub::fetch_readme_html( undef, 'https://github.com/a/b' );
+    is( scalar @seen_args, 1, 'the request was made' );
+    is( $seen_args[0][1], undef, 'with no token' );
+};
+
 done_testing();

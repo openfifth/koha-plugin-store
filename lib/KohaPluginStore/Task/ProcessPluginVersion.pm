@@ -155,12 +155,15 @@ sub run {
         sha256_hex(<$fh>);
     };
 
+    my $readme_html = eval { KohaPluginStore::GitHub::fetch_readme_html( $token, $plugin->repo_url ) };
+
     $plugin->update(
         {
             name        => $metadata->{name},
             description => $metadata->{description},
             author      => $metadata->{author},
             class_name  => $plugin_class_name,
+            ( defined $readme_html ? ( readme_html => $readme_html ) : () ),
         }
     );
 
