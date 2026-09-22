@@ -12,7 +12,7 @@ use KohaPluginStore::Model::PluginVersion;
 
 my $t = test_app();
 
-subtest 'links to the detail page and shows the latest version\'s status' => sub {
+subtest 'shows the latest published version, not earlier submitted versions' => sub {
     reset_db();
     my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
         { oauth_provider_key => 'github', provider_user_id => '1', username => 'dev' }
@@ -23,12 +23,12 @@ subtest 'links to the detail page and shows the latest version\'s status' => sub
     KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )
       ->create( { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'submitted' } );
     KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )
-      ->create( { plugin_id => $plugin->id, tag_name => 'v1.0.1', status => 'published' } );
+      ->create( { plugin_id => $plugin->id, tag_name => 'v1.0.1', status => 'published', certification_tier => 'CERTIFIED' } );
 
     $t->get_ok('/plugins')
       ->status_is(200)
       ->element_exists( qq{a[href="/plugins/} . $plugin->slug . qq{"]} )
-      ->content_like( qr/Widget/ );
+      ->content_like( qr/CERTIFIED/ );
 };
 
 subtest 'a plugin with no versions yet does not appear on the public page' => sub {
