@@ -2,6 +2,7 @@ package KohaPluginStore::Controller::Site;
 use Mojo::Base 'Mojolicious::Controller', -signatures;
 use Crypt::PK::Ed25519;
 use KohaPluginStore::Model::Developer;
+use KohaPluginStore::Model::Plugin;
 
 sub index {
     my $c = shift;
@@ -23,6 +24,16 @@ sub verification_key ($c) {
 
     $c->stash( public_key => $public_key_pem );
     $c->render;
+}
+
+sub author ($c) {
+    my $author_slug = $c->param('author_slug');
+
+    my $plugins = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->search_by_author_slug($author_slug);
+    return $c->render( text => 'Author not found', status => 404 ) unless @$plugins;
+
+    $c->stash( author_name => $plugins->[0]->author, plugins => $plugins );
+    $c->render('site/author');
 }
 
 sub logout {

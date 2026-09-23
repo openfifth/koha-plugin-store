@@ -349,4 +349,36 @@ subtest 'search_compatible with include_unsupported and no koha_version returns 
     );
 };
 
+subtest 'search_by_author_slug groups published plugins by their author string' => sub {
+    reset_db();
+    my $p1 = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget-a', { name => 'WidgetA', author => 'Octavia Cat', repo_url => 'https://github.com/a/a' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $p1->id, tag_name => 'v1', status => 'published' }
+    );
+    my $p2 = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget-b', { name => 'WidgetB', author => 'octavia cat', repo_url => 'https://github.com/a/b' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $p2->id, tag_name => 'v1', status => 'published' }
+    );
+    my $unpublished = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget-c', { name => 'WidgetC', author => 'Octavia Cat', repo_url => 'https://github.com/a/c' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $unpublished->id, tag_name => 'v1', status => 'submitted' }
+    );
+    my $other = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget-d', { name => 'WidgetD', author => 'Someone Else', repo_url => 'https://github.com/a/d' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $other->id, tag_name => 'v1', status => 'published' }
+    );
+
+    my $plugins = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->search_by_author_slug('octavia-cat');
+    is( scalar @$plugins, 2, 'both differently-cased matches included, unpublished one excluded' );
+    is_deeply( [ sort map { $_->name } @$plugins ], [ 'WidgetA', 'WidgetB' ] );
+};
+
 done_testing();

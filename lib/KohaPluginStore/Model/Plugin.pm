@@ -64,6 +64,23 @@ sub create_with_unique_slug {
     die "Could not generate a unique slug for '$slug_source' after 10 attempts";
 }
 
+sub search_by_author_slug {
+    my ( $self, $author_slug ) = @_;
+
+    my $rows = $self->pg->db->query(
+        q{
+            SELECT DISTINCT p.*
+            FROM plugins p
+            JOIN plugin_versions v ON v.plugin_id = p.id
+            WHERE v.status = 'published' AND p.author IS NOT NULL AND p.author != ''
+            ORDER BY p.name
+        }
+    )->hashes;
+
+    my @plugins = map { $self->_new_from_row($_) } @$rows;
+    return [ grep { slugify( $_->author ) eq $author_slug } @plugins ];
+}
+
 my %ORDER_BY = (
     'name'     => 'p.name ASC',
     '-name'    => 'p.name DESC',

@@ -128,6 +128,7 @@ sub startup ($self) {
     $r->any('/')->to('plugins#index');
     $r->any('/developers')->to('site#index');
     $r->get('/verification-key')->to('site#verification_key');
+    $r->get('/authors/:author_slug')->to('site#author');
     $r->get('/profile')->requires( user_authenticated => 1 )->to('site#profile');
     $r->get('/login')->to( template => 'login' );
     $r->get('/auth/github')->to('auth#github');
