@@ -40,6 +40,18 @@ Bootstrap 5 + vanilla JS (unchanged — no new frontend tooling).
   is). Every version still gets its own stable, linkable, directly-fetchable URL via
   `show_version`; the bare URL is simply an alias that happens to render the latest one without
   changing the address bar.
+- **Test-run safety (project-wide, non-negotiable):** this project has no isolated test database —
+  every worktree's `prove` run truncates `plugins`/`plugin_versions`/`developers`/etc. in the one
+  shared, persistently-running Postgres instance (`127.0.0.1:55432`), and a live `worker` container
+  processing Minion jobs can race a test's own `perform_jobs_in_foreground` call for the same job,
+  producing failures that look like real bugs but are actually the race. Before running `prove`
+  anywhere in this worktree: run `docker compose stop worker` first (from the `main` worktree,
+  which owns the running stack — check `docker compose ps` if unsure which compose project is
+  live), then `docker compose start worker` again once done with tests for that session. Never
+  leave an `oauth_mock` edit in a `koha_plugin_store.conf` after manual browser testing — a
+  leftover one makes every subsequent `prove` run's real OAuth-flow tests silently take the mock
+  branch instead. `script/koha_plugin_store migrate` only needs to run once per new migration, not
+  before every `prove` invocation.
 
 ---
 
@@ -104,7 +116,7 @@ subtest 'slugify normalizes a string the same way create_with_unique_slug does' 
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `koha-prove t/model_plugin.t`
+Run: `prove -l t/model_plugin.t`
 Expected: FAIL — `Undefined subroutine &KohaPluginStore::Model::Plugin::slugify called`
 
 - [ ] **Step 3: Extract the helper**
@@ -146,7 +158,7 @@ sub create_with_unique_slug {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `koha-prove t/model_plugin.t`
+Run: `prove -l t/model_plugin.t`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -319,7 +331,7 @@ subtest 'a failed changelog fetch does not fail processing and leaves any existi
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `koha-prove t/github.t t/task_process_plugin_version.t`
+Run: `prove -l t/github.t t/task_process_plugin_version.t`
 Expected: FAIL — `fetch_changelog_html` undefined; `changelog_html` not a column on `plugins`.
 
 - [ ] **Step 3: Add the migration**
@@ -410,17 +422,20 @@ to:
     );
 ```
 
-- [ ] **Step 7: Apply the migration to the dev/test database**
+- [ ] **Step 7: Apply the migration to the shared dev database**
 
-Run: `koha-prove --migrate` if your workflow has a wrapper, otherwise:
-`script/koha_plugin_store migrate` (against your dev DB) — the test DB picks up new columns
-automatically since `TestDB` truncates rather than recreating the schema; if the test DB was
-created before this migration existed, run `script/koha_plugin_store migrate` against
-`$ENV{KOHA_PLUGIN_STORE_TEST_DSN}` (or whatever `t/lib/TestDB.pm`'s default DSN points at) once.
+Run: `script/koha_plugin_store migrate`
+
+This project has no separate test database — `t/lib/TestDB.pm`'s default DSN
+(`postgresql://koha_plugin_store:koha_plugin_store@127.0.0.1:55432/koha_plugin_store`) points at
+the same running Postgres your `prove` runs use, truncated between test files but never
+re-migrated by them. Run the migrate command once, from the project root, before Step 8's test
+run, or `changelog_html` won't exist yet and every subsequent test in this task will error with
+"changelog_html is not a column on plugins".
 
 - [ ] **Step 8: Run tests to verify they pass**
 
-Run: `koha-prove t/github.t t/task_process_plugin_version.t`
+Run: `prove -l t/github.t t/task_process_plugin_version.t`
 Expected: PASS
 
 - [ ] **Step 9: Commit**
@@ -494,7 +509,7 @@ done_testing();
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `koha-prove t/changelog.t`
+Run: `prove -l t/changelog.t`
 Expected: FAIL — `Can't locate KohaPluginStore/Changelog.pm`
 
 - [ ] **Step 3: Implement the module**
@@ -538,7 +553,7 @@ sub extract_section {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `koha-prove t/changelog.t`
+Run: `prove -l t/changelog.t`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -604,7 +619,7 @@ subtest 'search_by_author_slug groups published plugins by their author string' 
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `koha-prove t/model_plugin.t`
+Run: `prove -l t/model_plugin.t`
 Expected: FAIL — `search_by_author_slug is not a column on plugins` (AUTOLOAD trying to treat it as
 a column accessor) or "Can't locate object method"
 
@@ -633,7 +648,7 @@ sub search_by_author_slug {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `koha-prove t/model_plugin.t`
+Run: `prove -l t/model_plugin.t`
 Expected: PASS
 
 - [ ] **Step 5: Write the failing controller/route test**
@@ -682,7 +697,7 @@ done_testing();
 
 - [ ] **Step 6: Run test to verify it fails**
 
-Run: `koha-prove t/site_author.t`
+Run: `prove -l t/site_author.t`
 Expected: FAIL — 404/`Not Found` for the route (no matching `/authors/:author_slug` route yet)
 
 - [ ] **Step 7: Add the route**
@@ -755,7 +770,7 @@ empty-left-column) two-column layout — harmless, and self-corrects the moment 
 
 - [ ] **Step 10: Run tests to verify they pass**
 
-Run: `koha-prove t/model_plugin.t t/site_author.t`
+Run: `prove -l t/model_plugin.t t/site_author.t`
 Expected: PASS
 
 - [ ] **Step 11: Commit**
@@ -811,7 +826,7 @@ checks for the text "Developer login" appearing anywhere on the page)
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `koha-prove t/site.t`
+Run: `prove -l t/site.t`
 Expected: FAIL — `#sidebar` still present on `/` (unconditional layout); no `footer` element yet.
 
 - [ ] **Step 3: Add the footer partial**
@@ -939,7 +954,7 @@ are therefore **not** deleted yet either — Task 7 deletes all three once nothi
 
 - [ ] **Step 7: Run tests to verify they pass**
 
-Run: `koha-prove t/site.t t/plugins_index.t t/profile.t t/verification_key.t`
+Run: `prove -l t/site.t t/plugins_index.t t/profile.t t/verification_key.t`
 Expected: PASS. (`t/plugins_show.t` is expected to still pass unchanged here too, since that
 template wasn't touched.)
 
@@ -974,7 +989,7 @@ subtest 'homepage shows a one-line intro above the search form' => sub {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `koha-prove t/plugins_index.t`
+Run: `prove -l t/plugins_index.t`
 Expected: FAIL — text not present
 
 - [ ] **Step 3: Add the intro line**
@@ -998,7 +1013,7 @@ with:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `koha-prove t/plugins_index.t`
+Run: `prove -l t/plugins_index.t`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -1434,7 +1449,7 @@ done_testing();
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `koha-prove t/plugins_show.t`
+Run: `prove -l t/plugins_show.t`
 Expected: FAIL — `/plugins/widget/v/v1.0.0` 404s (no route yet), `#plugin-title` doesn't exist,
 `search_by_author_slug`/author link not wired into this template yet, etc.
 
@@ -1833,7 +1848,7 @@ git rm templates/partial/side_menu.html.ep templates/partial/nav_items.html.ep t
 
 - [ ] **Step 8: Run tests to verify they pass**
 
-Run: `koha-prove t/plugins_show.t t/plugins_update.t t/site.t`
+Run: `prove -l t/plugins_show.t t/plugins_update.t t/site.t`
 Expected: PASS. (`t/plugins_update.t` covers `update_plugin`'s validation-failure re-render path
 touched in Step 5 — re-run it explicitly since that code path isn't exercised by
 `t/plugins_show.t`.)
@@ -1953,7 +1968,7 @@ done_testing();
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `koha-prove t/plugins_manage.t`
+Run: `prove -l t/plugins_manage.t`
 Expected: FAIL — route doesn't exist yet (404 for the wrong reason initially, then once the route
 exists it'll fail on missing owner-gating/template).
 
@@ -2109,7 +2124,7 @@ Create `templates/plugins/manage.html.ep`:
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `koha-prove t/plugins_manage.t`
+Run: `prove -l t/plugins_manage.t`
 Expected: PASS
 
 - [ ] **Step 7: Commit**
@@ -2128,7 +2143,7 @@ git commit -m "Add an owner-only /plugins/:slug/manage view for release history 
 
 - [ ] **Step 1: Run the full test suite**
 
-Run: `koha-prove t/`
+Run: `prove -l t/`
 Expected: PASS, no regressions. (`t/login.t` is documented as stale/pre-existing-broken in
 `CLAUDE.md` — ignore any failures there, they predate this work.)
 
