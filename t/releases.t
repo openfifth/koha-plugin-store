@@ -72,7 +72,7 @@ subtest 'the owning developer can submit a release' => sub {
         '/new-release' => form => { plugin_id => $plugin->id, tag_name => 'v1.0.0', csrf_token => csrf_token($t) }
     )
       ->status_is(302)
-      ->header_is( Location => '/plugins/coverflow' );
+      ->header_is( Location => '/plugins/coverflow/v/v1.0.0' );
 
     my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find(
         { plugin_id => $plugin->id, tag_name => 'v1.0.0' }

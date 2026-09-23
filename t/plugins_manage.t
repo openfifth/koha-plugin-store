@@ -38,6 +38,39 @@ subtest 'a logged-in developer who does not own this plugin gets a 404' => sub {
     $t->get_ok('/logout');
 };
 
+subtest 'a different, real logged-in developer (not the owner) gets a 404 for another developer\'s manage page' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    # Developer A: the mock-OAuth identity, now logged in (the requester).
+    my $developer_a = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+
+    # Developer B: a second, distinct, real Developer row -- the plugin owner.
+    # Not the logged-in session; not a NULL developer_id.
+    my $developer_b = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'other-owner-1', username => 'other-owner' }
+    );
+    isnt( $developer_a->id, $developer_b->id, 'two distinct real developer rows' );
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'gadget', { name => 'Gadget', repo_url => 'https://github.com/dev/gadget', developer_id => $developer_b->id }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'submitted' }
+    );
+
+    # Developer A is logged in (via the mock OAuth session), developer B owns
+    # the plugin -- a real, non-owning developer requesting someone else's
+    # manage page must still get a 404.
+    $t->get_ok( '/plugins/' . $plugin->slug . '/manage' )->status_is(404);
+
+    $t->get_ok('/logout');
+};
+
 subtest 'the owner sees every version regardless of status, plus GitHub-sync section, and triggers a fetch' => sub {
     reset_db();
     $t->app->config->{oauth_mock} = 1;

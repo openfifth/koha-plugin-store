@@ -24,6 +24,19 @@ subtest 'matches when the tag has no leading v but the heading does, and vice ve
     is( KohaPluginStore::Changelog::extract_section( $html, 'v1.2.0' ), '<h2>1.2.0</h2><p>No leading v anywhere.</p>' );
 };
 
+subtest 'matches a real GitHub-rendered heading with an anchor-link element before the version text' => sub {
+    my $html = '<h2><a id="user-content-110---2026-02-01" class="anchor" href="#user-content-110---2026-02-01" aria-hidden="true">'
+        . '<span aria-hidden="true" class="octicon octicon-link"></span></a>[1.1.0] - 2026-02-01</h2>'
+        . '<p>Added GitHub-anchor tolerance.</p>'
+        . '<h2><a id="user-content-100---2026-01-01" class="anchor" href="#user-content-100---2026-01-01" aria-hidden="true">'
+        . '<span aria-hidden="true" class="octicon octicon-link"></span></a>[1.0.0] - 2026-01-01</h2>'
+        . '<p>Initial release.</p>';
+
+    my $section = KohaPluginStore::Changelog::extract_section( $html, 'v1.1.0' );
+    like( $section, qr/Added GitHub-anchor tolerance\./, 'matched entry included' );
+    unlike( $section, qr/Initial release\./, 'older entry not included' );
+};
+
 subtest 'returns undef, not a die, when no heading matches (non-standard changelog format)' => sub {
     my $html = '<p>Just a paragraph, no version headings at all.</p>';
 

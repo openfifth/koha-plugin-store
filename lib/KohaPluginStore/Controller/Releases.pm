@@ -47,7 +47,7 @@ sub new_release ($c) {
 
     $c->minion->enqueue( process_plugin_version => [ $new_version->id ], { attempts => 3 } );
 
-    return $c->redirect_to( '/plugins/' . $plugin->slug );
+    return $c->redirect_to( '/plugins/' . $plugin->slug . '/v/' . $new_version->tag_name );
 }
 
 1;
