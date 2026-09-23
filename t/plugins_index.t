@@ -87,4 +87,8 @@ subtest '_order_by=-name sorts descending' => sub {
     ok( index( $html, 'Bravo' ) < index( $html, 'Alpha' ), 'Bravo (Z-ward) appears before Alpha in the markup' );
 };
 
+subtest 'homepage shows a one-line intro above the search form' => sub {
+    $t->get_ok('/')->content_like(qr/Browse and install community-contributed plugins for your Koha library system\./);
+};
+
 done_testing();

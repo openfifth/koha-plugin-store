@@ -4,6 +4,7 @@
 % my %tier_badge = ( CERTIFIED => 'text-bg-success', STRUCTURAL => 'text-bg-warning', INCOMPLETE => 'text-bg-danger' );
 
 <h2><%= title %></h2>
+<p class="lead">Browse and install community-contributed plugins for your Koha library system.</p>
 
 %= form_for '/' => (method => 'GET', class => 'row g-2 mb-4') => begin
   <div class="col-md-5">
