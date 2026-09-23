@@ -13,6 +13,7 @@ use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
 use KohaPluginStore::Model::PluginContributor;
 use KohaPluginStore::GitHub;
+use KohaPluginStore::Sanitize;
 use KohaPluginStore::Checks;
 use KohaPluginStore::Model::ReviewCheck;
 
@@ -155,8 +156,12 @@ sub run {
         sha256_hex(<$fh>);
     };
 
-    my $readme_html    = eval { KohaPluginStore::GitHub::fetch_readme_html( $token, $plugin->repo_url ) };
-    my $changelog_html = eval { KohaPluginStore::GitHub::fetch_changelog_html( $token, $plugin->repo_url ) };
+    # Scrub before storing -- this is attacker-controlled content (any GitHub
+    # user can submit a plugin) shown on a public page before any human
+    # review; see KohaPluginStore::Sanitize for why GitHub's own rendering
+    # sanitizer isn't treated as sufficient on its own.
+    my $readme_html    = eval { KohaPluginStore::Sanitize::html( KohaPluginStore::GitHub::fetch_readme_html( $token, $plugin->repo_url ) ) };
+    my $changelog_html = eval { KohaPluginStore::Sanitize::html( KohaPluginStore::GitHub::fetch_changelog_html( $token, $plugin->repo_url ) ) };
 
     $plugin->update(
         {

@@ -12,6 +12,9 @@ requires 'String::Util';
 requires 'IO::Socket::SSL';
 requires 'Net::SSLeay';
 requires 'File::Slurp';
+# Sanitizes GitHub-rendered README/changelog HTML before it's stored --
+# see KohaPluginStore::Sanitize.
+requires 'HTML::Scrubber';
 # Used directly by ProcessPluginVersion's metadata parser and the
 # DependencyAllowlist/HardcodedCredentials checks to safely inspect
 # submitted plugin source without executing it. It's also a transitive

@@ -220,6 +220,21 @@ sub update_plugin ($c) {
         return $c->render('plugins/show');
     }
 
+    # repo_url and issue_tracker_url are rendered back out as raw <a href>
+    # attributes (templates/plugins/show.html.ep) -- unlike new_plugin's
+    # submission flow, nothing here re-validates repo_url against the
+    # developer's actual GitHub repos, so a scheme check is the only thing
+    # stopping a plugin owner from storing a 'javascript:' URL that fires in
+    # any visitor's browser when they click the link.
+    for my $field (qw(repo_url issue_tracker_url)) {
+        next unless defined $fields{$field} && length $fields{$field};
+        next if $fields{$field} =~ m{^https?://}i;
+
+        $c->stash( %{ $c->_plugin_page_stash( $plugin, $plugin->latest_published_version // $plugin->latest_version ) } );
+        $c->stash( errors => ['Links must be http:// or https:// URLs.'], form_values => \%fields );
+        return $c->render('plugins/show');
+    }
+
     $plugin->update( \%fields );
 
     return $c->redirect_to( '/plugins/' . $plugin->slug );

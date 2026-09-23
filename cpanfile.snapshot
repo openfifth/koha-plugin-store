@@ -293,6 +293,15 @@ DISTRIBUTIONS
       perl 5.006
       strict 0
       warnings 0
+  Encode-Locale-1.05
+    pathname: G/GA/GAAS/Encode-Locale-1.05.tar.gz
+    provides:
+      Encode::Locale 1.05
+    requirements:
+      Encode 2
+      Encode::Alias 0
+      ExtUtils::MakeMaker 0
+      perl 5.008
   Exception-Class-1.45
     pathname: D/DR/DROLSKY/Exception-Class-1.45.tar.gz
     provides:
@@ -401,6 +410,96 @@ DISTRIBUTIONS
       ExtUtils::MakeMaker 0
       base 0
       perl 5.006
+  HTML-Parser-3.86
+    pathname: O/OA/OALDERS/HTML-Parser-3.86.tar.gz
+    provides:
+      HTML::Entities 3.86
+      HTML::Filter 3.86
+      HTML::HeadParser 3.86
+      HTML::LinkExtor 3.86
+      HTML::Parser 3.86
+      HTML::PullParser 3.86
+      HTML::TokeParser 3.86
+    requirements:
+      Carp 0
+      Exporter 0
+      ExtUtils::MakeMaker 6.52
+      HTML::Tagset 0
+      HTTP::Headers 0
+      IO::File 0
+      URI 0
+      URI::URL 0
+      XSLoader 0
+      strict 0
+  HTML-Scrubber-0.19
+    pathname: N/NI/NIGELM/HTML-Scrubber-0.19.tar.gz
+    provides:
+      HTML::Scrubber 0.19
+    requirements:
+      ExtUtils::MakeMaker 0
+      HTML::Entities 0
+      HTML::Parser 3.47
+      List::Util 1.33
+      Scalar::Util 0
+      perl 5.008
+      strict 0
+      warnings 0
+  HTML-Tagset-3.24
+    pathname: P/PE/PETDANCE/HTML-Tagset-3.24.tar.gz
+    provides:
+      HTML::Tagset 3.24
+    requirements:
+      ExtUtils::MakeMaker 6.46
+      perl 5.010001
+  HTTP-Date-6.08
+    pathname: O/OA/OALDERS/HTTP-Date-6.08.tar.gz
+    provides:
+      HTTP::Date 6.08
+    requirements:
+      Exporter 0
+      ExtUtils::MakeMaker 0
+      Time::Local 1.28
+      Time::Zone 0
+      perl 5.006002
+      strict 0
+  HTTP-Message-7.04
+    pathname: O/OA/OALDERS/HTTP-Message-7.04.tar.gz
+    provides:
+      HTTP::Config 7.04
+      HTTP::Headers 7.04
+      HTTP::Headers::Auth 7.04
+      HTTP::Headers::ETag 7.04
+      HTTP::Headers::Util 7.04
+      HTTP::Message 7.04
+      HTTP::Request 7.04
+      HTTP::Request::Common 7.04
+      HTTP::Response 7.04
+      HTTP::Status 7.04
+    requirements:
+      Carp 0
+      Clone 0.46
+      Compress::Raw::Bzip2 0
+      Compress::Raw::Zlib 2.062
+      Encode 3.01
+      Encode::Locale 1
+      Exporter 5.57
+      ExtUtils::MakeMaker 0
+      File::Spec 0
+      HTTP::Date 6
+      IO::Compress::Bzip2 2.021
+      IO::Compress::Deflate 0
+      IO::Compress::Gzip 0
+      IO::HTML 0
+      IO::Uncompress::Inflate 0
+      IO::Uncompress::RawInflate 0
+      LWP::MediaTypes 6
+      MIME::Base64 2.1
+      MIME::QuotedPrint 0
+      URI 1.10
+      parent 0
+      perl 5.008001
+      strict 0
+      warnings 0
   Hash-Merge-0.302
     pathname: H/HE/HERMES/Hash-Merge-0.302.tar.gz
     provides:
@@ -410,6 +509,16 @@ DISTRIBUTIONS
       ExtUtils::MakeMaker 6.64
       Scalar::Util 0
       perl 5.008001
+  IO-HTML-1.004
+    pathname: C/CJ/CJM/IO-HTML-1.004.tar.gz
+    provides:
+      IO::HTML 1.004
+    requirements:
+      Carp 0
+      Encode 2.10
+      Exporter 5.57
+      ExtUtils::MakeMaker 0
+      perl 5.008
   IO-Socket-SSL-2.099
     pathname: S/SU/SULLR/IO-Socket-SSL-2.099.tar.gz
     provides:
@@ -501,6 +610,18 @@ DISTRIBUTIONS
       Perl::Tidy == 20250105
       Pod::Checker 0
       perl 5.016000
+  LWP-MediaTypes-6.05
+    pathname: O/OA/OALDERS/LWP-MediaTypes-6.05.tar.gz
+    provides:
+      LWP::MediaTypes 6.05
+    requirements:
+      Carp 0
+      Exporter 0
+      ExtUtils::MakeMaker 0
+      File::Basename 0
+      Scalar::Util 0
+      perl 5.006002
+      strict 0
   Lingua-EN-Inflect-1.905
     pathname: D/DC/DCONWAY/Lingua-EN-Inflect-1.905.tar.gz
     provides:
@@ -535,6 +656,15 @@ DISTRIBUTIONS
       perl 5.006
       strict 0
       warnings 0
+  MIME-Base32-1.303
+    pathname: R/RE/REHSACK/MIME-Base32-1.303.tar.gz
+    provides:
+      MIME::Base32 1.303
+    requirements:
+      Exporter 0
+      ExtUtils::MakeMaker 0
+      perl 5.008001
+      utf8 0
   MRO-Compat-0.15
     pathname: H/HA/HAARG/MRO-Compat-0.15.tar.gz
     provides:
@@ -1656,6 +1786,63 @@ DISTRIBUTIONS
       Test::Builder 0
       Test::More 0.96
       perl 5.012
+  Test-NoWarnings-1.06
+    pathname: H/HA/HAARG/Test-NoWarnings-1.06.tar.gz
+    provides:
+      Test::NoWarnings 1.06
+      Test::NoWarnings::Warning 1.06
+    requirements:
+      ExtUtils::MakeMaker 0
+      Test::Builder 0.86
+      perl 5.006
+  TimeDate-2.35
+    pathname: A/AT/ATOOMIC/TimeDate-2.35.tar.gz
+    provides:
+      Date::Format 2.35
+      Date::Format::Generic 2.35
+      Date::Language 2.35
+      Date::Language::Afar 2.35
+      Date::Language::Amharic 2.35
+      Date::Language::Arabic 2.35
+      Date::Language::Austrian 2.35
+      Date::Language::Brazilian 2.35
+      Date::Language::Bulgarian 2.35
+      Date::Language::Chinese 2.35
+      Date::Language::Chinese_GB 2.35
+      Date::Language::Czech 2.35
+      Date::Language::Danish 2.35
+      Date::Language::Dutch 2.35
+      Date::Language::English 2.35
+      Date::Language::Finnish 2.35
+      Date::Language::French 2.35
+      Date::Language::Gedeo 2.35
+      Date::Language::German 2.35
+      Date::Language::Greek 2.35
+      Date::Language::Hungarian 2.35
+      Date::Language::Icelandic 2.35
+      Date::Language::Italian 2.35
+      Date::Language::Norwegian 2.35
+      Date::Language::Occitan 2.35
+      Date::Language::Oromo 2.35
+      Date::Language::Portuguese 2.35
+      Date::Language::Romanian 2.35
+      Date::Language::Russian 2.35
+      Date::Language::Russian_cp1251 2.35
+      Date::Language::Russian_koi8r 2.35
+      Date::Language::Sidama 2.35
+      Date::Language::Somali 2.35
+      Date::Language::Spanish 2.35
+      Date::Language::Swedish 2.35
+      Date::Language::Tigrinya 2.35
+      Date::Language::TigrinyaEritrean 2.35
+      Date::Language::TigrinyaEthiopian 2.35
+      Date::Language::Turkish 2.35
+      Date::Parse 2.35
+      Time::Zone 2.35
+      TimeDate 2.35
+    requirements:
+      Carp 0
+      ExtUtils::MakeMaker 0
   Try-Tiny-0.32
     pathname: E/ET/ETHER/Try-Tiny-0.32.tar.gz
     provides:
@@ -1667,6 +1854,86 @@ DISTRIBUTIONS
       constant 0
       perl 5.006
       strict 0
+      warnings 0
+  URI-5.37
+    pathname: O/OA/OALDERS/URI-5.37.tar.gz
+    provides:
+      URI 5.37
+      URI::Escape 5.37
+      URI::Heuristic 5.37
+      URI::IRI 5.37
+      URI::QueryParam 5.37
+      URI::Split 5.37
+      URI::URL 5.37
+      URI::WithBase 5.37
+      URI::data 5.37
+      URI::file 5.37
+      URI::file::Base 5.37
+      URI::file::FAT 5.37
+      URI::file::Mac 5.37
+      URI::file::OS2 5.37
+      URI::file::QNX 5.37
+      URI::file::Unix 5.37
+      URI::file::Win32 5.37
+      URI::ftp 5.37
+      URI::ftpes 5.37
+      URI::ftps 5.37
+      URI::geo 5.37
+      URI::gopher 5.37
+      URI::http 5.37
+      URI::https 5.37
+      URI::icap 5.37
+      URI::icaps 5.37
+      URI::irc 5.37
+      URI::ircs 5.37
+      URI::ldap 5.37
+      URI::ldapi 5.37
+      URI::ldaps 5.37
+      URI::mailto 5.37
+      URI::mms 5.37
+      URI::news 5.37
+      URI::nntp 5.37
+      URI::nntps 5.37
+      URI::otpauth 5.37
+      URI::pop 5.37
+      URI::rlogin 5.37
+      URI::rsync 5.37
+      URI::rtsp 5.37
+      URI::rtspu 5.37
+      URI::scp 5.37
+      URI::sftp 5.37
+      URI::sip 5.37
+      URI::sips 5.37
+      URI::smb 5.37
+      URI::smtp 5.37
+      URI::snews 5.37
+      URI::ssh 5.37
+      URI::telnet 5.37
+      URI::tn3270 5.37
+      URI::urn 5.37
+      URI::urn::isbn 5.37
+      URI::urn::oid 5.37
+      URI::ws 5.37
+      URI::wss 5.37
+    requirements:
+      Carp 0
+      Cwd 0
+      Data::Dumper 0
+      Encode 0
+      Exporter 5.57
+      ExtUtils::MakeMaker 0
+      MIME::Base32 0
+      MIME::Base64 2
+      Net::Domain 0
+      Scalar::Util 0
+      Unicode::Normalize 0
+      constant 0
+      integer 0
+      overload 0
+      parent 0
+      perl 5.008001
+      strict 0
+      utf8 0
       warnings 0
   YAML-LibYAML-v0.910.0
     pathname: T/TI/TINITA/YAML-LibYAML-v0.910.0.tar.gz

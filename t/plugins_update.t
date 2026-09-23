@@ -138,4 +138,56 @@ subtest 'issue_tracker_url persists when provided' => sub {
     $t->get_ok('/logout');
 };
 
+subtest 'a non-http(s) repo_url is rejected and not persisted' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { name => 'Widget', description => 'Original', repo_url => 'https://github.com/dev/widget', author => 'Dev', developer_id => $owner->id }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/edit' => form => {
+        name => 'Widget', description => 'Original', author => 'Dev',
+        repo_url => 'javascript:alert(document.cookie)', csrf_token => csrf_token($t),
+    } )
+      ->status_is(200)
+      ->content_like(qr/http/i);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    is( $reloaded->repo_url, 'https://github.com/dev/widget', 'repo_url was not changed' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a non-http(s) issue_tracker_url is rejected and not persisted' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { name => 'Widget', description => 'Original', repo_url => 'https://github.com/dev/widget', author => 'Dev', developer_id => $owner->id }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/edit' => form => {
+        name => 'Widget', description => 'Original', repo_url => 'https://github.com/dev/widget', author => 'Dev',
+        issue_tracker_url => 'javascript:alert(document.cookie)', csrf_token => csrf_token($t),
+    } )
+      ->status_is(200)
+      ->content_like(qr/http/i);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    is( $reloaded->issue_tracker_url, undef, 'issue_tracker_url was not changed' );
+
+    $t->get_ok('/logout');
+};
+
 done_testing();
