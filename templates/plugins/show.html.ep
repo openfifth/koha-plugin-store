@@ -1,17 +1,17 @@
-% my $plugin = stash 'plugin';
-% my $versions = stash 'versions';
-% my $contributors = stash 'contributors';
-% my $still_processing = stash 'still_processing';
-% my $checks_by_version = stash('checks_by_version') || {};
-% my $is_owner = stash 'is_owner';
-% my $github_releases = stash('github_releases') || [];
-% my $errors = stash('errors') || [];
-% my $form_values = stash('form_values') || {};
+% my $plugin            = stash 'plugin';
+% my $versions          = stash 'versions';
+% my $contributors      = stash 'contributors';
+% my $current_version   = stash 'current_version';
+% my $still_processing  = stash 'still_processing';
+% my $checks            = stash('checks') || [];
+% my $is_owner          = stash 'is_owner';
+% my $changelog_excerpt = stash 'changelog_excerpt';
+% my $errors            = stash('errors') || [];
+% my $form_values       = stash('form_values') || {};
 % my %tier_badge = ( CERTIFIED => 'text-bg-success', STRUCTURAL => 'text-bg-warning', INCOMPLETE => 'text-bg-danger' );
-% my $plugin_title = $plugin->name || 'Processing submission...';
-% title $plugin_title;
+% my $author_slug = KohaPluginStore::Model::Plugin::slugify( $plugin->author // '' );
+% title $plugin->name || 'Processing submission...';
 % layout 'default';
-% my $latest_published = $plugin->latest_published_version;
 % if ($still_processing) {
   %= content_for 'head' => begin
 <meta http-equiv="refresh" content="5">
@@ -19,20 +19,133 @@
 % }
 
 % content_for 'sidebar' => begin
-  %= include 'partial/side_menu'
+  % if ($is_owner) {
+  <ul class="list-group mb-3">
+    <li class="list-group-item active">Overview</li>
+    %= link_to '/plugins/'.$plugin->slug.'/manage' => (class => 'list-group-item list-group-item-action') => begin
+      Manage releases
+    % end
+  </ul>
+  % }
+
+  <div class="card">
+    <div class="card-body">
+      % if ($current_version) {
+      % if ($current_version->certification_tier) {
+      <p><span class="badge <%= $tier_badge{$current_version->certification_tier} || 'text-bg-secondary' %>"><%= $current_version->certification_tier %></span></p>
+      % }
+      % if ($current_version->signature) {
+      <p><span class="badge text-bg-info">Signed</span></p>
+      % }
+      <dl class="row mb-0">
+        <dt class="col-sm-5">Koha version</dt>
+        <dd class="col-sm-7"><%= $current_version->koha_min_version %><% if ($current_version->koha_max_version) { %> &ndash; <%= $current_version->koha_max_version %><% } else { %>+<% } %></dd>
+      </dl>
+      % if ($current_version->signature) {
+      <p class="small text-muted mb-0 mt-2">Signing confirms the file hasn't been altered since the store inspected it -- not a safety or quality check; see the technical report below for that.</p>
+      % }
+      % } else {
+      <p class="text-muted mb-0">No published release yet.</p>
+      % }
+    </div>
+  </div>
+
+  % if ($changelog_excerpt) {
+  <div class="card mt-3">
+    <div class="card-body">
+      <h6 class="card-title">What's new in this version</h6>
+      <%== $changelog_excerpt %>
+    </div>
+  </div>
+  % } elsif ($plugin->changelog_html) {
+  <div class="card mt-3">
+    <div class="card-body">
+      <a href="<%= $plugin->repo_url %>" target="_blank" rel="noopener">Full changelog &#8599;</a>
+    </div>
+  </div>
+  % }
+
+  <div class="card mt-3">
+    <div class="card-body">
+      <h6 class="card-title">Links</h6>
+      <ul class="list-unstyled mb-0">
+        <li><i class='bx bxl-github'></i> <a href="<%= $plugin->repo_url %>" target="_blank" rel="noopener"><%= $plugin->repo_url %></a></li>
+        % if ($plugin->documentation_url) {
+        <li><i class='bx bx-book'></i> <a href="<%= $plugin->documentation_url %>" target="_blank" rel="noopener">Documentation</a></li>
+        % }
+        % if ($plugin->issue_tracker_url) {
+        <li><i class='bx bx-bug'></i> <a href="<%= $plugin->issue_tracker_url %>" target="_blank" rel="noopener">Issue tracker</a></li>
+        % }
+      </ul>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="card-body">
+      <h6 class="card-title">Get this plugin</h6>
+      <p class="small text-muted">Point your Koha instance's Plugin store at this store's base URL and search for this plugin's slug.</p>
+      <label class="form-label small mb-0">Store base URL</label>
+      <div class="input-group input-group-sm mb-2">
+        <input type="text" class="form-control" readonly id="store-base-url-value" value="<%= url_for('/')->to_abs %>">
+        <button type="button" class="btn btn-outline-secondary" id="copy-store-base-url">Copy</button>
+      </div>
+      <label class="form-label small mb-0">Plugin slug</label>
+      <div class="input-group input-group-sm">
+        <input type="text" class="form-control" readonly id="plugin-slug-value" value="<%= $plugin->slug %>">
+        <button type="button" class="btn btn-outline-secondary" id="copy-plugin-slug">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  % if (@$contributors) {
+  <div class="card mt-3">
+    <div class="card-body">
+      <h6 class="card-title">Contributors</h6>
+      <ul class="list-unstyled mb-0">
+        % for my $contributor (@$contributors) {
+        <li><img src="<%= $contributor->avatar_url %>" width="24" height="24"> <%= $contributor->github_username %></li>
+        % }
+      </ul>
+    </div>
+  </div>
+  % }
 % end
 
-<ul class="nav nav-tabs" id="plugin-tabs" role="tablist">
-  <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="plugin-details" data-bs-toggle="tab" data-bs-target="#plugin-details-tab" type="button" role="tab" aria-controls="plugin-details-tab" aria-selected="true">Details</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="plugin-releases" data-bs-toggle="tab" data-bs-target="#plugin-releases-tab" type="button" role="tab" aria-controls="plugin-releases-tab" aria-selected="false">Releases</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="plugin-technical-report" data-bs-toggle="tab" data-bs-target="#plugin-technical-report-tab" type="button" role="tab" aria-controls="plugin-technical-report-tab" aria-selected="false">Technical report</button>
-  </li>
-</ul>
+<div id="plugin-header" class="d-flex align-items-baseline flex-wrap gap-2 mb-3">
+  % if ($plugin->author) {
+  <a href="/authors/<%= $author_slug %>"><%= $plugin->author %></a>
+  <span class="text-muted">/</span>
+  % }
+  <h1 id="plugin-title" class="mb-0 h3"><%= $plugin->name %></h1>
+  % if ($current_version) {
+  <div class="dropdown">
+    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="version-switcher-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+      <%= $current_version ? $current_version->tag_name : 'select version' %>
+    </button>
+    <ul class="dropdown-menu" aria-labelledby="version-switcher-toggle">
+      % for my $version (@$versions) {
+      <li>
+        % if ($version->status eq 'published' || $is_owner) {
+        %= link_to '/plugins/'.$plugin->slug.'/v/'.$version->tag_name => (class => 'dropdown-item') => begin
+          <%= $version->tag_name %><% if ($version->status ne 'published') { %> &mdash; <%= $version->status =~ s/_/ /gr %><% } %>
+        % end
+        % } else {
+        <span class="dropdown-item disabled"><%= $version->tag_name %> &mdash; <%= $version->status =~ s/_/ /gr %></span>
+        % }
+      </li>
+      % }
+    </ul>
+  </div>
+  % }
+  % if ($is_owner) {
+  <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#edit-plugin-modal">Edit</button>
+  % }
+</div>
+
+% if ($plugin->description) {
+<p class="lead"><%= $plugin->description %></p>
+% }
+
 % if (@$errors) {
 <div class="alert alert-danger">
   <ul class="mb-0">
@@ -42,202 +155,41 @@
   </ul>
 </div>
 % }
-<div class="tab-content" id="plugin-tab-content">
-  <div class="tab-pane fade show active" id="plugin-details-tab" role="tabpanel" aria-labelledby="plugin-details">
-    <div id="main-details">
-      <h2><%= $plugin_title %><% if ($is_owner) { %> <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#edit-plugin-modal">Edit</button><% } %></h2>
-      % if ($plugin->description) {
-      <p class="lead"><%= $plugin->description %></p>
-      % }
 
-      <div class="row">
-        <div class="col-md-8">
-          % if ($plugin->readme_html) {
-          <%== $plugin->readme_html %>
-          % } else {
-          <p class="text-muted">No README is available for this plugin yet.</p>
-          % }
+% if ($plugin->readme_html) {
+<%== $plugin->readme_html %>
+% } else {
+<p class="text-muted">No README is available for this plugin yet.</p>
+% }
 
-          % if (@$contributors) {
-          <h3>Contributors</h3>
-          <ul class="list-unstyled">
-            % for my $contributor (@$contributors) {
-            <li><img src="<%= $contributor->avatar_url %>" width="24" height="24"> <%= $contributor->github_username %></li>
-            % }
-          </ul>
-          % }
-        </div>
-        <div class="col-md-4">
-          <div class="card">
-            <div class="card-body">
-              % if ($latest_published) {
-              % if ($latest_published->certification_tier) {
-              <p><span class="badge <%= $tier_badge{$latest_published->certification_tier} || 'text-bg-secondary' %>"><%= $latest_published->certification_tier %></span></p>
-              % }
-              <dl class="row mb-0">
-                <dt class="col-sm-5">Koha version</dt>
-                <dd class="col-sm-7"><%= $latest_published->koha_min_version %><% if ($latest_published->koha_max_version) { %> &ndash; <%= $latest_published->koha_max_version %><% } else { %>+<% } %></dd>
-              </dl>
-              % } else {
-              <p class="text-muted mb-0">No published release yet.</p>
-              % }
-            </div>
-          </div>
-
-          <div class="card mt-3">
-            <div class="card-body">
-              <h6 class="card-title">Links</h6>
-              <ul class="list-unstyled mb-0">
-                <li><i class='bx bxl-github'></i> <a href="<%= $plugin->repo_url %>" target="_blank" rel="noopener"><%= $plugin->repo_url %></a></li>
-                % if ($plugin->documentation_url) {
-                <li><i class='bx bx-book'></i> <a href="<%= $plugin->documentation_url %>" target="_blank" rel="noopener">Documentation</a></li>
-                % }
-                % if ($plugin->issue_tracker_url) {
-                <li><i class='bx bx-bug'></i> <a href="<%= $plugin->issue_tracker_url %>" target="_blank" rel="noopener">Issue tracker</a></li>
-                % }
-              </ul>
-            </div>
-          </div>
-
-          <div class="card mt-3">
-            <div class="card-body">
-              <h6 class="card-title">Get this plugin</h6>
-              <p class="small text-muted">Point your Koha instance's Plugin store at this store's base URL and search for this plugin's slug.</p>
-              <label class="form-label small mb-0">Store base URL</label>
-              <div class="input-group input-group-sm mb-2">
-                <input type="text" class="form-control" readonly id="store-base-url-value" value="<%= url_for('/')->to_abs %>">
-                <button type="button" class="btn btn-outline-secondary" id="copy-store-base-url">Copy</button>
-              </div>
-              <label class="form-label small mb-0">Plugin slug</label>
-              <div class="input-group input-group-sm">
-                <input type="text" class="form-control" readonly id="plugin-slug-value" value="<%= $plugin->slug %>">
-                <button type="button" class="btn btn-outline-secondary" id="copy-plugin-slug">Copy</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="tab-pane fade" id="plugin-releases-tab" role="tabpanel" aria-labelledby="plugin-releases">
-    <div id="main-releases">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Tag</th>
-            <th>Version</th>
-            <th>Status</th>
-            <th>Certification</th>
-            <th>Signed</th>
-          </tr>
-        </thead>
-        <tbody>
-          % for my $version (@$versions) {
-          % next if !$is_owner && $version->status ne 'published';
-          <tr>
-            %= t td => $version->tag_name
-            %= t td => ($version->version || '-')
-            %= t td => $version->status
-            <td>
-              % if ($version->certification_tier) {
-                <span class="badge <%= $tier_badge{$version->certification_tier} || 'text-bg-secondary' %>"><%= $version->certification_tier %></span>
-              % }
-            </td>
-            <td>
-              % if ($version->signature) {
-                <span class="badge text-bg-info">Signed</span>
-              % }
-            </td>
-          </tr>
-          % }
-        </tbody>
-      </table>
-
-      <p class="text-muted small">
-        Every published version is signed automatically — this confirms the file hasn't been altered
-        since the store inspected it. It is not a safety or quality check; see each version's
-        certification badge for that, and the Technical report tab for the full automated check
-        results behind it.
-      </p>
-
-      % if ($is_owner) {
-      <h3>Releases from <i class='bx bxl-github'></i> github:</h3>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Tag name</th>
-            <th>Published at</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          % for my $release (@$github_releases) {
-            % if ($release->{message}->{success}) {
-            <tr class="text-success">
-            % } elsif ($release->{message}->{error}) {
-            <tr class="text-danger">
-            % } else {
-            <tr>
-            % }
-              %= t td => $release->{name}
-              %= t td => $release->{tag_name}
-              %= t td => $release->{published_at}
-              % if ($release->{message}->{success}) {
-              %= t td => $release->{message}->{success}
-              % } elsif ($release->{message}->{error}) {
-              %= t td => $release->{message}->{error}
-              % } else {
-              %= t td => form_for '/new-release' => (method => 'POST') => begin
-                %= csrf_field
-                <input type="hidden" name="plugin_id" value="<%= $plugin->id %>">
-                <input type="hidden" name="tag_name" value="<%= $release->{tag_name} %>">
-                <button type="submit" class="btn btn-primary">Add this release</button>
-              % end
-              % }
-            </tr>
-          % }
-        </tbody>
-      </table>
-      % }
-    </div>
-  </div>
-  <div class="tab-pane fade" id="plugin-technical-report-tab" role="tabpanel" aria-labelledby="plugin-technical-report">
-    <div id="main-technical-report">
-      % for my $version (@$versions) {
-      % next if !$is_owner && $version->status ne 'published';
-      % my $checks = $checks_by_version->{$version->id} || [];
-      % next unless @$checks || $version->error_message;
-      <h5><%= $version->tag_name %></h5>
-      % if ($version->error_message) {
-      <div class="alert alert-warning py-2 mb-2"><%= $version->error_message %></div>
-      % }
-      % if (@$checks) {
-      <table class="table table-sm mb-4">
-        <thead>
-          <tr>
-            <th>Check</th>
-            <th>Required</th>
-            <th>Result</th>
-            <th>Message</th>
-          </tr>
-        </thead>
-        <tbody>
-          % for my $check (@$checks) {
-          <tr class="<%= $check->passed ? 'text-success' : 'text-danger' %>">
-            %= t td => $check->check_name
-            %= t td => ($check->required ? 'Required' : 'Advisory')
-            %= t td => ($check->passed ? 'Passed' : 'Failed')
-            %= t td => ($check->message || '')
-          </tr>
-          % }
-        </tbody>
-      </table>
-      % }
-      % }
-    </div>
-  </div>
-</div>
+% if ($current_version && (@$checks || $current_version->error_message)) {
+<h2 class="h4 mt-5">Technical report &mdash; <%= $current_version->tag_name %></h2>
+% if ($current_version->error_message) {
+<div class="alert alert-warning py-2 mb-2"><%= $current_version->error_message %></div>
+% }
+% if (@$checks) {
+<table class="table table-sm mb-4">
+  <thead>
+    <tr>
+      <th>Check</th>
+      <th>Required</th>
+      <th>Result</th>
+      <th>Message</th>
+    </tr>
+  </thead>
+  <tbody>
+    % for my $check (@$checks) {
+    <tr class="<%= $check->passed ? 'text-success' : 'text-danger' %>">
+      %= t td => $check->check_name
+      %= t td => ($check->required ? 'Required' : 'Advisory')
+      %= t td => ($check->passed ? 'Passed' : 'Failed')
+      %= t td => ($check->message || '')
+    </tr>
+    % }
+  </tbody>
+</table>
+% }
+% }
 
 % if ($is_owner) {
 <div class="modal fade" id="edit-plugin-modal" tabindex="-1" aria-labelledby="edit-plugin-modal-label" aria-hidden="true">
@@ -288,26 +240,6 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 % }
-
-<script>
-// Keeps the active tab across the auto-refresh (see the meta-refresh above,
-// active while a version is still processing) -- Bootstrap's own tab state is
-// purely client-side and would otherwise reset to "Details" on every reload.
-document.addEventListener('DOMContentLoaded', function () {
-  var tabList = document.getElementById('plugin-tabs');
-  if (!tabList) return;
-
-  var target = window.location.hash;
-  if (target) {
-    var trigger = tabList.querySelector('[data-bs-target="' + target + '"]');
-    if (trigger) new bootstrap.Tab(trigger).show();
-  }
-
-  tabList.addEventListener('shown.bs.tab', function (event) {
-    history.replaceState(null, '', event.target.getAttribute('data-bs-target'));
-  });
-});
-</script>
 
 <script>
 (function () {

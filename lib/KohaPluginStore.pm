@@ -137,6 +137,11 @@ sub startup ($self) {
     $r->get('/new-plugin')->requires( user_authenticated => 1 )->to('plugins#add_form');
     $r->post('/developer/repos/refresh')->requires( user_authenticated => 1 )->to('plugins#refresh_repos');
     $r->get('/plugins/:slug')->to('plugins#show');
+
+    # tag_name is constrained to allow '.' (e.g. 'v1.0.0') -- Mojolicious's default
+    # placeholder pattern excludes '.' so it can detect a format extension on the
+    # last path segment, which would otherwise truncate a dotted tag name.
+    $r->get( '/plugins/:slug/v/:tag_name' => [ tag_name => qr/[^\/]+/ ] )->to('plugins#show_version');
     $r->post('/plugins/:slug/edit')->to('plugins#update_plugin');
     $r->post('/new-plugin')->to('plugins#new_plugin');
     $r->post('/new-plugin-confirm')->to('plugins#new_plugin_confirm');

@@ -30,11 +30,17 @@ subtest 'a published version shows no auto-refresh' => sub {
 
     $t->get_ok( '/plugins/' . $plugin->slug )
       ->status_is(200)
-      ->text_is( '#main h2' => 'Widget' )
+      ->text_is( '#plugin-title' => 'Widget' )
       ->element_exists_not('meta[http-equiv="refresh"]');
 };
 
-subtest 'a submitted version shows the auto-refresh meta tag' => sub {
+subtest 'the same version is also reachable at its own permalink' => sub {
+    $t->get_ok( '/plugins/widget/v/v1.0.0' )
+      ->status_is(200)
+      ->text_is( '#plugin-title' => 'Widget' );
+};
+
+subtest 'a submitted version (no published version exists yet) shows the auto-refresh meta tag to its owner' => sub {
     reset_db();
     $t->app->config->{oauth_mock} = 1;
     $t->get_ok('/auth/github');
@@ -53,9 +59,18 @@ subtest 'a submitted version shows the auto-refresh meta tag' => sub {
     $t->get_ok( '/plugins/' . $plugin->slug )
       ->status_is(200)
       ->element_exists('meta[http-equiv="refresh"]');
+
+    $t->get_ok('/logout');
 };
 
-subtest 'a checks_running version shows the auto-refresh meta tag' => sub {
+subtest 'a public visitor sees no processing state and no auto-refresh when nothing is published yet' => sub {
+    $t->get_ok('/plugins/widget')
+      ->status_is(200)
+      ->element_exists_not('meta[http-equiv="refresh"]')
+      ->content_like(qr/No published release yet/);
+};
+
+subtest 'a checks_running version shows the auto-refresh meta tag to its owner' => sub {
     reset_db();
     $t->app->config->{oauth_mock} = 1;
     $t->get_ok('/auth/github');
@@ -74,9 +89,11 @@ subtest 'a checks_running version shows the auto-refresh meta tag' => sub {
     $t->get_ok( '/plugins/' . $plugin->slug )
       ->status_is(200)
       ->element_exists('meta[http-equiv="refresh"]');
+
+    $t->get_ok('/logout');
 };
 
-subtest 'a changes_requested version shows per-check results, not just the generic error message' => sub {
+subtest 'a changes_requested version (owner, nothing published yet) shows its own per-check results' => sub {
     reset_db();
     $t->app->config->{oauth_mock} = 1;
     $t->get_ok('/auth/github');
@@ -98,22 +115,10 @@ subtest 'a changes_requested version shows per-check results, not just the gener
         }
     );
     KohaPluginStore::Model::ReviewCheck->new( pg => test_pg() )->record(
-        {
-            plugin_version_id => $version->id,
-            check_name        => 'perl_syntax',
-            required          => 1,
-            passed            => 0,
-            message           => "lib/Foo.pm: syntax error at line 12",
-        }
+        { plugin_version_id => $version->id, check_name => 'perl_syntax', required => 1, passed => 0, message => 'lib/Foo.pm: syntax error at line 12' }
     );
     KohaPluginStore::Model::ReviewCheck->new( pg => test_pg() )->record(
-        {
-            plugin_version_id => $version->id,
-            check_name        => 'docs_presence',
-            required          => 0,
-            passed            => 1,
-            message           => undef,
-        }
+        { plugin_version_id => $version->id, check_name => 'docs_presence', required => 0, passed => 1, message => undef }
     );
 
     $t->get_ok( '/plugins/' . $plugin->slug )
@@ -122,9 +127,11 @@ subtest 'a changes_requested version shows per-check results, not just the gener
       ->content_like(qr/lib\/Foo\.pm: syntax error at line 12/)
       ->content_like(qr/docs_presence/)
       ->content_like(qr/INCOMPLETE/);
+
+    $t->get_ok('/logout');
 };
 
-subtest 'check results for every version are shown, not truncated by search()\'s default row limit' => sub {
+subtest 'a single version\'s full 11-check report is not truncated by search()\'s default row limit of 10' => sub {
     reset_db();
     $t->app->config->{oauth_mock} = 1;
     $t->get_ok('/auth/github');
@@ -136,78 +143,24 @@ subtest 'check results for every version are shown, not truncated by search()\'s
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
         'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
     );
-
-    # Two versions with six checks each (12 total) -- more than search()'s default
-    # limit of 10 rows. _plugin_page_stash fetches every version's checks in one
-    # combined query ordered only by check_name, so a version whose checks sort late
-    # alphabetically must still show up in full, not get silently cut off.
-    for my $tag ( 'v1.0.0', 'v2.0.0' ) {
-        my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
-            {
-                plugin_id          => $plugin->id,
-                tag_name           => $tag,
-                status             => 'changes_requested',
-                certification_tier => 'INCOMPLETE',
-                error_message      => 'One or more required checks failed.',
-            }
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'changes_requested', certification_tier => 'INCOMPLETE' }
+    );
+    for my $letter ( 'a' .. 'k' ) {    # 11 checks, one over the default limit of 10
+        KohaPluginStore::Model::ReviewCheck->new( pg => test_pg() )->record(
+            { plugin_version_id => $version->id, check_name => "check_$letter", required => 0, passed => 1, message => undef }
         );
-        for my $letter ( 'a' .. 'f' ) {
-            KohaPluginStore::Model::ReviewCheck->new( pg => test_pg() )->record(
-                {
-                    plugin_version_id => $version->id,
-                    check_name        => "check_${tag}_${letter}",
-                    required          => 0,
-                    passed            => 1,
-                    message           => undef,
-                }
-            );
-        }
     }
 
     $t->get_ok( '/plugins/' . $plugin->slug )
       ->status_is(200)
-      ->content_like(qr/check_v1\.0\.0_a/)
-      ->content_like(qr/check_v1\.0\.0_f/)
-      ->content_like(qr/check_v2\.0\.0_a/)
-      ->content_like(qr/check_v2\.0\.0_f/);
+      ->content_like(qr/check_a/)
+      ->content_like(qr/check_k/);
 
     $t->get_ok('/logout');
 };
 
-subtest 'a logged-in owner triggers a GitHub releases fetch; a public visitor does not' => sub {
-    reset_db();
-    $t->app->config->{oauth_mock} = 1;
-    $t->get_ok('/auth/github');    # logs in as mockdev
-    $t->app->config->{oauth_mock} = 0;
-
-    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
-        { oauth_provider_key => 'github', provider_user_id => 'mock' }
-    );
-
-    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
-        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
-    );
-    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
-        { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'published' }
-    );
-
-    my $fetch_calls = 0;
-    {
-        no strict 'refs';
-        no warnings 'redefine';
-        *KohaPluginStore::GitHub::fetch_releases = sub { $fetch_calls++; return []; };
-    }
-
-    $t->get_ok( '/plugins/' . $plugin->slug )->status_is(200);
-    is( $fetch_calls, 1, 'owner view fetches GitHub releases' );
-
-    $t->get_ok('/logout');
-    $fetch_calls = 0;
-    $t->get_ok( '/plugins/' . $plugin->slug )->status_is(200);
-    is( $fetch_calls, 0, 'public view does not fetch GitHub releases' );
-};
-
-subtest 'public visitor sees only published versions and no GitHub-available section' => sub {
+subtest 'public visitor: dropdown links the published tag but only shows (does not link) a non-published one' => sub {
     reset_db();
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
         'widget', { name => 'Widget', repo_url => 'https://github.com/dev/widget' }
@@ -221,13 +174,15 @@ subtest 'public visitor sees only published versions and no GitHub-available sec
 
     $t->get_ok( '/plugins/' . $plugin->slug )
       ->status_is(200)
-      ->content_like(qr/v1\.0\.0/)
-      ->content_unlike(qr/v0\.9\.0/)
-      ->content_unlike(qr/Releases from.*github/is)
+      ->element_exists('a[href="/plugins/widget/v/v1.0.0"]')
+      ->element_exists_not('a[href="/plugins/widget/v/v0.9.0"]')
+      ->content_like(qr/v0\.9\.0/, 'the draft tag is still shown, just not linked')
       ->element_exists_not('#edit-plugin-modal');
+
+    $t->get_ok('/plugins/widget/v/v0.9.0')->status_is(404);
 };
 
-subtest 'owner sees all versions plus the GitHub-available section and an edit control' => sub {
+subtest 'owner: dropdown links every version, including drafts; edit control is present' => sub {
     reset_db();
     $t->app->config->{oauth_mock} = 1;
     $t->get_ok('/auth/github');
@@ -246,59 +201,45 @@ subtest 'owner sees all versions plus the GitHub-available section and an edit c
         { plugin_id => $plugin->id, tag_name => 'v0.9.0', status => 'changes_requested', certification_tier => 'INCOMPLETE' }
     );
 
-    {
-        no strict 'refs';
-        no warnings 'redefine';
-        *KohaPluginStore::GitHub::fetch_releases = sub {
-            return [ { name => 'v2.0.0', tag_name => 'v2.0.0', published_at => '2026-01-01', assets => [ { name => 'plugin.kpz' } ] } ];
-        };
-    }
-
     $t->get_ok( '/plugins/' . $plugin->slug )
       ->status_is(200)
-      ->content_like(qr/v1\.0\.0/)
-      ->content_like(qr/v0\.9\.0/)
-      ->content_like(qr/v2\.0\.0/)
+      ->element_exists('a[href="/plugins/widget/v/v1.0.0"]')
+      ->element_exists('a[href="/plugins/widget/v/v0.9.0"]')
       ->element_exists('#edit-plugin-modal');
+
+    $t->get_ok('/plugins/widget/v/v0.9.0')->status_is(200);
 
     $t->get_ok('/logout');
 };
 
-subtest 'public visitor with zero published versions sees empty releases table, no certification details' => sub {
+subtest 'a plugin with zero published versions renders inline at the bare URL and hides its draft from the public' => sub {
     reset_db();
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
         'widget', { name => 'Widget', repo_url => 'https://github.com/dev/widget' }
     );
-    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
         {
             plugin_id          => $plugin->id,
             tag_name           => 'v1.0.0',
-            version            => '1.0.0',
             status             => 'changes_requested',
             certification_tier => 'INCOMPLETE',
-            error_message      => 'One or more required checks failed'
+            error_message      => 'One or more required checks failed',
         }
     );
     KohaPluginStore::Model::ReviewCheck->new( pg => test_pg() )->record(
-        {
-            plugin_version_id => $version->id,
-            check_name        => 'perl_syntax',
-            required          => 1,
-            passed            => 0,
-            message           => 'Syntax error',
-        }
+        { plugin_version_id => ( $plugin->latest_version->id ), check_name => 'perl_syntax', required => 1, passed => 0, message => 'Syntax error' }
     );
 
-    # Public visitor should not see any version details
     $t->get_ok( '/plugins/' . $plugin->slug )
       ->status_is(200)
       ->content_unlike(qr/v1\.0\.0/)
       ->content_unlike(qr/INCOMPLETE/)
       ->content_unlike(qr/perl_syntax/)
-      ->content_unlike(qr/Syntax error/);
+      ->content_unlike(qr/Syntax error/)
+      ->content_like(qr/No published release yet/);
 };
 
-subtest 'a published version shows a Signed badge and the explanatory copy; a non-published one does not' => sub {
+subtest 'a published version shows a Signed badge; the same plugin\'s draft version does not' => sub {
     reset_db();
     $t->app->config->{oauth_mock} = 1;
     $t->get_ok('/auth/github');
@@ -311,23 +252,19 @@ subtest 'a published version shows a Signed badge and the explanatory copy; a no
         'widget', { name => 'Widget', repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
     );
     KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
-        {
-            plugin_id       => $plugin->id,
-            tag_name        => 'v1.0.0',
-            status          => 'published',
-            signed_manifest => '{"slug":"widget"}',
-            signature       => 'fakesignature==',
-        }
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'published', signed_manifest => '{"slug":"widget"}', signature => 'fakesignature==' }
     );
     KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
         { plugin_id => $plugin->id, tag_name => 'v1.1.0', status => 'changes_requested', certification_tier => 'INCOMPLETE' }
     );
 
-    $t->get_ok( '/plugins/' . $plugin->slug )
+    $t->get_ok('/plugins/widget/v/v1.0.0')
       ->status_is(200)
-      ->content_like(qr/<tr>(?:(?!<\/tr>).)*?v1\.0\.0(?:(?!<\/tr>).)*?<span class="badge text-bg-info">Signed<\/span>(?:(?!<\/tr>).)*?<\/tr>/s)
-      ->content_unlike(qr/<tr>(?:(?!<\/tr>).)*?v1\.1\.0(?:(?!<\/tr>).)*?<span class="badge text-bg-info">Signed<\/span>(?:(?!<\/tr>).)*?<\/tr>/s)
-      ->content_like(qr/confirms the file hasn't been altered/i);
+      ->element_exists('.badge.text-bg-info');
+
+    $t->get_ok('/plugins/widget/v/v1.1.0')
+      ->status_is(200)
+      ->element_exists_not('.badge.text-bg-info');
 
     $t->get_ok('/logout');
 };
@@ -384,7 +321,7 @@ subtest 'issue_tracker_url link appears only when set' => sub {
       ->content_unlike(qr/Issue tracker/);
 };
 
-subtest 'the technical report tab still shows every check for is_owner and only published-version checks for everyone else' => sub {
+subtest 'a non-owner cannot reach a non-published version\'s page at all (not just hidden content -- a 404)' => sub {
     reset_db();
     $t->app->config->{oauth_mock} = 1;
     $t->get_ok('/auth/github');
@@ -396,29 +333,59 @@ subtest 'the technical report tab still shows every check for is_owner and only 
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
         'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
     );
-    my $published = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
-        { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'published' }
-    );
     my $draft = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
         { plugin_id => $plugin->id, tag_name => 'v2.0.0', status => 'changes_requested', certification_tier => 'INCOMPLETE' }
-    );
-    KohaPluginStore::Model::ReviewCheck->new( pg => test_pg() )->record(
-        { plugin_version_id => $published->id, check_name => 'docs_presence', required => 0, passed => 1, message => undef }
     );
     KohaPluginStore::Model::ReviewCheck->new( pg => test_pg() )->record(
         { plugin_version_id => $draft->id, check_name => 'perl_syntax', required => 1, passed => 0, message => 'boom' }
     );
 
-    $t->get_ok( '/plugins/' . $plugin->slug )
+    $t->get_ok('/plugins/widget/v/v2.0.0')
       ->status_is(200)
-      ->content_like(qr/docs_presence/)
       ->content_like(qr/perl_syntax/);
 
     $t->get_ok('/logout');
+    $t->get_ok('/plugins/widget/v/v2.0.0')->status_is(404);
+};
+
+subtest 'author name links to the public author page' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { name => 'Widget', author => 'Jane Doe', repo_url => 'https://github.com/dev/widget' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', status => 'published' }
+    );
+
     $t->get_ok( '/plugins/' . $plugin->slug )
       ->status_is(200)
-      ->content_like(qr/docs_presence/)
-      ->content_unlike(qr/perl_syntax/);
+      ->element_exists('a[href="/authors/jane-doe"]')
+      ->text_is('a[href="/authors/jane-doe"]' => 'Jane Doe');
+};
+
+subtest 'a changelog excerpt for the current version renders when it matches; falls back to a full-changelog link otherwise' => sub {
+    reset_db();
+    my $matching = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget-a', { name => 'WidgetA', repo_url => 'https://github.com/dev/widget-a', changelog_html => '<h2>1.0.0</h2><p>Added sparkle.</p>' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $matching->id, tag_name => 'v1.0.0', status => 'published' }
+    );
+    my $nonmatching = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget-b', { name => 'WidgetB', repo_url => 'https://github.com/dev/widget-b', changelog_html => '<p>Freeform notes, no headings.</p>' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $nonmatching->id, tag_name => 'v1.0.0', status => 'published' }
+    );
+
+    $t->get_ok( '/plugins/' . $matching->slug )
+      ->status_is(200)
+      ->content_like(qr/Added sparkle\./);
+
+    $t->get_ok( '/plugins/' . $nonmatching->slug )
+      ->status_is(200)
+      ->content_like(qr/Full changelog/)
+      ->content_unlike(qr/Freeform notes/);
 };
 
 done_testing();

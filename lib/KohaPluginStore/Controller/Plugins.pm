@@ -5,6 +5,7 @@ use KohaPluginStore::Model::PluginVersion;
 use KohaPluginStore::Model::PluginContributor;
 use KohaPluginStore::Model::ReviewCheck;
 use KohaPluginStore::GitHub;
+use KohaPluginStore::Changelog;
 use JSON;
 
 sub index {
@@ -85,7 +86,7 @@ sub refresh_repos {
 
 
 sub _plugin_page_stash {
-    my ( $c, $plugin ) = @_;
+    my ( $c, $plugin, $current_version ) = @_;
 
     my @versions = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->search(
         { plugin_id => $plugin->id }, { order_by => { -desc => 'id' } }
@@ -94,49 +95,35 @@ sub _plugin_page_stash {
         { plugin_id => $plugin->id }, { order_by => { -desc => 'contributions_count' } }
     );
 
-    my $still_processing = grep { $_->status eq 'submitted' || $_->status eq 'checks_running' } @versions;
-
-    my %checks_by_version;
-    if (@versions) {
-        # search()'s default_query_params applies a limit => 10 unless overridden --
-        # fine for a paginated listing, but here we want every check for every version
-        # on this page. Each version has a fixed, small number of checks (currently 11),
-        # so a generous fixed limit comfortably covers any plugin's full version history.
-        my @checks = KohaPluginStore::Model::ReviewCheck->new( pg => $c->pg )->search(
-            { plugin_version_id => [ map { $_->id } @versions ] }, { order_by => 'check_name', limit => 1000 }
-        );
-        push @{ $checks_by_version{ $_->plugin_version_id } }, $_ for @checks;
-    }
-
     my $is_owner = $c->session->{developer} && $c->session->{developer}->{id} == $plugin->developer_id ? 1 : 0;
 
-    my $github_releases;
-    if ($is_owner) {
-        my $config = $c->app->plugin('Config');
-        $github_releases = KohaPluginStore::GitHub::fetch_releases( $config->{github_app_token}, $plugin->repo_url );
+    my $still_processing = $current_version
+        && ( $current_version->status eq 'submitted' || $current_version->status eq 'checks_running' );
 
-        my $existing_tags = { map { $_->tag_name => 1 } @versions };
-        # Annotate each release with submission status; no-op if github_releases is empty.
-        foreach my $release (@$github_releases) {
-            if ( $existing_tags->{ $release->{tag_name} } ) {
-                $release->{message}->{success} = 'Release has already been submitted.';
-                next;
-            }
-            my @kpz_assets = grep { $_->{name} =~ /\.kpz$/ } @{ $release->{assets} };
-            if ( scalar @kpz_assets != 1 ) {
-                $release->{message}->{error} = 'Release must contain one and only one \'.kpz\' asset.';
-            }
-        }
+    my @checks;
+    if ($current_version) {
+        # search()'s default_query_params applies a limit => 10 unless overridden -- a single
+        # version can have as many checks as the pipeline runs (currently 11), so a generous
+        # fixed limit avoids truncating that one version's own report.
+        @checks = KohaPluginStore::Model::ReviewCheck->new( pg => $c->pg )->search(
+            { plugin_version_id => $current_version->id }, { order_by => 'check_name', limit => 1000 }
+        );
+    }
+
+    my $changelog_excerpt;
+    if ( $current_version && $plugin->changelog_html ) {
+        $changelog_excerpt = KohaPluginStore::Changelog::extract_section( $plugin->changelog_html, $current_version->tag_name );
     }
 
     return {
         plugin            => $plugin,
         versions          => \@versions,
         contributors      => \@contributors,
+        current_version   => $current_version,
         still_processing  => $still_processing,
-        checks_by_version => \%checks_by_version,
+        checks            => \@checks,
         is_owner          => $is_owner,
-        github_releases   => $github_releases,
+        changelog_excerpt => $changelog_excerpt,
     };
 }
 
@@ -146,7 +133,30 @@ sub show ($c) {
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { slug => $slug } );
     return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
 
-    $c->stash( %{ $c->_plugin_page_stash($plugin) } );
+    my $is_owner = $c->session->{developer} && $c->session->{developer}->{id} == $plugin->developer_id ? 1 : 0;
+    my $current_version = $plugin->latest_published_version // ( $is_owner ? $plugin->latest_version : undef );
+
+    $c->stash( %{ $c->_plugin_page_stash( $plugin, $current_version ) } );
+    $c->render('plugins/show');
+}
+
+sub show_version ($c) {
+    my $slug     = $c->param('slug');
+    my $tag_name = $c->param('tag_name');
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { slug => $slug } );
+    return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
+
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->find(
+        { plugin_id => $plugin->id, tag_name => $tag_name }
+    );
+    return $c->render( text => 'Version not found', status => 404 ) unless $version;
+
+    my $is_owner = $c->session->{developer} && $c->session->{developer}->{id} == $plugin->developer_id ? 1 : 0;
+    return $c->render( text => 'Version not found', status => 404 )
+        if $version->status ne 'published' && !$is_owner;
+
+    $c->stash( %{ $c->_plugin_page_stash( $plugin, $version ) } );
     $c->render('plugins/show');
 }
 
@@ -169,7 +179,7 @@ sub update_plugin ($c) {
     for my $field (qw(name description repo_url author)) {
         next if defined $fields{$field} && length $fields{$field};
 
-        $c->stash( %{ $c->_plugin_page_stash($plugin) } );
+        $c->stash( %{ $c->_plugin_page_stash( $plugin, $plugin->latest_published_version // $plugin->latest_version ) } );
         $c->stash( errors => ['All fields are required.'], form_values => \%fields );
         return $c->render('plugins/show');
     }
