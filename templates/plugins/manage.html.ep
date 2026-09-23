@@ -1,0 +1,93 @@
+% my $plugin          = stash 'plugin';
+% my $versions        = stash 'versions';
+% my $github_releases = stash('github_releases') || [];
+% my %tier_badge = ( CERTIFIED => 'text-bg-success', STRUCTURAL => 'text-bg-warning', INCOMPLETE => 'text-bg-danger' );
+% title 'Manage releases -- ' . $plugin->name;
+% layout 'default';
+
+% content_for 'sidebar' => begin
+  <ul class="list-group mb-3">
+    %= link_to '/plugins/'.$plugin->slug => (class => 'list-group-item list-group-item-action') => begin
+      Overview
+    % end
+    <li class="list-group-item active">Manage releases</li>
+  </ul>
+% end
+
+<h2>Manage releases &mdash; <%= $plugin->name %></h2>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Tag</th>
+      <th>Version</th>
+      <th>Status</th>
+      <th>Certification</th>
+      <th>Signed</th>
+    </tr>
+  </thead>
+  <tbody>
+    % for my $version (@$versions) {
+    <tr>
+      %= t td => $version->tag_name
+      %= t td => ($version->version || '-')
+      %= t td => $version->status
+      <td>
+        % if ($version->certification_tier) {
+          <span class="badge <%= $tier_badge{$version->certification_tier} || 'text-bg-secondary' %>"><%= $version->certification_tier %></span>
+        % }
+      </td>
+      <td>
+        % if ($version->signature) {
+          <span class="badge text-bg-info">Signed</span>
+        % }
+      </td>
+    </tr>
+    % }
+  </tbody>
+</table>
+
+<p class="text-muted small">
+  Every published version is signed automatically -- this confirms the file hasn't been altered
+  since the store inspected it. It is not a safety or quality check; see each version's own page
+  for its full technical report.
+</p>
+
+<h3>Releases from <i class='bx bxl-github'></i> github:</h3>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Tag name</th>
+      <th>Published at</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    % for my $release (@$github_releases) {
+      % if ($release->{message}->{success}) {
+      <tr class="text-success">
+      % } elsif ($release->{message}->{error}) {
+      <tr class="text-danger">
+      % } else {
+      <tr>
+      % }
+        %= t td => $release->{name}
+        %= t td => $release->{tag_name}
+        %= t td => $release->{published_at}
+        % if ($release->{message}->{success}) {
+        %= t td => $release->{message}->{success}
+        % } elsif ($release->{message}->{error}) {
+        %= t td => $release->{message}->{error}
+        % } else {
+        %= t td => form_for '/new-release' => (method => 'POST') => begin
+          %= csrf_field
+          <input type="hidden" name="plugin_id" value="<%= $plugin->id %>">
+          <input type="hidden" name="tag_name" value="<%= $release->{tag_name} %>">
+          <button type="submit" class="btn btn-primary">Add this release</button>
+        % end
+        % }
+      </tr>
+    % }
+  </tbody>
+</table>

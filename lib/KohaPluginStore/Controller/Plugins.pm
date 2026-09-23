@@ -160,6 +160,42 @@ sub show_version ($c) {
     $c->render('plugins/show');
 }
 
+sub manage ($c) {
+    my $slug = $c->param('slug');
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { slug => $slug } );
+    return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
+
+    my $is_owner = $c->session->{developer} && $c->session->{developer}->{id} == $plugin->developer_id ? 1 : 0;
+    return $c->render( text => 'Plugin not found', status => 404 ) unless $is_owner;
+
+    my @versions = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->search(
+        { plugin_id => $plugin->id }, { order_by => { -desc => 'id' } }
+    );
+
+    my $config          = $c->app->plugin('Config');
+    my $github_releases = KohaPluginStore::GitHub::fetch_releases( $config->{github_app_token}, $plugin->repo_url );
+    my $existing_tags   = { map { $_->tag_name => 1 } @versions };
+
+    foreach my $release (@$github_releases) {
+        if ( $existing_tags->{ $release->{tag_name} } ) {
+            $release->{message}->{success} = 'Release has already been submitted.';
+            next;
+        }
+        my @kpz_assets = grep { $_->{name} =~ /\.kpz$/ } @{ $release->{assets} };
+        if ( scalar @kpz_assets != 1 ) {
+            $release->{message}->{error} = 'Release must contain one and only one \'.kpz\' asset.';
+        }
+    }
+
+    $c->stash(
+        plugin          => $plugin,
+        versions        => \@versions,
+        github_releases => $github_releases,
+    );
+    $c->render('plugins/manage');
+}
+
 sub update_plugin ($c) {
     my $slug = $c->param('slug');
 
