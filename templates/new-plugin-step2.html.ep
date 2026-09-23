@@ -4,10 +4,6 @@
 % my $plugin_repo = stash 'plugin_repo';
 % my $releases = stash 'releases';
 
-% content_for 'sidebar' => begin
-  %= include 'partial/side_menu'
-% end
-
 <h2><%= title %></h2>
 
 % if ($errors) {

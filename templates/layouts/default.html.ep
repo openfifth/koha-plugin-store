@@ -36,12 +36,17 @@
               <li><a class="dropdown-item text-danger" href="/logout"><i class='bx bx-log-out'></i> Log Out</a></li>
             </ul>
           </div>
+        % } else {
+          %= link_to '/login' => (class => 'link-underline link-underline-opacity-0 text-white') => begin
+            <i class='bx bx-log-in'></i> Developer login
+          % end
         % }
         </div>
       </div>
     </nav>
 
     <div class="container">
+    % if (content('sidebar') ne '') {
       <div class="row">
         <div id="sidebar" class="col-md-3 mt-4">
           %= content 'sidebar'
@@ -50,8 +55,13 @@
           %= content
         </div>
       </div>
+    % } else {
+      <div id="main" class="mt-4">
+        %= content
+      </div>
+    % }
     </div>
-    %= content 'footer'
+    %= include 'partial/footer'
     %= content 'end'
     <div id="overlay">
       <div class="cv-spinner">

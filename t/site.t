@@ -38,10 +38,15 @@ subtest 'anonymous visitor has no account menu; logged-in developer does, linkin
     $t->get_ok('/logout');
 };
 
-subtest 'sidebar nav links to Browse Plugins and Plugin developers' => sub {
+subtest 'footer links to Plugin developers and Verification key; the old Browse Plugins link is gone' => sub {
     $t->get_ok('/')
-      ->element_exists('#sidebar a[href="/"]')
-      ->element_exists('#sidebar a[href="/developers"]');
+      ->element_exists('footer a[href="/developers"]')
+      ->element_exists('footer a[href="/verification-key"]')
+      ->content_unlike(qr/Browse Plugins/);
+};
+
+subtest 'a page with no sidebar content renders full-width, with no empty #sidebar column' => sub {
+    $t->get_ok('/')->element_exists_not('#sidebar');
 };
 
 subtest 'developer login link is labeled for developers, not librarians' => sub {

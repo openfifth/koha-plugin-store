@@ -1,0 +1,5 @@
+<footer class="mt-5 py-4 border-top text-center text-muted small">
+  <div class="container">
+    <a href="/developers">For developers</a> &middot; <a href="/verification-key">Verification key</a>
+  </div>
+</footer>

@@ -1,10 +1,6 @@
 % title "Verification key";
 % layout 'default';
 
-% content_for 'sidebar' => begin
-  %= include 'partial/side_menu'
-% end
-
 <h2>Verification key</h2>
 
 % if ($public_key) {

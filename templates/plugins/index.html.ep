@@ -3,10 +3,6 @@
 
 % my %tier_badge = ( CERTIFIED => 'text-bg-success', STRUCTURAL => 'text-bg-warning', INCOMPLETE => 'text-bg-danger' );
 
-% content_for 'sidebar' => begin
-  %= include 'partial/side_menu'
-% end
-
 <h2><%= title %></h2>
 
 %= form_for '/' => (method => 'GET', class => 'row g-2 mb-4') => begin

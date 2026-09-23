@@ -1,10 +1,6 @@
 % title "Koha Plugin Store";
 % layout 'default';
 
-% content_for 'sidebar' => begin
-  %= include 'partial/side_menu'
-% end
-
 % if (logged_in_user) {
   <div class="d-flex align-items-center mb-4">
     % if (logged_in_user->avatar_url) {
