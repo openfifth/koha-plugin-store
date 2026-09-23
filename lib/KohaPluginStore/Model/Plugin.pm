@@ -40,12 +40,19 @@ sub latest_published_version {
     return $version;
 }
 
+sub slugify {
+    my ($string) = @_;
+
+    my $slug = lc( $string // '' );
+    $slug =~ s/[^a-z0-9]+/-/g;
+    $slug =~ s/^-+|-+$//g;
+    return $slug;
+}
+
 sub create_with_unique_slug {
     my ( $self, $slug_source, $attrs ) = @_;
 
-    my $base = lc($slug_source);
-    $base =~ s/[^a-z0-9]+/-/g;
-    $base =~ s/^-+|-+$//g;
+    my $base = slugify($slug_source);
 
     for my $attempt ( 1 .. 10 ) {
         my $candidate = $attempt == 1 ? $base : "$base-$attempt";

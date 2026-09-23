@@ -32,6 +32,12 @@ subtest 'create_with_unique_slug normalizes the source string' => sub {
     is( $plugin->slug, 'koha-plugin-coverflow', 'non-alphanumeric runs collapse to single hyphens' );
 };
 
+subtest 'slugify normalizes a string the same way create_with_unique_slug does' => sub {
+    is( KohaPluginStore::Model::Plugin::slugify('Koha_Plugin!! Coverflow'), 'koha-plugin-coverflow' );
+    is( KohaPluginStore::Model::Plugin::slugify('  Jane Doe  '), 'jane-doe' );
+    is( KohaPluginStore::Model::Plugin::slugify(undef), '', 'undef input returns empty string, not a die' );
+};
+
 subtest 'create_with_unique_slug retries on collision' => sub {
     reset_db();
     my $first = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
