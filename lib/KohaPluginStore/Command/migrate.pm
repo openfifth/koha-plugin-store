@@ -175,3 +175,9 @@ ALTER TABLE plugins ADD COLUMN issue_tracker_url TEXT;
 -- 8 down
 ALTER TABLE plugins DROP COLUMN issue_tracker_url;
 ALTER TABLE plugins DROP COLUMN readme_html;
+
+-- 9 up
+ALTER TABLE plugins ADD COLUMN changelog_html TEXT;
+
+-- 9 down
+ALTER TABLE plugins DROP COLUMN changelog_html;

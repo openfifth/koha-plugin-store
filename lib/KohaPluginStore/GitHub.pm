@@ -139,6 +139,23 @@ sub _get_readme {
     );
 }
 
+# Tries CHANGELOG.md first (the more common convention), then CHANGES.md. Reuses
+# _get_readme's pre-rendered-HTML Accept header via GitHub's Contents API, which
+# (unlike the README-specific /readme endpoint) renders *any* markdown file at a
+# given path to HTML when asked for the same media type.
+sub fetch_changelog_html {
+    my ( $access_token, $owner_repo ) = @_;
+
+    my $api_repo = $owner_repo =~ s{^https://github\.com/}{https://api.github.com/repos/}r;
+
+    for my $filename (qw(CHANGELOG.md CHANGES.md)) {
+        my $tx = _get_readme( "$api_repo/contents/$filename", $access_token );
+        return $tx->result->body if $tx->result->code == 200;
+    }
+
+    return;
+}
+
 # An annotated tag (`git tag -a`/`-s`) has its own tag object with its own
 # signature, separate from the commit it points at -- a GPG-signed tag
 # pointing at an otherwise-unsigned commit is common and valid. GitHub's

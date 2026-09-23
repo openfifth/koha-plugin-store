@@ -830,4 +830,75 @@ subtest 'a failed README fetch does not fail processing and leaves any existing 
     is( $reloaded_plugin->readme_html, '<p>Old readme</p>', 'prior readme_html is left untouched, not wiped' );
 };
 
+subtest 'successful processing fetches and stores the changelog HTML' => sub {
+    reset_db();
+    my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => '1', username => 'dev' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $developer->id }
+    );
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', kpz_url => 'https://example.com/widget.kpz', status => 'submitted' }
+    );
+
+    my $fixture_zip = make_kpz($valid_plugin_pm);
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::download_kpz = sub {
+        my ( $token, $url, $dest_path ) = @_;
+        copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
+        return 1;
+    };
+    *KohaPluginStore::GitHub::fetch_contributors       = sub { return []; };
+    *KohaPluginStore::GitHub::fetch_tag_has_test_files = sub { return 0 };
+    *KohaPluginStore::GitHub::fetch_readme_html        = sub { return undef };
+    *KohaPluginStore::GitHub::fetch_changelog_html     = sub { return '<h2>1.0.0</h2><p>Initial release.</p>'; };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker  = sub { return { passed => 1, message => undef } };
+
+    $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
+    $t->app->minion->perform_jobs_in_foreground;
+
+    my $reloaded_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    is( $reloaded_plugin->changelog_html, '<h2>1.0.0</h2><p>Initial release.</p>', 'changelog_html populated from the fetch' );
+};
+
+subtest 'a failed changelog fetch does not fail processing and leaves any existing changelog_html untouched' => sub {
+    reset_db();
+    my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => '1', username => 'dev' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $developer->id, changelog_html => '<p>Old changelog</p>' }
+    );
+    my $version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, tag_name => 'v1.0.0', kpz_url => 'https://example.com/widget.kpz', status => 'submitted' }
+    );
+
+    my $fixture_zip = make_kpz($valid_plugin_pm);
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::download_kpz = sub {
+        my ( $token, $url, $dest_path ) = @_;
+        copy( $fixture_zip, $dest_path ) or die "copy failed: $!";
+        return 1;
+    };
+    *KohaPluginStore::GitHub::fetch_contributors       = sub { return []; };
+    *KohaPluginStore::GitHub::fetch_tag_has_test_files = sub { return 0 };
+    *KohaPluginStore::GitHub::fetch_readme_html        = sub { return undef };
+    *KohaPluginStore::GitHub::fetch_changelog_html     = sub { die "network error\n" };
+    *KohaPluginStore::Check::PerlSyntax::_call_broker  = sub { return { passed => 1, message => undef } };
+
+    $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
+    $t->app->minion->perform_jobs_in_foreground;
+
+    my $reloaded_version = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->find( { id => $version->id } );
+    is( $reloaded_version->status, 'published', 'processing still succeeds despite the changelog fetch dying' );
+
+    my $reloaded_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    is( $reloaded_plugin->changelog_html, '<p>Old changelog</p>', 'prior changelog_html is left untouched, not wiped' );
+};
+
 done_testing();

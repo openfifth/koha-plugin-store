@@ -345,4 +345,65 @@ subtest 'fetch_readme_html still makes a request with no token configured' => su
     is( $seen_args[0][1], undef, 'with no token' );
 };
 
+subtest 'fetch_changelog_html tries CHANGELOG.md first and returns its HTML body on success' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    my @seen_paths;
+    *KohaPluginStore::GitHub::_get_readme = sub {
+        my ($url) = @_;
+        push @seen_paths, $url;
+        my $res = Mojo::Message::Response->new;
+        $res->code(200);
+        $res->body('<h2>1.0.0</h2><p>Initial release.</p>');
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    is(
+        KohaPluginStore::GitHub::fetch_changelog_html( 'token', 'https://github.com/dev/widget' ),
+        '<h2>1.0.0</h2><p>Initial release.</p>',
+        'raw pre-rendered HTML returned as-is'
+    );
+    is( $seen_paths[0], 'https://api.github.com/repos/dev/widget/contents/CHANGELOG.md', 'CHANGELOG.md tried first' );
+    is( scalar @seen_paths, 1, 'stops after the first successful path' );
+};
+
+subtest 'fetch_changelog_html falls back to CHANGES.md when CHANGELOG.md is missing' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    my @seen_paths;
+    *KohaPluginStore::GitHub::_get_readme = sub {
+        my ($url) = @_;
+        push @seen_paths, $url;
+        my $res = Mojo::Message::Response->new;
+        $res->code( $url =~ /CHANGES\.md/ ? 200 : 404 );
+        $res->body('<h2>1.0.0</h2>') if $url =~ /CHANGES\.md/;
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    is(
+        KohaPluginStore::GitHub::fetch_changelog_html( 'token', 'https://github.com/dev/widget' ),
+        '<h2>1.0.0</h2>'
+    );
+    is_deeply(
+        \@seen_paths,
+        [
+            'https://api.github.com/repos/dev/widget/contents/CHANGELOG.md',
+            'https://api.github.com/repos/dev/widget/contents/CHANGES.md',
+        ],
+        'both paths tried, in order'
+    );
+};
+
+subtest 'fetch_changelog_html returns undef when neither file exists' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get_readme = sub {
+        my $res = Mojo::Message::Response->new;
+        $res->code(404);
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    is( KohaPluginStore::GitHub::fetch_changelog_html( 'token', 'https://github.com/dev/widget' ), undef );
+};
+
 done_testing();

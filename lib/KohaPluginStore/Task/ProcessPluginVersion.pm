@@ -155,7 +155,8 @@ sub run {
         sha256_hex(<$fh>);
     };
 
-    my $readme_html = eval { KohaPluginStore::GitHub::fetch_readme_html( $token, $plugin->repo_url ) };
+    my $readme_html    = eval { KohaPluginStore::GitHub::fetch_readme_html( $token, $plugin->repo_url ) };
+    my $changelog_html = eval { KohaPluginStore::GitHub::fetch_changelog_html( $token, $plugin->repo_url ) };
 
     $plugin->update(
         {
@@ -163,7 +164,8 @@ sub run {
             description => $metadata->{description},
             author      => $metadata->{author},
             class_name  => $plugin_class_name,
-            ( defined $readme_html ? ( readme_html => $readme_html ) : () ),
+            ( defined $readme_html    ? ( readme_html    => $readme_html )    : () ),
+            ( defined $changelog_html ? ( changelog_html => $changelog_html ) : () ),
         }
     );
 
