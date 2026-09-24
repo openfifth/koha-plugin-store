@@ -480,4 +480,36 @@ subtest 'fetch_collaborator_permission reports not ok on a rate-limit/error resp
     );
 };
 
+subtest 'kpz_assets counts in scalar context, returns the matching assets in list context' => sub {
+    my $release = {
+        assets => [
+            { name => 'README.md',  browser_download_url => 'https://example.com/README.md' },
+            { name => 'plugin.kpz', browser_download_url => 'https://example.com/plugin.kpz' },
+        ],
+    };
+    is( scalar KohaPluginStore::GitHub::kpz_assets($release), 1, 'scalar context returns a count' );
+
+    my @assets = KohaPluginStore::GitHub::kpz_assets($release);
+    is( scalar @assets, 1, 'list context returns the matching assets' );
+    is( $assets[0]->{browser_download_url}, 'https://example.com/plugin.kpz' );
+};
+
+subtest 'new_releases excludes already-submitted tags and releases without exactly one .kpz asset' => sub {
+    my $releases = [
+        { tag_name => 'v1.0.0', assets => [ { name => 'plugin.kpz', browser_download_url => 'https://example.com/v1.kpz' } ] },
+        { tag_name => 'v2.0.0', assets => [ { name => 'plugin.kpz', browser_download_url => 'https://example.com/v2.kpz' } ] },
+        { tag_name => 'v3.0.0', assets => [] },
+        { tag_name => 'v4.0.0', assets => [
+            { name => 'plugin.kpz', browser_download_url => 'https://example.com/v4a.kpz' },
+            { name => 'plugin2.kpz', browser_download_url => 'https://example.com/v4b.kpz' },
+        ] },
+    ];
+    my $existing_tags = { 'v1.0.0' => 1 };
+
+    my $eligible = KohaPluginStore::GitHub::new_releases( $releases, $existing_tags );
+
+    is( scalar @$eligible, 1, 'only one release is both new and has exactly one .kpz asset' );
+    is( $eligible->[0]->{tag_name}, 'v2.0.0' );
+};
+
 done_testing();

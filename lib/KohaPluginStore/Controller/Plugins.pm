@@ -205,7 +205,7 @@ sub manage ($c) {
             $release->{message}->{success} = 'Release has already been submitted.';
             next;
         }
-        if ( _kpz_assets($release) != 1 ) {
+        if ( KohaPluginStore::GitHub::kpz_assets($release) != 1 ) {
             $release->{message}->{error} = 'Release must contain one and only one \'.kpz\' asset.';
         }
     }
@@ -401,7 +401,7 @@ sub new_plugin ($c) {
         unless @$releases;
 
     for my $release (@$releases) {
-        my $kpz_count = _kpz_assets($release);
+        my $kpz_count = KohaPluginStore::GitHub::kpz_assets($release);
         if ( $kpz_count == 1 ) {
             $release->{eligible} = 1;
         }
@@ -439,7 +439,7 @@ sub new_plugin_confirm ($c) {
     return $c->_exit_with_error_message('Could not re-fetch that release from GitHub. Please try again.')
         unless $release;
 
-    my @kpz_assets = _kpz_assets($release);
+    my @kpz_assets = KohaPluginStore::GitHub::kpz_assets($release);
     return $c->_exit_with_error_message(
         'Release must contain one and only one \'.kpz\' asset. Found: ' . scalar @kpz_assets )
         unless scalar @kpz_assets == 1;
@@ -565,7 +565,7 @@ sub bulk_import ($c) {
                 KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->search( { plugin_id => $existing_plugin->id } )
             : ();
 
-        my ($release) = grep { !$existing_tags{ $_->{tag_name} } && _kpz_assets($_) == 1 } @$releases;
+        my ($release) = @{ KohaPluginStore::GitHub::new_releases( $releases, \%existing_tags ) };
         unless ($release) {
             push @results, {
                 repo_url => $plugin_repo, plugin => $existing_plugin,
@@ -577,7 +577,7 @@ sub bulk_import ($c) {
             next;
         }
 
-        my @kpz_assets = _kpz_assets($release);
+        my @kpz_assets = KohaPluginStore::GitHub::kpz_assets($release);
 
         my $plugin = $existing_plugin;
         unless ($plugin) {
@@ -625,14 +625,6 @@ sub bulk_import ($c) {
 
     $c->stash( results => \@results );
     $c->render('new-plugin-bulk-results');
-}
-
-# The store only accepts a release packaged as exactly one file -- callers
-# decide what "exactly one" vs "zero or several" means for them (a Perl
-# grep, so scalar context returns a count, list context the matching assets).
-sub _kpz_assets {
-    my ($release) = @_;
-    return grep { $_->{name} =~ /\.kpz$/ } @{ $release->{assets} };
 }
 
 sub _exit_with_error_message {

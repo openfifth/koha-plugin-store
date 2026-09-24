@@ -72,6 +72,22 @@ sub fetch_releases {
     return [ map { _trim_release($_) } @{ $tx->result->json } ];
 }
 
+# The store only accepts a release packaged as exactly one file -- callers
+# decide what "exactly one" vs "zero or several" means for them (a Perl
+# grep, so scalar context returns a count, list context the matching assets).
+sub kpz_assets {
+    my ($release) = @_;
+    return grep { $_->{name} =~ /\.kpz$/ } @{ $release->{assets} };
+}
+
+# Returns the subset of $releases (as returned by fetch_releases) that are
+# both new (tag not in $existing_tags) and carry exactly one '.kpz' asset --
+# the same eligibility rule a manual submission already enforces.
+sub new_releases {
+    my ( $releases, $existing_tags ) = @_;
+    return [ grep { !$existing_tags->{ $_->{tag_name} } && kpz_assets($_) == 1 } @$releases ];
+}
+
 sub fetch_release_by_tag {
     my ( $access_token, $owner_repo, $tag_name ) = @_;
 
