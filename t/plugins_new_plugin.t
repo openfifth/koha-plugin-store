@@ -281,4 +281,73 @@ subtest 'someone with no real GitHub access to an already-claimed repo still get
     $t->get_ok('/logout');
 };
 
+subtest 'checking "keep private" at submission creates the plugin as private' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::fetch_all_repos = sub {
+        return [ { html_url => 'https://github.com/dev/widget', full_name => 'dev/widget' } ];
+    };
+    *KohaPluginStore::GitHub::fetch_release_by_tag = sub {
+        return {
+            tag_name => 'v1.0.0', name => 'v1.0.0', published_at => '2026-01-01T00:00:00Z',
+            author   => { login => 'octocat', avatar_url => 'https://example.com/a.png' },
+            assets   => [ { name => 'plugin.kpz', browser_download_url => 'https://example.com/plugin.kpz' } ],
+        };
+    };
+
+    $t->post_ok(
+        '/new-plugin-confirm' => form => {
+            plugin_repo => 'https://github.com/dev/widget',
+            tag_name    => 'v1.0.0',
+            is_private  => 1,
+            csrf_token  => csrf_token($t),
+        }
+    )->status_is(302);
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { repo_url => 'https://github.com/dev/widget' } );
+    ok( $plugin, 'the plugin was created' );
+    ok( $plugin->is_private, 'it was created as private' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'leaving "keep private" unchecked at submission creates the plugin as public' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::fetch_all_repos = sub {
+        return [ { html_url => 'https://github.com/dev/widget', full_name => 'dev/widget' } ];
+    };
+    *KohaPluginStore::GitHub::fetch_release_by_tag = sub {
+        return {
+            tag_name => 'v1.0.0', name => 'v1.0.0', published_at => '2026-01-01T00:00:00Z',
+            author   => { login => 'octocat', avatar_url => 'https://example.com/a.png' },
+            assets   => [ { name => 'plugin.kpz', browser_download_url => 'https://example.com/plugin.kpz' } ],
+        };
+    };
+
+    $t->post_ok(
+        '/new-plugin-confirm' => form => {
+            plugin_repo => 'https://github.com/dev/widget',
+            tag_name    => 'v1.0.0',
+            csrf_token  => csrf_token($t),
+        }
+    )->status_is(302);
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { repo_url => 'https://github.com/dev/widget' } );
+    ok( $plugin, 'the plugin was created' );
+    ok( !$plugin->is_private, 'it defaults to public when the checkbox is not sent (true unchecked-checkbox behavior)' );
+
+    $t->get_ok('/logout');
+};
+
 done_testing();

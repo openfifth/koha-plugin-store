@@ -506,6 +506,7 @@ sub new_plugin_confirm ($c) {
             {
                 repo_url     => $plugin_repo,
                 developer_id => $developer_id,
+                is_private   => $c->param('is_private') ? 1 : 0,
             }
         );
         KohaPluginStore::Model::PluginMaintainer->new( pg => $c->pg )->grant(
