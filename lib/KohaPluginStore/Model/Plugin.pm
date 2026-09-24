@@ -5,6 +5,7 @@ use KohaPluginStore::Model::Base;
 use parent -norequire, 'KohaPluginStore::Model::Base';
 
 use KohaPluginStore::Model::PluginVersion;
+use KohaPluginStore::Model::PluginMaintainer;
 
 sub _table {
     return 'plugins';
@@ -62,6 +63,33 @@ sub create_with_unique_slug {
     }
 
     die "Could not generate a unique slug for '$slug_source' after 10 attempts";
+}
+
+sub is_maintained_by {
+    my ( $self, $developer_id ) = @_;
+
+    return 0 unless $developer_id;
+    return 1 if $self->developer_id && $self->developer_id == $developer_id;
+
+    return KohaPluginStore::Model::PluginMaintainer->new( pg => $self->pg )
+      ->find( { plugin_id => $self->id, developer_id => $developer_id } ) ? 1 : 0;
+}
+
+sub for_developer {
+    my ( $self, $developer_id ) = @_;
+
+    my $rows = $self->pg->db->query(
+        q{
+            SELECT DISTINCT p.*
+            FROM plugins p
+            LEFT JOIN plugin_maintainers pm ON pm.plugin_id = p.id
+            WHERE p.developer_id = ? OR pm.developer_id = ?
+            ORDER BY p.name
+        },
+        $developer_id, $developer_id
+    )->hashes;
+
+    return [ map { $self->_new_from_row($_) } @$rows ];
 }
 
 sub search_by_author_slug {

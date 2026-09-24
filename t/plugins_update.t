@@ -9,6 +9,7 @@ use CsrfHelper qw(csrf_token);
 
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::Developer;
+use KohaPluginStore::Model::PluginMaintainer;
 
 reset_db();
 
@@ -186,6 +187,36 @@ subtest 'a non-http(s) issue_tracker_url is rejected and not persisted' => sub {
 
     my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
     is( $reloaded->issue_tracker_url, undef, 'issue_tracker_url was not changed' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a granted maintainer (not the original owner) can update the plugin' => sub {
+    reset_db();
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'owner6', username => 'owner6' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget6', { name => 'Widget', description => 'Original', repo_url => 'https://github.com/dev/widget6', author => 'Dev', developer_id => $owner->id }
+    );
+
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $mockdev = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $plugin->id, developer_id => $mockdev->id, role => 'maintainer', granted_via => 'github_access' }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/edit' =>
+        form => { name => 'Widget', description => 'Updated by maintainer', repo_url => 'https://github.com/dev/widget6', author => 'Dev', csrf_token => csrf_token($t) } )
+      ->status_is(302);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    is( $reloaded->description, 'Updated by maintainer' );
 
     $t->get_ok('/logout');
 };

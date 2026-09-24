@@ -11,7 +11,7 @@ sub new_release ($c) {
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { id => $plugin_id } );
     return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
     return $c->render( text => 'Unauthorized', status => 401 )
-        unless $c->session->{developer}->{id} == $plugin->developer_id;
+        unless $c->session->{developer} && $plugin->is_maintained_by( $c->session->{developer}->{id} );
 
     # Checked after the ownership check, not before -- see update_plugin's
     # identical comment in Controller::Plugins.

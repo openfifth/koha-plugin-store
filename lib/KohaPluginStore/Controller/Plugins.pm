@@ -48,7 +48,7 @@ sub index {
 sub my_plugins {
     my $c = shift;
 
-    my @plugins = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->search( { developer_id => $c->session->{developer}->{id} } );
+    my @plugins = @{ KohaPluginStore::Model::Plugin->new( pg => $c->pg )->for_developer( $c->session->{developer}->{id} ) };
     $c->stash( my_plugins => \@plugins );
 
     my $template = $c->session->{developer} ? 'my-plugins' : 'unauthorized';
@@ -118,7 +118,7 @@ sub _plugin_page_stash {
         { plugin_id => $plugin->id }, { order_by => { -desc => 'contributions_count' } }
     );
 
-    my $is_owner = $c->session->{developer} && $c->session->{developer}->{id} == $plugin->developer_id ? 1 : 0;
+    my $is_owner = $c->session->{developer} && $plugin->is_maintained_by( $c->session->{developer}->{id} ) ? 1 : 0;
 
     my $still_processing = $current_version
         && ( $current_version->status eq 'submitted' || $current_version->status eq 'checks_running' );
@@ -156,7 +156,7 @@ sub show ($c) {
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { slug => $slug } );
     return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
 
-    my $is_owner = $c->session->{developer} && $c->session->{developer}->{id} == $plugin->developer_id ? 1 : 0;
+    my $is_owner = $c->session->{developer} && $plugin->is_maintained_by( $c->session->{developer}->{id} ) ? 1 : 0;
     my $current_version = $plugin->latest_published_version // ( $is_owner ? $plugin->latest_version : undef );
 
     $c->stash( %{ $c->_plugin_page_stash( $plugin, $current_version ) } );
@@ -175,7 +175,7 @@ sub show_version ($c) {
     );
     return $c->render( text => 'Version not found', status => 404 ) unless $version;
 
-    my $is_owner = $c->session->{developer} && $c->session->{developer}->{id} == $plugin->developer_id ? 1 : 0;
+    my $is_owner = $c->session->{developer} && $plugin->is_maintained_by( $c->session->{developer}->{id} ) ? 1 : 0;
     return $c->render( text => 'Version not found', status => 404 )
         if $version->status ne 'published' && !$is_owner;
 
@@ -189,7 +189,7 @@ sub manage ($c) {
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { slug => $slug } );
     return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
 
-    my $is_owner = $c->session->{developer} && $c->session->{developer}->{id} == $plugin->developer_id ? 1 : 0;
+    my $is_owner = $c->session->{developer} && $plugin->is_maintained_by( $c->session->{developer}->{id} ) ? 1 : 0;
     return $c->render( text => 'Plugin not found', status => 404 ) unless $is_owner;
 
     my @versions = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->search(
@@ -224,7 +224,7 @@ sub update_plugin ($c) {
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { slug => $slug } );
     return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
     return $c->render( text => 'Unauthorized', status => 401 )
-        unless $c->session->{developer} && $c->session->{developer}->{id} == $plugin->developer_id;
+        unless $c->session->{developer} && $plugin->is_maintained_by( $c->session->{developer}->{id} );
 
     # Checked after the ownership check, not before -- an unauthenticated or
     # non-owner request is already rejected on its own merits above, and a

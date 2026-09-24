@@ -9,6 +9,7 @@ use TestDB qw(reset_db test_app test_pg);
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
 use KohaPluginStore::Model::Developer;
+use KohaPluginStore::Model::PluginMaintainer;
 
 reset_db();
 
@@ -113,6 +114,37 @@ subtest 'the owner sees every version regardless of status, plus GitHub-sync sec
       ->element_exists('tr.table-success')
       ->element_exists('tr.table-danger');
     is( $fetch_calls, 1 );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a granted maintainer (not the original owner) can reach the manage page' => sub {
+    reset_db();
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'owner5', username => 'owner5' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget5', { repo_url => 'https://github.com/dev/widget5', developer_id => $owner->id }
+    );
+
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');    # mockdev
+    $t->app->config->{oauth_mock} = 0;
+
+    my $mockdev = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $plugin->id, developer_id => $mockdev->id, role => 'maintainer', granted_via => 'github_access' }
+    );
+
+    {
+        no strict 'refs';
+        no warnings 'redefine';
+        *KohaPluginStore::GitHub::fetch_releases = sub { return []; };
+    }
+
+    $t->get_ok( '/plugins/' . $plugin->slug . '/manage' )->status_is(200);
 
     $t->get_ok('/logout');
 };

@@ -6,6 +6,8 @@ use TestDB qw(reset_db test_pg);
 
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
+use KohaPluginStore::Model::PluginMaintainer;
+use KohaPluginStore::Model::Developer;
 
 reset_db();
 
@@ -379,6 +381,67 @@ subtest 'search_by_author_slug groups published plugins by their author string' 
     my $plugins = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->search_by_author_slug('octavia-cat');
     is( scalar @$plugins, 2, 'both differently-cased matches included, unpublished one excluded' );
     is_deeply( [ sort map { $_->name } @$plugins ], [ 'WidgetA', 'WidgetB' ] );
+};
+
+subtest 'is_maintained_by is true for the owner column, without needing a plugin_maintainers row' => sub {
+    reset_db();
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'owner', username => 'owner' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
+    );
+
+    ok( $plugin->is_maintained_by( $owner->id ) );
+};
+
+subtest 'is_maintained_by is true for a plugin_maintainers row, false for anyone else' => sub {
+    reset_db();
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'owner2', username => 'owner2' }
+    );
+    my $maintainer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'maint', username => 'maint' }
+    );
+    my $stranger = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'stranger', username => 'stranger' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget2', { repo_url => 'https://github.com/dev/widget2', developer_id => $owner->id }
+    );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $plugin->id, developer_id => $maintainer->id, role => 'maintainer', granted_via => 'github_access' }
+    );
+
+    ok( $plugin->is_maintained_by( $maintainer->id ), 'a granted maintainer counts' );
+    ok( !$plugin->is_maintained_by( $stranger->id ), 'an unrelated developer does not' );
+    ok( !$plugin->is_maintained_by(undef), 'no developer at all does not' );
+};
+
+subtest 'for_developer lists plugins owned or maintained, no duplicates' => sub {
+    reset_db();
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'owner3', username => 'owner3' }
+    );
+    my $maintainer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'maint3', username => 'maint3' }
+    );
+    my $owned = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'owned-widget', { repo_url => 'https://github.com/dev/owned-widget', developer_id => $owner->id }
+    );
+    my $maintained = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'maintained-widget', { repo_url => 'https://github.com/dev/maintained-widget', developer_id => $owner->id }
+    );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $owned->id, developer_id => $owner->id, role => 'owner', granted_via => 'creator' }
+    );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $maintained->id, developer_id => $maintainer->id, role => 'maintainer', granted_via => 'github_access' }
+    );
+
+    my $plugins = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->for_developer( $maintainer->id );
+    is( scalar @$plugins, 1, 'only the maintained plugin, not the unrelated owned one' );
+    is( $plugins->[0]->slug, 'maintained-widget' );
 };
 
 done_testing();
