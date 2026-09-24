@@ -80,7 +80,35 @@ subtest 'a non-200 response stops pagination and returns what was gathered so fa
     };
 
     my $repos = KohaPluginStore::GitHub::fetch_all_repos('fake-token');
-    is_deeply( $repos, [ { full_name => 'acme/repo1', html_url => 'https://github.com/acme/repo1' } ], 'first page kept' );
+    is_deeply( $repos, [ { full_name => 'acme/repo1', html_url => 'https://github.com/acme/repo1', permissions => undef } ], 'first page kept' );
+};
+
+subtest 'fetch_all_repos captures each repo\'s permissions object' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get = sub {
+        my $res = Mojo::Message::Response->new;
+        $res->code(200);
+        $res->body( Mojo::JSON::encode_json( [
+            {
+                full_name   => 'octocat/Hello-World',
+                html_url    => 'https://github.com/octocat/Hello-World',
+                permissions => { admin => 0, maintain => 0, push => 1, triage => 1, pull => 1 },
+            },
+        ] ) );
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    my $repos = KohaPluginStore::GitHub::fetch_all_repos('token');
+    is( scalar @$repos, 1 );
+    is_deeply(
+        $repos->[0],
+        {
+            full_name   => 'octocat/Hello-World',
+            html_url    => 'https://github.com/octocat/Hello-World',
+            permissions => { admin => 0, maintain => 0, push => 1, triage => 1, pull => 1 },
+        }
+    );
 };
 
 subtest '_auth_header omits Authorization when no usable token is configured' => sub {

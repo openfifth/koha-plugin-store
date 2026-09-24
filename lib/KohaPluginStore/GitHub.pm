@@ -25,7 +25,7 @@ sub fetch_all_repos {
         my $batch = $tx->result->json;
         last unless $batch && @$batch;
 
-        push @repos, map { { full_name => $_->{full_name}, html_url => $_->{html_url} } } @$batch;
+        push @repos, map { { full_name => $_->{full_name}, html_url => $_->{html_url}, permissions => $_->{permissions} } } @$batch;
 
         last if @$batch < $PER_PAGE;
     }
