@@ -8,6 +8,11 @@
 <h2><%= title %></h2>
 
 <p>
+  Have several plugins on GitHub already?
+  <a href="/new-plugin/bulk">Import your whole catalog at once &rarr;</a>
+</p>
+
+<p>
 %= form_for 'new-plugin' => (method => 'POST', id => 'new_plugin_form') => begin
   %= csrf_field
   <div class="mb-3">

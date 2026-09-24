@@ -1,0 +1,39 @@
+% title "Import results";
+% layout 'default';
+
+<h2><%= title %></h2>
+
+% if (!@$results) {
+<p>No repositories were selected.</p>
+% } else {
+<table class="table">
+  <thead>
+    <tr><th>Repository</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    % for my $result (@$results) {
+    <tr>
+      %= t td => ( $result->{repo_url} =~ s{^https://github\.com/}{}r )
+      <td>
+        % if ($result->{status} eq 'submitted') {
+        <span class="text-success">Submitted</span>
+        % } elsif ($result->{status} eq 'synced') {
+        <span class="text-success">Synced new release <%= $result->{tag_name} %></span>
+        % } elsif ($result->{status} eq 'up_to_date') {
+        <span class="text-muted"><%= $result->{message} %></span>
+        % } else {
+        <span class="text-danger"><%= $result->{message} %></span>
+        % }
+        % if ($result->{plugin}) {
+        &mdash; <a href="/plugins/<%= $result->{plugin}->slug %>">view</a>
+        % }
+      </td>
+    </tr>
+    % }
+  </tbody>
+</table>
+% }
+
+%= link_to '/new-plugin/bulk' => (class => 'btn btn-outline-secondary') => begin
+  Import more
+% end

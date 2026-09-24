@@ -1,0 +1,89 @@
+% title "Import your plugin catalog";
+% layout 'default';
+
+<h2><%= title %></h2>
+<p>
+  Select every repository you'd like to submit or sync at once. A repo already
+  submitted here gets checked for a newer release instead of a duplicate
+  plugin entry. Repos with no release containing exactly one <code>.kpz</code>
+  asset are skipped automatically -- see the
+  <a href="/developers/checks">certification checks guide</a> for what makes a
+  release eligible.
+</p>
+
+%= form_for '/new-plugin/bulk' => (method => 'POST', id => 'bulk_import_form') => begin
+  %= csrf_field
+
+  % if (@$repos) {
+  <div class="mb-3">
+    <label for="repo_filter" class="form-label">Filter by name</label>
+    <input type="text" class="form-control" id="repo_filter" placeholder="e.g. koha_plugin" autocomplete="off">
+  </div>
+
+  <div class="form-check mb-2">
+    <input type="checkbox" class="form-check-input" id="select_all_visible">
+    <label class="form-check-label" for="select_all_visible">Select all shown</label>
+  </div>
+
+  <div class="mb-3 border rounded p-2" id="repo_checklist" style="max-height: 400px; overflow-y: auto;">
+    % for my $repo (@$repos) {
+    % my $checkbox_id = 'repo_' . ( $repo->{full_name} =~ s/\W+/_/gr );
+    <div class="form-check repo-row" data-repo-name="<%= lc $repo->{full_name} %>">
+      <input type="checkbox" class="form-check-input" name="plugin_repos" value="<%= $repo->{html_url} %>" id="<%= $checkbox_id %>">
+      <label class="form-check-label" for="<%= $checkbox_id %>"><%= $repo->{full_name} %></label>
+    </div>
+    % }
+  </div>
+  <div class="form-text mb-3">
+    Repo list last refreshed <%= $repos_fetched_at %>.
+  </div>
+  % } else {
+  <p class="text-danger">No public GitHub repositories found for your account.</p>
+  % }
+
+  <div class="mb-3">
+    <input required type="checkbox" class="form-check-input" name="author_confirm" id="author_confirm">
+    <label class="form-check-label" for="author_confirm">I am the author of every repository selected above</label>
+  </div>
+  <div class="mb-3">
+    <input required type="checkbox" class="form-check-input" name="tos_confirm" id="tos">
+    <label class="form-check-label" for="tos">I agree to the <a href="#">terms of service</a></label>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Import selected</button>
+% end
+
+% content_for 'end' => begin
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var filterInput = document.getElementById('repo_filter');
+      var selectAll    = document.getElementById('select_all_visible');
+      var rows         = document.querySelectorAll('#repo_checklist .repo-row');
+
+      function visibleRows() {
+        return Array.prototype.filter.call(rows, function (row) {
+          return row.style.display !== 'none';
+        });
+      }
+
+      if (filterInput) {
+        filterInput.addEventListener('input', function () {
+          var term = filterInput.value.trim().toLowerCase();
+          rows.forEach(function (row) {
+            row.style.display = (!term || row.dataset.repoName.indexOf(term) !== -1) ? '' : 'none';
+          });
+          if (selectAll) { selectAll.checked = false; }
+        });
+      }
+
+      if (selectAll) {
+        selectAll.addEventListener('change', function () {
+          visibleRows().forEach(function (row) {
+            var checkbox = row.querySelector('input[type="checkbox"]');
+            if (checkbox) { checkbox.checked = selectAll.checked; }
+          });
+        });
+      }
+    });
+  </script>
+% end

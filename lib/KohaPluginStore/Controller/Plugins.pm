@@ -58,17 +58,36 @@ sub add_form {
 
     my $template = $c->session->{developer} ? 'new-plugin' : 'unauthorized';
     if ( $template eq 'new-plugin' ) {
-        my $developer = $c->logged_in_user;
-        unless ( defined $developer->data->{cached_repos} ) {
-            my $repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
-            $developer->refresh_cached_repos($repos);
-        }
-        $c->stash(
-            repos            => $developer->cached_repos,
-            repos_fetched_at => $developer->cached_repos_fetched_at,
-        );
+        my ( $repos, $repos_fetched_at ) = $c->_cached_developer_repos;
+        $c->stash( repos => $repos, repos_fetched_at => $repos_fetched_at );
     }
     $c->render($template);
+}
+
+sub bulk_form {
+    my $c = shift;
+
+    my $template = $c->session->{developer} ? 'new-plugin-bulk' : 'unauthorized';
+    if ( $template eq 'new-plugin-bulk' ) {
+        my ( $repos, $repos_fetched_at ) = $c->_cached_developer_repos;
+        $c->stash( repos => $repos, repos_fetched_at => $repos_fetched_at );
+    }
+    $c->render($template);
+}
+
+# Shared by add_form/bulk_form: the developer's own cached GitHub repo list,
+# fetched fresh only if nothing's cached yet -- see refresh_repos for the
+# explicit "fetch again" path.
+sub _cached_developer_repos {
+    my ($c) = @_;
+
+    my $developer = $c->logged_in_user;
+    unless ( defined $developer->data->{cached_repos} ) {
+        my $repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
+        $developer->refresh_cached_repos($repos);
+    }
+
+    return ( $developer->cached_repos, $developer->cached_repos_fetched_at );
 }
 
 sub refresh_repos {
@@ -182,8 +201,7 @@ sub manage ($c) {
             $release->{message}->{success} = 'Release has already been submitted.';
             next;
         }
-        my @kpz_assets = grep { $_->{name} =~ /\.kpz$/ } @{ $release->{assets} };
-        if ( scalar @kpz_assets != 1 ) {
+        if ( _kpz_assets($release) != 1 ) {
             $release->{message}->{error} = 'Release must contain one and only one \'.kpz\' asset.';
         }
     }
@@ -363,14 +381,14 @@ sub new_plugin ($c) {
         unless @$releases;
 
     for my $release (@$releases) {
-        my @kpz_assets = grep { $_->{name} =~ /\.kpz$/ } @{ $release->{assets} };
-        if ( scalar @kpz_assets == 1 ) {
+        my $kpz_count = _kpz_assets($release);
+        if ( $kpz_count == 1 ) {
             $release->{eligible} = 1;
         }
         else {
             $release->{eligible}         = 0;
             $release->{ineligible_reason} =
-                'Release must contain one and only one \'.kpz\' asset. Found: ' . scalar @kpz_assets;
+                'Release must contain one and only one \'.kpz\' asset. Found: ' . $kpz_count;
         }
     }
 
@@ -401,7 +419,7 @@ sub new_plugin_confirm ($c) {
     return $c->_exit_with_error_message('Could not re-fetch that release from GitHub. Please try again.')
         unless $release;
 
-    my @kpz_assets = grep { $_->{name} =~ /\.kpz$/ } @{ $release->{assets} };
+    my @kpz_assets = _kpz_assets($release);
     return $c->_exit_with_error_message(
         'Release must contain one and only one \'.kpz\' asset. Found: ' . scalar @kpz_assets )
         unless scalar @kpz_assets == 1;
@@ -437,6 +455,117 @@ sub new_plugin_confirm ($c) {
     $c->minion->enqueue( process_plugin_version => [ $new_version->id ], { attempts => 3 } );
 
     return $c->redirect_to( '/plugins/' . $plugin->slug );
+}
+
+sub bulk_import ($c) {
+    unless ( $c->session->{developer} ) {
+        return $c->render( text => 'Unauthorized', status => 401 );
+    }
+
+    return $c->render( text => 'Invalid CSRF token', status => 403 )
+        if $c->validation->csrf_protect->has_error('csrf_token');
+
+    my @selected_repos = @{ $c->every_param('plugin_repos') };
+
+    my $developer_repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
+    my %owned_repo = map { $_->{html_url} => 1 } @$developer_repos;
+
+    my $config = $c->app->plugin('Config');
+    my $token  = $config->{github_app_token};
+
+    my @results;
+    for my $plugin_repo (@selected_repos) {
+        unless ( $owned_repo{$plugin_repo} ) {
+            push @results, { repo_url => $plugin_repo, status => 'error', message => 'Not in your list of public GitHub repositories.' };
+            next;
+        }
+
+        my $existing_plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find(
+            { developer_id => $c->session->{developer}->{id}, repo_url => $plugin_repo }
+        );
+
+        my $releases = KohaPluginStore::GitHub::fetch_releases( $token, $plugin_repo );
+        unless ( $releases && @$releases ) {
+            push @results, {
+                repo_url => $plugin_repo, plugin => $existing_plugin, status => 'error',
+                message  => 'Could not fetch releases from GitHub for this repository.',
+            };
+            next;
+        }
+
+        # For an already-submitted repo, only a release not yet recorded as a
+        # version counts as "new" -- this is what makes bulk import double as
+        # a sync for repos the developer submitted individually before.
+        my %existing_tags = $existing_plugin
+            ? map { $_->tag_name => 1 }
+                KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->search( { plugin_id => $existing_plugin->id } )
+            : ();
+
+        my ($release) = grep { !$existing_tags{ $_->{tag_name} } && _kpz_assets($_) == 1 } @$releases;
+        unless ($release) {
+            push @results, {
+                repo_url => $plugin_repo, plugin => $existing_plugin,
+                status   => $existing_plugin ? 'up_to_date' : 'error',
+                message  => $existing_plugin
+                    ? 'No new release since the last import.'
+                    : 'No release with exactly one \'.kpz\' asset was found.',
+            };
+            next;
+        }
+
+        my @kpz_assets = _kpz_assets($release);
+
+        my $plugin = $existing_plugin;
+        unless ($plugin) {
+            my ($repo_name) = $plugin_repo =~ m{([^/]+)/?$};
+            $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->create_with_unique_slug(
+                $repo_name,
+                { repo_url => $plugin_repo, developer_id => $c->session->{developer}->{id} }
+            );
+        }
+
+        my $new_version = eval {
+            KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->create(
+                {
+                    plugin_id         => $plugin->id,
+                    tag_name          => $release->{tag_name},
+                    name              => $release->{name},
+                    date_released     => $release->{published_at},
+                    kpz_url           => $kpz_assets[0]->{browser_download_url},
+                    author_username   => $release->{author}->{login},
+                    author_avatar_url => $release->{author}->{avatar_url},
+                    status            => 'submitted',
+                }
+            );
+        };
+        unless ($new_version) {
+            push @results, {
+                repo_url => $plugin_repo, plugin => $plugin, status => 'error',
+                message  => 'Could not record this release -- please try it individually from /new-plugin.',
+            };
+            next;
+        }
+
+        $c->minion->enqueue( process_plugin_version => [ $new_version->id ], { attempts => 3 } );
+
+        push @results, {
+            repo_url => $plugin_repo,
+            plugin   => $plugin,
+            status   => $existing_plugin ? 'synced' : 'submitted',
+            tag_name => $new_version->tag_name,
+        };
+    }
+
+    $c->stash( results => \@results );
+    $c->render('new-plugin-bulk-results');
+}
+
+# The store only accepts a release packaged as exactly one file -- callers
+# decide what "exactly one" vs "zero or several" means for them (a Perl
+# grep, so scalar context returns a count, list context the matching assets).
+sub _kpz_assets {
+    my ($release) = @_;
+    return grep { $_->{name} =~ /\.kpz$/ } @{ $release->{assets} };
 }
 
 sub _exit_with_error_message {

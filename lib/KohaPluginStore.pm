@@ -136,6 +136,7 @@ sub startup ($self) {
     $r->get('/logout')->to('site#logout');
     $r->get('/my-plugins')->requires( user_authenticated => 1 )->to('plugins#my_plugins');
     $r->get('/new-plugin')->requires( user_authenticated => 1 )->to('plugins#add_form');
+    $r->get('/new-plugin/bulk')->requires( user_authenticated => 1 )->to('plugins#bulk_form');
     $r->post('/developer/repos/refresh')->requires( user_authenticated => 1 )->to('plugins#refresh_repos');
     $r->get('/plugins/:slug')->to('plugins#show');
 
@@ -146,6 +147,7 @@ sub startup ($self) {
     $r->get('/plugins/:slug/manage')->requires( user_authenticated => 1 )->to('plugins#manage');
     $r->post('/plugins/:slug/edit')->to('plugins#update_plugin');
     $r->post('/new-plugin')->to('plugins#new_plugin');
+    $r->post('/new-plugin/bulk')->to('plugins#bulk_import');
     $r->post('/new-plugin-confirm')->to('plugins#new_plugin_confirm');
     $r->post('/new-release')->requires( user_authenticated => 1 )->to('releases#new_release');
 }
