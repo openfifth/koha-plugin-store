@@ -1,0 +1,10 @@
+# koha-plugin-store-reconcile-maintainers.timer
+[Unit]
+Description=Run koha-plugin-store-reconcile-maintainers.service daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

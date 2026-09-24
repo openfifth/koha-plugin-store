@@ -1,0 +1,18 @@
+# koha-plugin-store-reconcile-maintainers.service
+[Unit]
+Description=Koha Plugin Store maintainer-reconciliation run
+After=syslog.target network.target koha-plugin-store.service
+
+[Service]
+Type=oneshot
+## make sure the user & group exist
+User=plugin-store
+Group=plugin-store
+## change the below values to suit your installation
+## Carton installs dependencies into a project-local local/, not the
+## system/vendor Perl lib -- see DEPLOYMENT.md's Install section.
+Environment=PERL5LIB=/opt/plugin-store/local/lib/perl5
+WorkingDirectory=/opt/plugin-store
+## end of config values
+ExecStart=/usr/bin/perl script/koha_plugin_store reconcile_maintainers
+SyslogIdentifier=koha-plugin-store-reconcile-maintainers

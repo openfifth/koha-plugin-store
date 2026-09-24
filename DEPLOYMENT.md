@@ -335,6 +335,23 @@ Three example unit files ship at the repo root — copy all three into
   fails its required `perl_syntax` check with a `check_error` status rather
   than publishing.
 
+### Maintainer reconciliation
+
+`koha_plugin_store-reconcile-maintainers.service.example` and
+`koha_plugin_store-reconcile-maintainers.timer.example` run
+`script/koha_plugin_store reconcile_maintainers` once a day — it re-checks every
+automatically-granted co-maintainer against GitHub's current permissions and revokes any that no
+longer have write access. Copy both to `/etc/systemd/system/` (dropping the `.example` suffix),
+adjust the same `User`/`Group`/`PERL5LIB`/`WorkingDirectory` values as the other units, then:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now koha-plugin-store-reconcile-maintainers.timer
+```
+
+This is a `oneshot` service triggered by its timer, not a long-running daemon like `worker` --
+there's nothing to `enable --now` on the `.service` itself.
+
 ```bash
 sudo cp koha_plugin_store.service.example /etc/systemd/system/koha-plugin-store.service
 sudo cp koha_plugin_store-worker.service.example /etc/systemd/system/koha-plugin-store-worker.service
