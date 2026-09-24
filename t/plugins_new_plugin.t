@@ -198,6 +198,60 @@ subtest 'a second real collaborator submitting an already-claimed repo is folded
     $t->get_ok('/logout');
 };
 
+subtest 'submitter is in their own repo list for an already-claimed repo but lacks real push/admin access is rejected, not granted' => sub {
+    reset_db();
+    my $original_owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'original3', username => 'original3' }
+    );
+    my $existing_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'hello-world3', { repo_url => 'https://github.com/octocat/Hello-World3', developer_id => $original_owner->id }
+    );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $existing_plugin->id, developer_id => $original_owner->id, role => 'owner', granted_via => 'creator' }
+    );
+
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');    # logs in as mockdev -- a different developer than $original_owner
+    $t->app->config->{oauth_mock} = 0;
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::fetch_all_repos = sub {
+        return [ {
+            full_name   => 'octocat/Hello-World3',
+            html_url    => 'https://github.com/octocat/Hello-World3',
+            permissions => { pull => 1 },    # read-only -- no push/admin
+        } ];
+    };
+    *KohaPluginStore::GitHub::fetch_release_by_tag = sub {
+        return {
+            tag_name => 'v1.0.0', name => 'v1.0.0', published_at => '2026-02-01T00:00:00Z',
+            author => { login => 'mockdev', avatar_url => 'https://example.com/a.png' },
+            assets => [ { name => 'plugin.kpz', browser_download_url => 'https://example.com/plugin.kpz' } ],
+        };
+    };
+
+    $t->post_ok(
+        '/new-plugin-confirm' => form => {
+            plugin_repo => 'https://github.com/octocat/Hello-World3',
+            tag_name    => 'v1.0.0',
+            csrf_token  => csrf_token($t),
+        }
+    )->status_is(200)
+      ->content_like(qr/not in the list of your public GitHub repositories/);
+
+    my $mockdev = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find( { oauth_provider_key => 'github', provider_user_id => 'mock' } );
+    ok(
+        !KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->find( { plugin_id => $existing_plugin->id, developer_id => $mockdev->id } ),
+        'the submitter was NOT granted maintainer status'
+    );
+
+    my @versions = KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->search( { plugin_id => $existing_plugin->id } );
+    is( scalar @versions, 0, 'no release was added to the existing plugin' );
+
+    $t->get_ok('/logout');
+};
+
 subtest 'someone with no real GitHub access to an already-claimed repo still gets the existing rejection message' => sub {
     reset_db();
     my $original_owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
