@@ -218,6 +218,38 @@ sub manage ($c) {
     $c->render('plugins/manage');
 }
 
+sub sync_releases_now ($c) {
+    my $slug = $c->param('slug');
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { slug => $slug } );
+    return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
+    return $c->render( text => 'Unauthorized', status => 401 )
+        unless $c->session->{developer} && $plugin->is_maintained_by( $c->session->{developer}->{id} );
+
+    return $c->render( text => 'Invalid CSRF token', status => 403 )
+        if $c->validation->csrf_protect->has_error('csrf_token');
+
+    $c->minion->enqueue( sync_plugin_release => [ $plugin->id ] );
+
+    return $c->redirect_to( '/plugins/' . $plugin->slug . '/manage' );
+}
+
+sub toggle_auto_sync ($c) {
+    my $slug = $c->param('slug');
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { slug => $slug } );
+    return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
+    return $c->render( text => 'Unauthorized', status => 401 )
+        unless $c->session->{developer} && $plugin->is_maintained_by( $c->session->{developer}->{id} );
+
+    return $c->render( text => 'Invalid CSRF token', status => 403 )
+        if $c->validation->csrf_protect->has_error('csrf_token');
+
+    $plugin->update( { auto_sync_releases => $c->param('auto_sync_releases') ? 1 : 0 } );
+
+    return $c->redirect_to( '/plugins/' . $plugin->slug . '/manage' );
+}
+
 sub update_plugin ($c) {
     my $slug = $c->param('slug');
 

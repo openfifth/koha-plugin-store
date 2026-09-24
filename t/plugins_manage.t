@@ -5,6 +5,7 @@ use Test::Mojo;
 
 use lib 't/lib';
 use TestDB qw(reset_db test_app test_pg);
+use CsrfHelper qw(csrf_token);
 
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
@@ -145,6 +146,101 @@ subtest 'a granted maintainer (not the original owner) can reach the manage page
     }
 
     $t->get_ok( '/plugins/' . $plugin->slug . '/manage' )->status_is(200);
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a maintainer can trigger an immediate release sync' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/sync-releases' => form => { csrf_token => csrf_token($t) } )
+      ->status_is(302);
+
+    is( $t->app->minion->jobs( { tasks => ['sync_plugin_release'], args => [ $plugin->id ] } )->total, 1, 'a sync job was enqueued for this plugin' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a non-maintainer cannot trigger a sync' => sub {
+    reset_db();
+    my $real_owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'real-owner', username => 'realowner' }
+    );
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');    # logs in as mockdev, NOT $real_owner
+    $t->app->config->{oauth_mock} = 0;
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $real_owner->id }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/sync-releases' => form => { csrf_token => csrf_token($t) } )
+      ->status_is(401);
+
+    is( $t->app->minion->jobs( { tasks => ['sync_plugin_release'] } )->total, 0, 'no job was enqueued' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a co-maintainer (not the owner) can toggle auto-sync on' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $maintainer_dev = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $real_owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'real-owner', username => 'realowner' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $real_owner->id }
+    );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $plugin->id, developer_id => $maintainer_dev->id, role => 'maintainer', granted_via => 'github_access' }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/auto-sync' => form => { auto_sync_releases => 1, csrf_token => csrf_token($t) } )
+      ->status_is(302);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    ok( $reloaded->auto_sync_releases, 'the co-maintainer successfully enabled auto-sync' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'the manage page shows the auto-sync checkbox and sync-now button' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
+    );
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::fetch_releases = sub { return []; };
+
+    $t->get_ok( '/plugins/' . $plugin->slug . '/manage' )
+      ->status_is(200)
+      ->element_exists('input[name="auto_sync_releases"]')
+      ->element_exists('form[action="/plugins/' . $plugin->slug . '/sync-releases"]');
 
     $t->get_ok('/logout');
 };
