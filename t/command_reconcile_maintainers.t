@@ -28,12 +28,16 @@ my $api_errored = KohaPluginStore::Model::Developer->new( pg => test_pg() )->cre
 my $manually_granted = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
     { oauth_provider_key => 'github', provider_user_id => 'd', username => 'manually-granted' }
 );
+my $repo_gone = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+    { oauth_provider_key => 'github', provider_user_id => 'e', username => 'repo-gone' }
+);
 
 my $maintainer_model = KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() );
 $maintainer_model->grant( { plugin_id => $plugin->id, developer_id => $still_has_access->id, role => 'maintainer', granted_via => 'github_access' } );
 $maintainer_model->grant( { plugin_id => $plugin->id, developer_id => $lost_access->id,      role => 'maintainer', granted_via => 'github_access' } );
 $maintainer_model->grant( { plugin_id => $plugin->id, developer_id => $api_errored->id,      role => 'maintainer', granted_via => 'github_access' } );
 $maintainer_model->grant( { plugin_id => $plugin->id, developer_id => $manually_granted->id, role => 'maintainer', granted_via => 'manual' } );
+$maintainer_model->grant( { plugin_id => $plugin->id, developer_id => $repo_gone->id,       role => 'maintainer', granted_via => 'github_access' } );
 
 {
     no strict 'refs';
@@ -43,6 +47,7 @@ $maintainer_model->grant( { plugin_id => $plugin->id, developer_id => $manually_
         return { ok => 1, permission => 'write' }  if $username eq 'still-has-access';
         return { ok => 1, permission => 'read' }   if $username eq 'lost-access';
         return { ok => 0 }                         if $username eq 'api-errored';
+        return { ok => 1, not_found => 1 }        if $username eq 'repo-gone';
         die "unexpected username $username (manually-granted should never be checked)";
     };
 }
@@ -68,6 +73,10 @@ ok(
 ok(
     $maintainer_model->find( { plugin_id => $plugin->id, developer_id => $manually_granted->id } ),
     'a manually-granted maintainer is never even checked, let alone revoked'
+);
+ok(
+    !$maintainer_model->find( { plugin_id => $plugin->id, developer_id => $repo_gone->id } ),
+    'a maintainer whose repo is gone (not_found) is revoked'
 );
 
 done_testing();

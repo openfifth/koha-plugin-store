@@ -16,7 +16,15 @@ sub run ($self, @args) {
 
     my ( $kept, $revoked, $skipped ) = ( 0, 0, 0 );
     for my $row (@$rows) {
-        my $result = KohaPluginStore::GitHub::fetch_collaborator_permission( $token, $row->{repo_url}, $row->{username} );
+        my $result;
+        eval {
+            $result = KohaPluginStore::GitHub::fetch_collaborator_permission( $token, $row->{repo_url}, $row->{username} );
+        };
+        if ($@) {
+            warn "plugin_maintainers.id=$row->{id}: exception checking '$row->{username}' on $row->{repo_url}: $@";
+            $skipped++;
+            next;
+        }
 
         unless ( $result->{ok} ) {
             warn "plugin_maintainers.id=$row->{id}: could not verify '$row->{username}' on $row->{repo_url}, leaving unchanged\n";
@@ -30,7 +38,14 @@ sub run ($self, @args) {
             next;
         }
 
-        $maintainer_model->revoke( $row->{id} );
+        eval {
+            $maintainer_model->revoke( $row->{id} );
+        };
+        if ($@) {
+            warn "plugin_maintainers.id=$row->{id}: exception revoking access: $@";
+            $skipped++;
+            next;
+        }
         $revoked++;
     }
 
