@@ -370,6 +370,28 @@ subtest 'a maintainer can toggle a plugin back to public' => sub {
     $t->get_ok('/logout');
 };
 
+subtest 'a maintainer posting to /plugins/:slug/private without a valid CSRF token gets 403' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/private' => form => { is_private => 1 } )
+      ->status_is(403);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    ok( !$reloaded->is_private, 'unchanged -- the CSRF-rejected request had no effect' );
+
+    $t->get_ok('/logout');
+};
+
 subtest 'a non-maintainer cannot toggle a plugin private' => sub {
     reset_db();
     my $real_owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
