@@ -444,4 +444,18 @@ subtest 'for_developer lists plugins owned or maintained, no duplicates' => sub 
     is( $plugins->[0]->slug, 'maintained-widget' );
 };
 
+subtest 'auto_sync_releases defaults to false and can be toggled via update' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget' }
+    );
+    ok( !$plugin->auto_sync_releases, 'defaults to false' );
+
+    $plugin->update( { auto_sync_releases => 1 } );
+    ok( $plugin->auto_sync_releases, 'update flips it to true' );
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    ok( $reloaded->auto_sync_releases, 'persisted to the database, not just the in-memory object' );
+};
+
 done_testing();

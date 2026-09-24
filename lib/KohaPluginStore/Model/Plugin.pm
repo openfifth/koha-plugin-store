@@ -12,7 +12,7 @@ sub _table {
 }
 
 sub _columns {
-    return [qw(id repo_url name class_name description author thumbnail developer_id timestamp slug documentation_url readme_html issue_tracker_url changelog_html)];
+    return [qw(id repo_url name class_name description author thumbnail developer_id timestamp slug documentation_url readme_html issue_tracker_url changelog_html auto_sync_releases)];
 }
 
 sub releases {

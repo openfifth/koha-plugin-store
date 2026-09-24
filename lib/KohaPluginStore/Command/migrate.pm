@@ -214,3 +214,9 @@ WHERE developer_id IS NOT NULL;
 DROP TABLE plugin_maintainers;
 ALTER TABLE plugins DROP COLUMN organization_id;
 DROP TABLE organizations;
+
+-- 11 up
+ALTER TABLE plugins ADD COLUMN auto_sync_releases BOOLEAN NOT NULL DEFAULT false;
+
+-- 11 down
+ALTER TABLE plugins DROP COLUMN auto_sync_releases;
