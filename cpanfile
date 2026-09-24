@@ -24,11 +24,21 @@ requires 'HTML::Scrubber';
 # directly should declare it directly, not rely on riding along with
 # another package's install path.
 requires 'PPI';
-# Provides Koha::QA::PerlCritic, used by the perl_critic check. Formerly
-# had to be installed from git into a project-local 'local/' lib (with a
-# finicky Perl::Tidy version-pinning dance to avoid a dependency-resolution
-# race -- see git history if that ever comes back), since it wasn't on CPAN
-# at all. It's a normal CPAN distribution now: a plain `cpanm --installdeps
-# .` resolves it, Perl::Critic, Perl::Tidy, and File::ShareDir together in
-# one dependency graph, with no special PERL5LIB or install order needed.
+# Koha::QA's own Makefile.PL needs Module::CPANfile to run at all, but its
+# META.json doesn't declare that as a configure-time dependency -- cpanm has
+# no way to know to install this first unless we say so ourselves. Without
+# it: "Can't locate Module/CPANfile.pm ... at Makefile.PL line 3."
+requires 'Module::CPANfile';
+# The exact-version pin the old "install from git into a project-local
+# local/" approach used to need is back: Koha::QA's own cpanfile requires
+# Perl::Tidy == 20250105 exactly, but cpanm resolves the newest Perl::Tidy
+# release first when nothing else constrains it -- once that newer version
+# is already installed, Koha::QA's own configure step refuses to proceed
+# ("Installed version (...) of Perl::Tidy is not in range '== 20250105'").
+# Declaring the pin directly here forces cpanm to satisfy it before it ever
+# gets to Koha::QA.
+requires 'Perl::Tidy', '== 20250105';
+# Provides Koha::QA::PerlCritic, used by the perl_critic check. A normal CPAN
+# distribution (not installed from git), but -- see the two requires above --
+# not one `cpanm --installdeps .` can resolve unassisted.
 requires 'Koha::QA';
