@@ -192,6 +192,80 @@ subtest 'a non-maintainer cannot trigger a sync' => sub {
     $t->get_ok('/logout');
 };
 
+subtest 'a non-maintainer cannot toggle auto-sync' => sub {
+    reset_db();
+    my $real_owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'real-owner', username => 'realowner' }
+    );
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');    # logs in as mockdev, NOT $real_owner
+    $t->app->config->{oauth_mock} = 0;
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $real_owner->id }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/auto-sync' => form => { auto_sync_releases => 1, csrf_token => csrf_token($t) } )
+      ->status_is(401);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    ok( !$reloaded->auto_sync_releases, 'the rejected request did not silently take effect' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a maintainer posting sync-releases or auto-sync without a valid CSRF token gets 403' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/sync-releases' => form => {} )
+      ->status_is(403);
+
+    is( $t->app->minion->jobs( { tasks => ['sync_plugin_release'], args => [ $plugin->id ] } )->total, 0, 'no job was enqueued without a valid CSRF token' );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/auto-sync' => form => { auto_sync_releases => 1 } )
+      ->status_is(403);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    ok( !$reloaded->auto_sync_releases, 'auto_sync_releases was not changed without a valid CSRF token' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a maintainer can toggle auto-sync off' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id, auto_sync_releases => 1 }
+    );
+
+    # An unchecked HTML checkbox is simply omitted from the submitted form --
+    # not sent as auto_sync_releases => 0 -- so the request here carries no
+    # auto_sync_releases param at all.
+    $t->post_ok( '/plugins/' . $plugin->slug . '/auto-sync' => form => { csrf_token => csrf_token($t) } )
+      ->status_is(302);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    ok( !$reloaded->auto_sync_releases, 'auto-sync was turned off' );
+
+    $t->get_ok('/logout');
+};
+
 subtest 'a co-maintainer (not the owner) can toggle auto-sync on' => sub {
     reset_db();
     $t->app->config->{oauth_mock} = 1;
