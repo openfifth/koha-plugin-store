@@ -102,6 +102,9 @@ broker's socket.
 sudo useradd --system --create-home --home-dir /opt/plugin-store plugin-store
 sudo useradd --system --create-home plugin-store-sandbox
 sudo usermod -aG plugin-store-sandbox plugin-store
+sudo mkdir -p /home/plugin-store-sandbox
+sudo chown plugin-store-sandbox:plugin-store-sandbox /home/plugin-store-sandbox
+sudo chmod 750 /home/plugin-store-sandbox
 ```
 
 `plugin-store-sandbox` needs a real home directory too (the default
@@ -112,7 +115,14 @@ section below). `--no-create-home` looked more minimal but doesn't
 actually create anything at the `$HOME` path it still assigns, and `cpanm`
 fails outright without a writable one (`Can't write to cpanm home
 '/home/plugin-store-sandbox/.cpanm'`) — confirmed by hitting this for
-real running through this doc's own Install steps end to end.
+real running through this doc's own Install steps end to end. The explicit
+`mkdir`/`chown`/`chmod` above is a belt-and-braces step, not a typo-guard:
+`--system --create-home` does not reliably create the home directory on
+every distro/shadow-utils version (confirmed by hitting *that* for real
+too, on a separate deploy where the directory simply didn't exist at all
+afterward) — safe to run even when `useradd` did create it correctly,
+since `mkdir -p` and re-asserting ownership on an already-correct directory
+are both no-ops.
 
 ## Install
 
