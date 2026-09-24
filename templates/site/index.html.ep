@@ -1,53 +1,35 @@
 % title "Koha Plugin Store";
 % layout 'default';
 
-% if (logged_in_user) {
-  <div class="d-flex align-items-center mb-4">
-    % if (logged_in_user->avatar_url) {
-    <img src="<%= logged_in_user->avatar_url %>" alt="" class="rounded-circle me-3" width="64" height="64">
-    % }
-    <h2 class="mb-0">Welcome back, <%= logged_in_user->username %></h2>
-  </div>
+<h2><%= title %></h2>
+<p class="lead">
+  A community-run plugin catalogue for Koha. Developers submit and manage their own
+  Koha plugins here; Koha libraries discover and install them from inside Koha itself.
+</p>
 
-  <div class="list-group">
-    %= link_to '/new-plugin' => (class => 'list-group-item list-group-item-action') => begin
-      <i class='bx bx-plus'></i> Submit a new plugin
-    % end
-    %= link_to '/my-plugins' => (class => 'list-group-item list-group-item-action') => begin
-      <i class='bx bx-list-ol'></i> View my plugins
-    % end
-  </div>
-% } else {
-  <h2><%= title %></h2>
-  <p class="lead">
-    A community-run plugin catalogue for Koha. Developers submit and manage their own
-    Koha plugins here; Koha libraries discover and install them from inside Koha itself.
-  </p>
+<div class="alert alert-info" role="alert">
+  <strong>This page is for plugin developers.</strong> Looking for plugins to install
+  instead? Browse the <a href="/">catalogue</a> or search from within your Koha staff
+  client -- no account needed for either.
+</div>
 
-  <div class="alert alert-info" role="alert">
-    <strong>This page is for plugin developers.</strong> Looking for plugins to install
-    instead? Browse the <a href="/">catalogue</a> or search from within your Koha staff
-    client -- no account needed for either.
-  </div>
+<h3>How to join</h3>
+<ol>
+  <li>Log in with your GitHub account.</li>
+  <li>Pick one of your public repositories that contains a Koha plugin.</li>
+  <li>Choose a tagged release to submit.</li>
+</ol>
 
-  <h3>How to join</h3>
-  <ol>
-    <li>Log in with your GitHub account.</li>
-    <li>Pick one of your public repositories that contains a Koha plugin.</li>
-    <li>Choose a tagged release to submit.</li>
-  </ol>
+<p>
+  Once submitted, your release is signed automatically the moment it publishes — that
+  confirms the file's integrity, not an endorsement of it. It also gets a certification tier
+  reflecting how much automated (and eventually human) scrutiny it's had so far, which can
+  rise later as review capacity allows. See <a href="/developers/checks">what each
+  certification check looks for</a> and how to write your plugin to pass them.
+</p>
 
-  <p>
-    Once submitted, your release is signed automatically the moment it publishes — that
-    confirms the file's integrity, not an endorsement of it. It also gets a certification tier
-    reflecting how much automated (and eventually human) scrutiny it's had so far, which can
-    rise later as review capacity allows. See <a href="/developers/checks">what each
-    certification check looks for</a> and how to write your plugin to pass them.
-  </p>
-
-  <p>
-    %= link_to '/auth/github' => (class => 'btn btn-dark') => begin
-      <i class='bx bxl-github'></i> Log in with GitHub
-    % end
-  </p>
-% }
+<p>
+  %= link_to '/auth/github' => (class => 'btn btn-dark') => begin
+    <i class='bx bxl-github'></i> Log in with GitHub
+  % end
+</p>
