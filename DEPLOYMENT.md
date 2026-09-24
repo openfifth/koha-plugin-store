@@ -356,6 +356,28 @@ sudo systemctl enable --now koha-plugin-store-reconcile-maintainers.timer
 This is a `oneshot` service triggered by its timer, not a long-running daemon like `worker` --
 there's nothing to `enable --now` on the `.service` itself.
 
+### Auto-sync release checks
+
+`koha_plugin_store-sync-plugin-releases.service.example` and
+`koha_plugin_store-sync-plugin-releases.timer.example` run
+`script/koha_plugin_store sync_plugin_releases` once a day — it enqueues a release-check job
+for every plugin whose maintainer has opted into auto-sync from that plugin's manage page. Each
+plugin's own job runs independently, so one plugin's GitHub API failure can't affect any other.
+Copy both to `/etc/systemd/system/`, adjust the same `User`/`Group`/`PERL5LIB`/`WorkingDirectory`
+values as the other units, then:
+
+```bash
+sudo cp koha_plugin_store-sync-plugin-releases.service.example /etc/systemd/system/koha-plugin-store-sync-plugin-releases.service
+sudo cp koha_plugin_store-sync-plugin-releases.timer.example /etc/systemd/system/koha-plugin-store-sync-plugin-releases.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now koha-plugin-store-sync-plugin-releases.timer
+```
+
+This is a `oneshot` service triggered by its timer, not a long-running daemon like `worker` --
+there's nothing to `enable --now` on the `.service` itself. A running `worker` service is still
+required for the jobs this enqueues (`sync_plugin_release`, and any `process_plugin_version` jobs
+it in turn enqueues) to actually be picked up and run.
+
 ```bash
 sudo cp koha_plugin_store.service.example /etc/systemd/system/koha-plugin-store.service
 sudo cp koha_plugin_store-worker.service.example /etc/systemd/system/koha-plugin-store-worker.service

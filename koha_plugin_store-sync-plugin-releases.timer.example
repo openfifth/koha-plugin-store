@@ -1,0 +1,10 @@
+# koha-plugin-store-sync-plugin-releases.timer
+[Unit]
+Description=Run koha-plugin-store-sync-plugin-releases.service daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
