@@ -499,21 +499,38 @@ sub bulk_import ($c) {
     my @selected_repos = @{ $c->every_param('plugin_repos') };
 
     my $developer_repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
-    my %owned_repo = map { $_->{html_url} => 1 } @$developer_repos;
+    my %owned_repo = map { $_->{html_url} => $_ } @$developer_repos;
 
     my $config = $c->app->plugin('Config');
     my $token  = $config->{github_app_token};
 
     my @results;
     for my $plugin_repo (@selected_repos) {
-        unless ( $owned_repo{$plugin_repo} ) {
+        my $repo_entry = $owned_repo{$plugin_repo};
+        unless ($repo_entry) {
             push @results, { repo_url => $plugin_repo, status => 'error', message => 'Not in your list of public GitHub repositories.' };
             next;
         }
 
-        my $existing_plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find(
-            { developer_id => $c->session->{developer}->{id}, repo_url => $plugin_repo }
-        );
+        # Global lookup, not scoped to this developer -- someone else may
+        # already have submitted this exact repo (see new_plugin_confirm's
+        # identical comment for why).
+        my $existing_plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { repo_url => $plugin_repo } );
+
+        if ($existing_plugin) {
+            my $is_maintainer = KohaPluginStore::Model::PluginMaintainer->new( pg => $c->pg )->find(
+                { plugin_id => $existing_plugin->id, developer_id => $c->session->{developer}->{id} }
+            );
+            unless ($is_maintainer) {
+                my $granted = KohaPluginStore::MaintainerSync::maybe_grant_for_repo(
+                    $c->pg, $c->logged_in_user, $existing_plugin, $repo_entry
+                );
+                unless ($granted) {
+                    push @results, { repo_url => $plugin_repo, status => 'error', message => 'Not in your list of public GitHub repositories.' };
+                    next;
+                }
+            }
+        }
 
         my $releases = KohaPluginStore::GitHub::fetch_releases( $token, $plugin_repo );
         unless ( $releases && @$releases ) {
@@ -552,6 +569,9 @@ sub bulk_import ($c) {
             $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->create_with_unique_slug(
                 $repo_name,
                 { repo_url => $plugin_repo, developer_id => $c->session->{developer}->{id} }
+            );
+            KohaPluginStore::Model::PluginMaintainer->new( pg => $c->pg )->grant(
+                { plugin_id => $plugin->id, developer_id => $c->session->{developer}->{id}, role => 'owner', granted_via => 'creator' }
             );
         }
 

@@ -9,6 +9,7 @@ use CsrfHelper qw(csrf_token);
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
 use KohaPluginStore::Model::Developer;
+use KohaPluginStore::Model::PluginMaintainer;
 
 reset_db();
 
@@ -147,6 +148,9 @@ subtest 'an already-submitted repo with a new eligible release gets synced onto 
     my $existing_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
         'koha_plugin_bar', { repo_url => 'https://github.com/octocat/koha_plugin_bar', developer_id => $owner->id }
     );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $existing_plugin->id, developer_id => $owner->id, role => 'owner', granted_via => 'creator' }
+    );
     KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
         { plugin_id => $existing_plugin->id, tag_name => 'v1.0.0', status => 'published' }
     );
@@ -187,6 +191,9 @@ subtest 'an already-submitted repo with nothing new is reported as up to date' =
     );
     my $existing_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
         'koha_plugin_baz', { repo_url => 'https://github.com/octocat/koha_plugin_baz', developer_id => $owner->id }
+    );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $existing_plugin->id, developer_id => $owner->id, role => 'owner', granted_via => 'creator' }
     );
     KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
         { plugin_id => $existing_plugin->id, tag_name => 'v1.0.0', status => 'published' }
@@ -250,6 +257,94 @@ subtest 'missing csrf token is rejected' => sub {
 
     $t->post_ok( '/new-plugin/bulk' => form => { plugin_repos => 'https://github.com/octocat/koha_plugin_foo' } )
       ->status_is(403);
+};
+
+subtest 'a repo already submitted by someone else is folded in as a maintainer when GitHub confirms real access' => sub {
+    reset_db();
+    my $original_owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'original3', username => 'original3' }
+    );
+    my $existing_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'koha_plugin_shared', { repo_url => 'https://github.com/octocat/koha_plugin_shared', developer_id => $original_owner->id }
+    );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $existing_plugin->id, developer_id => $original_owner->id, role => 'owner', granted_via => 'creator' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $existing_plugin->id, tag_name => 'v1.0.0', status => 'published' }
+    );
+
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');    # mockdev -- a different developer than $original_owner
+    $t->app->config->{oauth_mock} = 0;
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::fetch_all_repos = sub {
+        return [ {
+            full_name   => 'octocat/koha_plugin_shared',
+            html_url    => 'https://github.com/octocat/koha_plugin_shared',
+            permissions => { push => 1 },
+        } ];
+    };
+    *KohaPluginStore::GitHub::fetch_releases = sub {
+        return [ _release( tag_name => 'v2.0.0', name => 'v2.0.0' ) ];
+    };
+
+    $t->post_ok(
+        '/new-plugin/bulk' => form => {
+            plugin_repos => 'https://github.com/octocat/koha_plugin_shared',
+            csrf_token   => csrf_token($t),
+        }
+    )
+      ->status_is(200)
+      ->content_like(qr/Synced new release v2\.0\.0/);
+
+    my @plugins = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->search( { repo_url => 'https://github.com/octocat/koha_plugin_shared' } );
+    is( scalar @plugins, 1, 'still only one plugin row' );
+
+    my $mockdev = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find( { oauth_provider_key => 'github', provider_user_id => 'mock' } );
+    ok(
+        KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->find( { plugin_id => $existing_plugin->id, developer_id => $mockdev->id } ),
+        'the submitter was granted maintainer status'
+    );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a repo already submitted by someone else, with no real GitHub access, is reported as an error' => sub {
+    reset_db();
+    my $original_owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'original4', username => 'original4' }
+    );
+    KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'koha_plugin_locked', { repo_url => 'https://github.com/octocat/koha_plugin_locked', developer_id => $original_owner->id }
+    );
+
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::fetch_all_repos = sub {
+        return [ {
+            full_name   => 'octocat/koha_plugin_locked',
+            html_url    => 'https://github.com/octocat/koha_plugin_locked',
+            permissions => { pull => 1 },    # read-only -- must not grant
+        } ];
+    };
+
+    $t->post_ok(
+        '/new-plugin/bulk' => form => {
+            plugin_repos => 'https://github.com/octocat/koha_plugin_locked',
+            csrf_token   => csrf_token($t),
+        }
+    )
+      ->status_is(200)
+      ->content_like(qr/Not in your list/);
+
+    $t->get_ok('/logout');
 };
 
 done_testing();
