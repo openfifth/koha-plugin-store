@@ -166,7 +166,14 @@ subtest 'a maintainer can trigger an immediate release sync' => sub {
     $t->post_ok( '/plugins/' . $plugin->slug . '/sync-releases' => form => { csrf_token => csrf_token($t) } )
       ->status_is(302);
 
-    is( $t->app->minion->jobs( { tasks => ['sync_plugin_release'], args => [ $plugin->id ] } )->total, 1, 'a sync job was enqueued for this plugin' );
+    # Count jobs per plugin by manually filtering (Minion's args filter isn't supported in this version)
+    my %job_count;
+    my $all_jobs = $t->app->minion->jobs( { tasks => ['sync_plugin_release'] } );
+    while (my $job = $all_jobs->next) {
+        my $plugin_id = $job->{args}[0];
+        $job_count{$plugin_id}++;
+    }
+    is( $job_count{ $plugin->id } // 0, 1, 'a sync job was enqueued for this plugin' );
 
     $t->get_ok('/logout');
 };
@@ -230,7 +237,7 @@ subtest 'a maintainer posting sync-releases or auto-sync without a valid CSRF to
     $t->post_ok( '/plugins/' . $plugin->slug . '/sync-releases' => form => {} )
       ->status_is(403);
 
-    is( $t->app->minion->jobs( { tasks => ['sync_plugin_release'], args => [ $plugin->id ] } )->total, 0, 'no job was enqueued without a valid CSRF token' );
+    is( $t->app->minion->jobs( { tasks => ['sync_plugin_release'] } )->total, 0, 'no job was enqueued without a valid CSRF token' );
 
     $t->post_ok( '/plugins/' . $plugin->slug . '/auto-sync' => form => { auto_sync_releases => 1 } )
       ->status_is(403);
