@@ -1,6 +1,6 @@
 # Automated checks (certification pipeline)
 
-Every submitted version runs through 11 automated checks (in
+Every submitted version runs through 13 automated checks (in
 `lib/KohaPluginStore/Check/`) before it can publish, split into three tiers:
 
 - **Required — the actual publish gate.** Fail any one of these and the
@@ -24,6 +24,18 @@ Every submitted version runs through 11 automated checks (in
   - `perl_critic` — `Koha::QA::PerlCritic` against every `.pm` file
   - `docs_presence` — a `Development.md`, `CONTRIBUTING.md`, `README`/
     `README.md`, or `docs/` exists
+  - `readme_presence` — GitHub recognizes a README in the repository (README.md,
+    README.rst, bare README, ...) — reuses `readme_html`, already fetched and
+    sanitized for the plugin's own page, rather than a separate GitHub call
+  - `changelog_format` — `CHANGELOG.md`/`CHANGES.md` exists and has at least
+    one heading shaped like a [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)/
+    [Common Changelog](https://common-changelog.org) version entry (e.g.
+    `## [1.2.0] - 2026-01-01`, `## v1.2.0`) — a heuristic (`KohaPluginStore::Changelog::has_version_heading`),
+    not full spec validation of section names/dates/`Unreleased`; also reuses
+    the already-fetched, already-sanitized `changelog_html`. This is the same
+    heading shape `KohaPluginStore::Changelog::extract_section` needs to build
+    the "What's new in this version" excerpt, so failing this check also means
+    that excerpt won't work for the plugin.
   - `tests_presence` — at least one `t/*.t` file exists in the tagged source
     repository (checked via the GitHub API, not the `.kpz`, which never
     packages tests)

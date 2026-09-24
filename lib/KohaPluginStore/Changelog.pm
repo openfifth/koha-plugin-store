@@ -35,4 +35,25 @@ sub extract_section {
     return;
 }
 
+# Generic counterpart to extract_section's per-version heading match -- any
+# semver-shaped heading, not one tied to a specific tag. Used by
+# KohaPluginStore::Check::ChangelogFormat to check "is this recognizable as a
+# Keep a Changelog / Common Changelog style changelog at all" without trying
+# to validate every rule of either spec (section names, dates, "Unreleased").
+# A changelog with no heading matching this can't be excerpted by
+# extract_section either, so this doubles as a canary for that feature.
+my $VERSION_HEADING_RE = qr{
+    <h[1-6][^>]*>\s*
+    (?:<a\b[^>]*>.*?</a>\s*)?
+    \[?v?\d+(?:\.\d+){1,3}\]?
+    \b
+}isx;
+
+sub has_version_heading {
+    my ($html) = @_;
+
+    return 0 unless defined $html && length $html;
+    return $html =~ $VERSION_HEADING_RE ? 1 : 0;
+}
+
 1;

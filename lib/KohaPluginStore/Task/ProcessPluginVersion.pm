@@ -189,10 +189,17 @@ sub run {
         }
     }
 
+    # readme_html/changelog_html are whatever was just fetched (and sanitized)
+    # above -- possibly undef if this fetch failed or found nothing, and
+    # possibly stale relative to $plugin->readme_html/changelog_html if it did
+    # (see the "defined ... : ()" guards on the update above). Passed through
+    # so ReadmePresence/ChangelogFormat don't need their own GitHub API calls.
     my $check_context = {
-        repo_url     => $plugin->repo_url,
-        tag_name     => $version->tag_name,
-        github_token => $token,
+        repo_url       => $plugin->repo_url,
+        tag_name       => $version->tag_name,
+        github_token   => $token,
+        readme_html    => $readme_html,
+        changelog_html => $changelog_html,
     };
 
     my $review_check_model = KohaPluginStore::Model::ReviewCheck->new( pg => $app->pg );

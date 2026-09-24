@@ -396,6 +396,8 @@ PERL
     *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
     *KohaPluginStore::GitHub::fetch_tag_verification       = sub { return 0 };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files     = sub { return 1 };
+    *KohaPluginStore::GitHub::fetch_readme_html            = sub { return '<h1>Widget</h1><p>Docs.</p>' };
+    *KohaPluginStore::GitHub::fetch_changelog_html         = sub { return '<h2>[1.0.0] - 2026-01-01</h2><p>Initial release.</p>' };
     *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
@@ -406,8 +408,8 @@ PERL
     is( $reloaded->certification_tier, 'CERTIFIED', 'certification_tier is CERTIFIED' );
 
     my @checks = KohaPluginStore::Model::ReviewCheck->new( pg => test_pg() )->search( { plugin_version_id => $version->id }, { limit => 100 } );
-    is( scalar @checks, 11, 'a review_checks row was recorded for every check' );
-    is( scalar( grep { $_->passed } @checks ), 10, 'every check passed except the non-gating GPG signature check' );
+    is( scalar @checks, 13, 'a review_checks row was recorded for every check' );
+    is( scalar( grep { $_->passed } @checks ), 12, 'every check passed except the non-gating GPG signature check' );
 };
 
 subtest 'passing only required checks reaches STRUCTURAL' => sub {

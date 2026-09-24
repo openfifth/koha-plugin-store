@@ -48,4 +48,28 @@ subtest 'returns undef on missing inputs' => sub {
     is( KohaPluginStore::Changelog::extract_section( '<h2>1.0.0</h2>', undef ), undef );
 };
 
+subtest 'has_version_heading recognizes Keep a Changelog / Common Changelog style headings' => sub {
+    ok( KohaPluginStore::Changelog::has_version_heading('<h2>[1.2.0] - 2026-01-01</h2>'), 'bracketed, dated' );
+    ok( KohaPluginStore::Changelog::has_version_heading('<h2>v1.2.0</h2>'),                'bare v-prefixed' );
+    ok( KohaPluginStore::Changelog::has_version_heading('<h2>1.2.0 (2026-01-01)</h2>'),    'trailing date, no brackets' );
+    ok(
+        KohaPluginStore::Changelog::has_version_heading(
+            '<h2><a id="user-content-100" class="anchor" href="#user-content-100" aria-hidden="true">'
+                . '<span aria-hidden="true" class="octicon octicon-link"></span></a>[1.0.0] - 2026-01-01</h2>'
+        ),
+        'tolerates a GitHub-rendered anchor element before the version text'
+    );
+};
+
+subtest 'has_version_heading rejects headings and text with no version-shaped number' => sub {
+    ok( !KohaPluginStore::Changelog::has_version_heading('<h2>Version 1.2 update</h2>'), 'not immediately after the heading tag' );
+    ok( !KohaPluginStore::Changelog::has_version_heading('<h2>Recent changes</h2>'),      'no digits at all' );
+    ok( !KohaPluginStore::Changelog::has_version_heading('<p>See [1.2.0] below.</p>'),    'version text outside any heading' );
+};
+
+subtest 'has_version_heading returns false on undef or empty input' => sub {
+    ok( !KohaPluginStore::Changelog::has_version_heading(undef) );
+    ok( !KohaPluginStore::Changelog::has_version_heading('') );
+};
+
 done_testing();

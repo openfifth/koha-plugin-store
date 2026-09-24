@@ -7,6 +7,8 @@ use KohaPluginStore::Check::ManifestCompleteness;
 use KohaPluginStore::Check::DependencyAllowlist;
 use KohaPluginStore::Check::PerlCritic;
 use KohaPluginStore::Check::DocsPresence;
+use KohaPluginStore::Check::ReadmePresence;
+use KohaPluginStore::Check::ChangelogFormat;
 use KohaPluginStore::Check::TestsPresence;
 use KohaPluginStore::Check::TranslatableTemplates;
 use KohaPluginStore::Check::PluginTemplateWrapper;
@@ -20,6 +22,8 @@ our @ALL = qw(
     KohaPluginStore::Check::DependencyAllowlist
     KohaPluginStore::Check::PerlCritic
     KohaPluginStore::Check::DocsPresence
+    KohaPluginStore::Check::ReadmePresence
+    KohaPluginStore::Check::ChangelogFormat
     KohaPluginStore::Check::TestsPresence
     KohaPluginStore::Check::TranslatableTemplates
     KohaPluginStore::Check::PluginTemplateWrapper
