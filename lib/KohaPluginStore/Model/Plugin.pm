@@ -92,6 +92,20 @@ sub for_developer {
     return [ map { $self->_new_from_row($_) } @$rows ];
 }
 
+# Every plugin with auto_sync_releases enabled, for the nightly sync
+# command -- a raw query, not search(), since search()'s default limit
+# of 10 rows would silently only ever process the first 10 opted-in
+# plugins.
+sub auto_sync_enabled {
+    my ($self) = @_;
+
+    my $rows = $self->pg->db->query(
+        q{SELECT * FROM plugins WHERE auto_sync_releases = true}
+    )->hashes;
+
+    return [ map { $self->_new_from_row($_) } @$rows ];
+}
+
 sub search_by_author_slug {
     my ( $self, $author_slug ) = @_;
 
