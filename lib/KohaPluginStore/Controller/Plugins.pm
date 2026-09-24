@@ -412,10 +412,10 @@ sub new_plugin_confirm ($c) {
         if $c->validation->csrf_protect->has_error('csrf_token');
 
     my $developer_repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
-    my $repo_is_owned   = grep { $_->{html_url} eq $plugin_repo } @$developer_repos;
+    my ($repo_entry) = grep { $_->{html_url} eq $plugin_repo } @$developer_repos;
     return $c->_exit_with_error_message(
         'That repository is not in the list of your public GitHub repositories. Please pick one from the dropdown.'
-    ) unless $repo_is_owned;
+    ) unless $repo_entry;
 
     my $config  = $c->app->plugin('Config');
     my $token   = $config->{github_app_token};
@@ -428,15 +428,42 @@ sub new_plugin_confirm ($c) {
         'Release must contain one and only one \'.kpz\' asset. Found: ' . scalar @kpz_assets )
         unless scalar @kpz_assets == 1;
 
-    my ($repo_name) = $plugin_repo =~ m{([^/]+)/?$};
+    my $developer_id = $c->session->{developer}->{id};
 
-    my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->create_with_unique_slug(
-        $repo_name,
-        {
-            repo_url     => $plugin_repo,
-            developer_id => $c->session->{developer}->{id},
+    # Global lookup, not scoped to this developer -- someone else may already
+    # have submitted this exact repo. If so, this submitter either already has
+    # (or, via a real GitHub permission, now gets) maintainer rights on it, or
+    # they're rejected with the same message a repo they have no access to at
+    # all already gets -- never a duplicate-plugin crash on repo_url's unique
+    # constraint.
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { repo_url => $plugin_repo } );
+
+    if ($plugin) {
+        my $is_maintainer = KohaPluginStore::Model::PluginMaintainer->new( pg => $c->pg )->find(
+            { plugin_id => $plugin->id, developer_id => $developer_id }
+        );
+        unless ($is_maintainer) {
+            my $granted = KohaPluginStore::MaintainerSync::maybe_grant_for_repo(
+                $c->pg, $c->logged_in_user, $plugin, $repo_entry
+            );
+            return $c->_exit_with_error_message(
+                'That repository is not in the list of your public GitHub repositories. Please pick one from the dropdown.'
+            ) unless $granted;
         }
-    );
+    }
+    else {
+        my ($repo_name) = $plugin_repo =~ m{([^/]+)/?$};
+        $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->create_with_unique_slug(
+            $repo_name,
+            {
+                repo_url     => $plugin_repo,
+                developer_id => $developer_id,
+            }
+        );
+        KohaPluginStore::Model::PluginMaintainer->new( pg => $c->pg )->grant(
+            { plugin_id => $plugin->id, developer_id => $developer_id, role => 'owner', granted_via => 'creator' }
+        );
+    }
 
     my $new_version = eval {
         KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->create(
