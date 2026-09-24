@@ -127,6 +127,7 @@ sub startup ($self) {
 
     $r->any('/')->to('plugins#index');
     $r->any('/developers')->to('site#index');
+    $r->get('/developers/checks')->to('site#checks');
     $r->get('/verification-key')->to('site#verification_key');
     $r->get('/authors/:author_slug')->to('site#author');
     $r->get('/profile')->requires( user_authenticated => 1 )->to('site#profile');

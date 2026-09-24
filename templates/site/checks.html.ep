@@ -1,0 +1,176 @@
+% title "Certification checks";
+% layout 'default';
+
+<h2><%= title %></h2>
+<p class="lead">
+  Every submitted release runs through 13 automated checks before it can publish.
+  This page explains what each one looks for and how to write your plugin so it
+  passes.
+</p>
+
+<div class="alert alert-info" role="alert">
+  Failing a check doesn't necessarily stop your plugin from publishing -- see
+  <a href="#tiers">how the tiers work</a> below.
+</div>
+
+<h3 id="tiers">How the tiers work</h3>
+<ul>
+  <li><strong>Required</strong> -- fail any one of these and your release stays
+    in "changes requested" and never publishes, no matter what else passes.</li>
+  <li><strong>Certification-gating</strong> -- these don't block publishing, but
+    your release only reaches the <span class="badge text-bg-success">CERTIFIED</span>
+    badge if all of them pass too. Fail one and it still publishes, just at
+    <span class="badge text-bg-warning">STRUCTURAL</span>.</li>
+  <li><strong>Informational</strong> -- recorded on your release's technical
+    report, but don't block publishing or affect your certification tier.</li>
+</ul>
+<p>
+  You can see the result of every check for your own release on its version
+  page, under "Technical report".
+</p>
+
+<h3 class="mt-5">Required checks</h3>
+<p class="text-muted">Fail one of these and your release never publishes.</p>
+
+<h4><code>perl_syntax</code></h4>
+<p>
+  Every <code>.pm</code> file in your release must compile (<code>perl -cw</code>)
+  against the Koha version you declared as <code>minimum_version</code>. Run
+  <code>perl -cw YourPlugin.pm</code> yourself against that Koha version before
+  tagging a release.
+</p>
+
+<h4><code>manifest_completeness</code></h4>
+<p>
+  Your plugin's <code>$metadata</code> hash must declare both <code>version</code>
+  and <code>license</code>:
+</p>
+<pre><code>our $metadata = {
+    name            =&gt; 'My Plugin',
+    description     =&gt; 'What it does',
+    author          =&gt; 'Your Name',
+    minimum_version =&gt; '23.05',
+    version         =&gt; '1.0.0',
+    license         =&gt; 'GPL-3.0',
+};</code></pre>
+
+<h4><code>dependency_allowlist</code></h4>
+<p>
+  Your code is scanned for patterns the store won't allow in a submitted
+  plugin, since these can't be reviewed automatically and are common vectors
+  for something going badly wrong on a library's live system:
+</p>
+<ul>
+  <li><code>system()</code>, <code>exec()</code>, backticks, or <code>qx</code></li>
+  <li><code>use</code>-ing a networking module directly (<code>IO::Socket</code>,
+    <code>Net::*</code>, <code>LWP</code>, <code>HTTP::Tiny</code>) -- use Koha's
+    own HTTP client wrappers instead</li>
+  <li><code>open()</code>-ing an absolute filesystem path</li>
+  <li>a string referencing <code>../</code> to escape your plugin's own directory</li>
+</ul>
+<p class="text-muted">
+  This is a static analysis of real parsed Perl syntax, not a text search --
+  mentioning one of these in a comment or string won't false-positive.
+</p>
+
+<h3 class="mt-5">Certification-gating checks</h3>
+<p class="text-muted">
+  These don't block publishing, but all of them need to pass for your release
+  to reach the <span class="badge text-bg-success">CERTIFIED</span> tier.
+</p>
+
+<h4><code>perl_critic</code></h4>
+<p>
+  Every <code>.pm</code> file is run through Koha's own Perl::Critic policy set.
+  Run it yourself locally against your plugin's files before submitting.
+</p>
+
+<h4><code>docs_presence</code></h4>
+<p>
+  Include a <code>README</code>, <code>README.md</code>, <code>Development.md</code>,
+  <code>CONTRIBUTING.md</code>, or a <code>docs/</code> directory somewhere in
+  your repository.
+</p>
+
+<h4><code>readme_presence</code></h4>
+<p>
+  Specifically: GitHub needs to recognize a README for your repository (the
+  same one it'd show on your repo's own front page -- <code>README.md</code>,
+  <code>README.rst</code>, or a bare <code>README</code> all count). It's shown
+  in full on your plugin's page here, so it's worth keeping it current.
+</p>
+
+<h4><code>changelog_format</code></h4>
+<p>
+  Include a <code>CHANGELOG.md</code> (or <code>CHANGES.md</code>) with at
+  least one heading shaped like a
+  <a href="https://keepachangelog.com/en/1.1.0/" target="_blank" rel="noopener">Keep a Changelog</a>
+  or <a href="https://common-changelog.org" target="_blank" rel="noopener">Common Changelog</a>
+  version entry:
+</p>
+<pre><code>## [1.2.0] - 2026-01-01
+
+### Added
+- A new widget for doing the thing.
+
+### Fixed
+- The thing that was broken.</code></pre>
+<p>
+  A bare <code>## v1.2.0</code> heading passes too -- this check isn't full
+  spec validation (it doesn't check section names, dates, or an "Unreleased"
+  section), just "is there a real, dated version entry here." That same
+  heading is what powers the "What's new in this version" summary shown on
+  your plugin's page, so passing this check also means that summary will
+  actually show up.
+</p>
+
+<h4><code>tests_presence</code></h4>
+<p>
+  Include at least one <code>t/*.t</code> file in your tagged source repository.
+  (Your <code>.kpz</code> release archive itself doesn't need to contain
+  tests -- this check looks at the tagged commit on GitHub, not the archive.)
+</p>
+
+<h4><code>translatable_templates</code></h4>
+<p>
+  Any <code>.tt</code> template rendering visible text (<code>&lt;h1&gt;</code>,
+  <code>&lt;p&gt;</code>, <code>&lt;button&gt;</code>, etc.) should mark that
+  text for translation:
+</p>
+<pre><code>&lt;h1&gt;[% t('Hello, world') %]&lt;/h1&gt;</code></pre>
+
+<h4><code>plugin_template_wrapper</code></h4>
+<p>
+  Every <code>.tt</code> template should include Koha's plugin template
+  wrapper, currently <code>doc-head-close.inc</code>:
+</p>
+<pre><code>[% INCLUDE 'doc-head-close.inc' %]</code></pre>
+
+<h4><code>hardcoded_credentials</code></h4>
+<p>
+  Don't assign a literal secret to a credential-shaped variable name (e.g.
+  <code>api_key</code>, <code>password</code>) anywhere in your code, and don't
+  commit a PEM private key or an AWS access key. Use Koha's own configuration
+  mechanisms for anything a library needs to supply themselves.
+</p>
+
+<h3 class="mt-5">Informational checks</h3>
+<p class="text-muted">
+  Recorded on your release's technical report, but don't block publishing or
+  affect your certification tier.
+</p>
+
+<h4><code>koha_max_version</code></h4>
+<p>
+  Whether your <code>$metadata</code> declares a <code>maximum_version</code>
+  in addition to <code>minimum_version</code>. Worth setting if you know your
+  plugin doesn't work against newer Koha releases yet.
+</p>
+
+<h4><code>gpg_signed_tag</code></h4>
+<p>
+  Whether the release tag itself was GPG-signed on GitHub
+  (<code>git tag -s v1.2.0</code>). This is about your own tag's authenticity,
+  separate from the store's own signing of the published <code>.kpz</code> --
+  see the <a href="/verification-key">verification key</a> page for that.
+</p>

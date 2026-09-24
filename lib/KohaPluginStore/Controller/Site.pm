@@ -14,6 +14,10 @@ sub profile ($c) {
     $c->render;
 }
 
+sub checks ($c) {
+    $c->render;
+}
+
 sub verification_key ($c) {
     my $key_path = $c->app->config->{signing_key_path};
 

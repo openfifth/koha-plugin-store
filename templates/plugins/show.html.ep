@@ -163,7 +163,9 @@
 % }
 
 % if ($current_version && (@$checks || $current_version->error_message)) {
-<h2 class="h4 mt-5">Technical report &mdash; <%= $current_version->tag_name %></h2>
+<h2 class="h4 mt-5">Technical report &mdash; <%= $current_version->tag_name %>
+  <a href="/developers/checks" class="fs-6 fw-normal">(what do these checks mean?)</a>
+</h2>
 % if ($current_version->error_message) {
 <div class="alert alert-warning py-2 mb-2"><%= $current_version->error_message %></div>
 % }
