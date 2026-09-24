@@ -3,9 +3,11 @@ use Mojo::Base 'Mojolicious::Controller', -signatures;
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Model::PluginVersion;
 use KohaPluginStore::Model::PluginContributor;
+use KohaPluginStore::Model::PluginMaintainer;
 use KohaPluginStore::Model::ReviewCheck;
 use KohaPluginStore::GitHub;
 use KohaPluginStore::Changelog;
+use KohaPluginStore::MaintainerSync;
 use JSON;
 
 sub index {
@@ -85,6 +87,7 @@ sub _cached_developer_repos {
     unless ( defined $developer->data->{cached_repos} ) {
         my $repos = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
         $developer->refresh_cached_repos($repos);
+        KohaPluginStore::MaintainerSync::sync_from_repo_list( $c->pg, $developer, $repos );
     }
 
     return ( $developer->cached_repos, $developer->cached_repos_fetched_at );
@@ -99,6 +102,7 @@ sub refresh_repos {
     my $developer = $c->logged_in_user;
     my $repos      = KohaPluginStore::GitHub::fetch_all_repos( $c->session->{github_access_token} );
     $developer->refresh_cached_repos($repos);
+    KohaPluginStore::MaintainerSync::sync_from_repo_list( $c->pg, $developer, $repos );
 
     $c->redirect_to('/new-plugin');
 }
