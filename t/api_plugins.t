@@ -146,4 +146,29 @@ subtest '_page and _per_page paginate; _order_by=-name sorts descending' => sub 
     is( scalar @{ $t->tx->res->json }, 1, 'the remaining plugin is on page 2' );
 };
 
+subtest 'a private plugin never appears in /api/v1/plugins, even when it matches a search term' => sub {
+    reset_db();
+    my $developer = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => '1', username => 'seeder' }
+    );
+    my $private = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'telford-erp', { name => 'TelfordERP', description => 'Bespoke integration', developer_id => $developer->id, is_private => 1 }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        {
+            plugin_id => $private->id, version => '1.0.0', koha_min_version => '19.05',
+            status => 'published', content_digest => 'private123',
+        }
+    );
+
+    $t->get_ok('/api/v1/plugins?koha_version=20.00&q=Telford')
+      ->status_is(200)
+      ->header_is( 'X-Total-Count' => 0 );
+    is_deeply( $t->tx->res->json, [], 'the response body is an empty array, not just an empty count' );
+
+    $t->get_ok( '/plugins/' . $private->slug )
+      ->status_is(200)
+      ->content_like(qr/TelfordERP/);
+};
+
 done_testing();

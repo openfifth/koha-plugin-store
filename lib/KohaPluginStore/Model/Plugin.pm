@@ -114,7 +114,7 @@ sub search_by_author_slug {
             SELECT DISTINCT p.*
             FROM plugins p
             JOIN plugin_versions v ON v.plugin_id = p.id
-            WHERE v.status = 'published' AND p.author IS NOT NULL AND p.author != ''
+            WHERE v.status = 'published' AND p.is_private = false AND p.author IS NOT NULL AND p.author != ''
             ORDER BY p.name
         }
     )->hashes;
@@ -135,7 +135,7 @@ my %ORDER_BY = (
 sub _compatible_where_and_binds {
     my ( $self, $args ) = @_;
 
-    my @clauses = ("v.status = 'published'");
+    my @clauses = ( "v.status = 'published'", 'p.is_private = false' );
     my @binds;
 
     unless ( $args->{include_unsupported} ) {

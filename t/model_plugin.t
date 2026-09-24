@@ -58,6 +58,51 @@ subtest 'create_with_unique_slug retries on collision' => sub {
     is( $third->slug, 'my-plugin-3', 'third submission gets the next suffix' );
 };
 
+subtest 'search_compatible and count_compatible exclude private plugins' => sub {
+    reset_db();
+    my $public = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create(
+        { name => 'PublicWidget', description => 'A public widget' }
+    );
+    my $private = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create(
+        { name => 'PrivateWidget', description => 'A private widget', is_private => 1 }
+    );
+    for my $plugin ( $public, $private ) {
+        KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+            {
+                plugin_id => $plugin->id, version => '1.0.0', tag_name => 'v1',
+                status => 'published', koha_min_version => '19.05',
+            }
+        );
+    }
+
+    my $model = KohaPluginStore::Model::Plugin->new( pg => test_pg() );
+
+    my $results = $model->search_compatible( { koha_version => '26.00.00.000', limit => 10, offset => 0 } );
+    is( scalar @$results, 1, 'only the public plugin is returned' );
+    is( $results->[0]->name, 'PublicWidget' );
+
+    is( $model->count_compatible( { koha_version => '26.00.00.000' } ), 1, 'count_compatible agrees' );
+};
+
+subtest 'search_by_author_slug excludes private plugins' => sub {
+    reset_db();
+    my $public = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'public-widget', { name => 'PublicWidget', author => 'Jane Doe', repo_url => 'https://github.com/a/public-widget' }
+    );
+    my $private = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'private-widget', { name => 'PrivateWidget', author => 'Jane Doe', is_private => 1, repo_url => 'https://github.com/a/private-widget' }
+    );
+    for my $plugin ( $public, $private ) {
+        KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+            { plugin_id => $plugin->id, tag_name => 'v1', status => 'published' }
+        );
+    }
+
+    my $plugins = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->search_by_author_slug('jane-doe');
+    is( scalar @$plugins, 1, 'only the public plugin is returned for this author' );
+    is( $plugins->[0]->name, 'PublicWidget' );
+};
+
 subtest 'search_compatible filters by koha_version, q, and paginates' => sub {
     reset_db();
     my $coverflow = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create(
