@@ -780,6 +780,19 @@ DISTRIBUTIONS
       perl 5.006
       strict 0
       warnings 0
+  Module-CPANfile-1.1004
+    pathname: M/MI/MIYAGAWA/Module-CPANfile-1.1004.tar.gz
+    provides:
+      Module::CPANfile 1.1004
+      Module::CPANfile::Environment undef
+      Module::CPANfile::Prereq undef
+      Module::CPANfile::Prereqs undef
+      Module::CPANfile::Requirement undef
+    requirements:
+      CPAN::Meta 2.12091
+      CPAN::Meta::Prereqs 2.12091
+      ExtUtils::MakeMaker 0
+      parent 0
   Module-Implementation-0.09
     pathname: D/DR/DROLSKY/Module-Implementation-0.09.tar.gz
     provides:
@@ -1786,15 +1799,6 @@ DISTRIBUTIONS
       Test::Builder 0
       Test::More 0.96
       perl 5.012
-  Test-NoWarnings-1.06
-    pathname: H/HA/HAARG/Test-NoWarnings-1.06.tar.gz
-    provides:
-      Test::NoWarnings 1.06
-      Test::NoWarnings::Warning 1.06
-    requirements:
-      ExtUtils::MakeMaker 0
-      Test::Builder 0.86
-      perl 5.006
   TimeDate-2.35
     pathname: A/AT/ATOOMIC/TimeDate-2.35.tar.gz
     provides:
