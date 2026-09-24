@@ -6,6 +6,7 @@ use Mojolicious::Plugin::OAuth2;
 use KohaPluginStore::Model::Developer;
 use KohaPluginStore::Model::Plugin;
 use KohaPluginStore::Task::ProcessPluginVersion;
+use KohaPluginStore::Task::SyncPluginRelease;
 
 has site_name => sub {
     my $app = shift;
@@ -64,6 +65,7 @@ sub startup ($self) {
 
     $self->plugin( Minion => { Pg => $self->pg } );
     KohaPluginStore::Task::ProcessPluginVersion::register($self);
+    KohaPluginStore::Task::SyncPluginRelease::register($self);
 
     push @{ $self->commands->namespaces }, 'KohaPluginStore::Command';
 

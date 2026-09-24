@@ -42,4 +42,18 @@ sub for_plugin_ids {
     return [ map { $self->_new_from_row($_) } @$rows ];
 }
 
+# Every tag_name already recorded for a plugin, as a { tag_name => 1 }
+# lookup hash -- a raw query, not search(), since search()'s default
+# limit of 10 rows would silently miss tags on a plugin with more than
+# 10 versions.
+sub existing_tags {
+    my ( $self, $plugin_id ) = @_;
+
+    my $rows = $self->pg->db->query(
+        q{SELECT tag_name FROM plugin_versions WHERE plugin_id = ?}, $plugin_id
+    )->hashes;
+
+    return { map { $_->{tag_name} => 1 } @$rows };
+}
+
 1;
