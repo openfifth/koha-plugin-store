@@ -96,7 +96,11 @@ subtest 'the owner sees every version regardless of status, plus GitHub-sync sec
         no warnings 'redefine';
         *KohaPluginStore::GitHub::fetch_releases = sub {
             $fetch_calls++;
-            return [ { name => 'v2.0.0', tag_name => 'v2.0.0', published_at => '2026-01-01', assets => [ { name => 'plugin.kpz' } ] } ];
+            return [
+                { name => 'v2.0.0', tag_name => 'v2.0.0', published_at => '2026-01-01', assets => [ { name => 'plugin.kpz' } ] },
+                { name => 'v1.0.0', tag_name => 'v1.0.0', published_at => '2025-12-01', assets => [ { name => 'plugin.kpz' } ] },
+                { name => 'v0.5.0', tag_name => 'v0.5.0', published_at => '2025-06-01', assets => [] },
+            ];
         };
     }
 
@@ -105,7 +109,9 @@ subtest 'the owner sees every version regardless of status, plus GitHub-sync sec
       ->content_like(qr/v1\.0\.0/)
       ->content_like(qr/v0\.9\.0/)
       ->content_like(qr/v2\.0\.0/)
-      ->element_exists('form[action="/new-release"]');
+      ->element_exists('form[action="/new-release"]')
+      ->element_exists('tr.table-success')
+      ->element_exists('tr.table-danger');
     is( $fetch_calls, 1 );
 
     $t->get_ok('/logout');

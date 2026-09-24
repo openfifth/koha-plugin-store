@@ -127,7 +127,9 @@ subtest 'a changes_requested version (owner, nothing published yet) shows its ow
       ->content_like(qr/lib\/Foo\.pm: syntax error at line 12/)
       ->content_like(qr/docs_presence/)
       ->content_like(qr/INCOMPLETE/)
-      ->element_exists('a[href="/developers/checks"]');
+      ->element_exists('a[href="/developers/checks"]')
+      ->element_exists('tr.table-danger')
+      ->element_exists('tr.table-success');
 
     $t->get_ok('/logout');
 };

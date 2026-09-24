@@ -66,9 +66,9 @@
   <tbody>
     % for my $release (@$github_releases) {
       % if ($release->{message}->{success}) {
-      <tr class="text-success">
+      <tr class="table-success">
       % } elsif ($release->{message}->{error}) {
-      <tr class="text-danger">
+      <tr class="table-danger">
       % } else {
       <tr>
       % }

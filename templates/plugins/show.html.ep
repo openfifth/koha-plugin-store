@@ -181,7 +181,7 @@
   </thead>
   <tbody>
     % for my $check (@$checks) {
-    <tr class="<%= $check->passed ? 'text-success' : 'text-danger' %>">
+    <tr class="<%= $check->passed ? 'table-success' : 'table-danger' %>">
       %= t td => $check->check_name
       %= t td => ($check->required ? 'Required' : 'Advisory')
       %= t td => ($check->passed ? 'Passed' : 'Failed')

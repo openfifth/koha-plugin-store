@@ -45,7 +45,8 @@ subtest 'shows a list of releases to choose from, eligible ones selectable' => s
     )
       ->status_is(200)
       ->element_exists('input[type="radio"][value="v1.0.0"]')
-      ->element_exists_not('input[type="radio"][value="v0.9.0"]');
+      ->element_exists_not('input[type="radio"][value="v0.9.0"]')
+      ->element_exists('td.table-danger');
 
     # Verify the ineligible release message is shown
     like( $t->tx->res->body, qr/one and only one/, 'shows ineligible release message' );

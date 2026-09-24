@@ -41,7 +41,7 @@
           %= t td => $release->{tag_name}
           %= t td => $release->{published_at}
           % if (!$release->{eligible}) {
-          %= t td => (class => 'text-danger') => $release->{ineligible_reason}
+          %= t td => (class => 'table-danger') => $release->{ineligible_reason}
           % }
         </tr>
         % }
