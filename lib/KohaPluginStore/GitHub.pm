@@ -209,6 +209,24 @@ sub fetch_tag_has_test_files {
     return @matches ? 1 : 0;
 }
 
+# Unlike fetch_all_repos's /user/repos (which answers "what can the token
+# holder do"), this answers "what can this specific *other* username do" --
+# the only endpoint that can, which is why the revocation job needs it
+# instead of reusing the grant side's data source. Note the different
+# vocabulary: this returns a *string* permission ('admin'/'write'/'read'/
+# 'none'), not the boolean push/admin/pull object /user/repos returns.
+sub fetch_collaborator_permission {
+    my ( $access_token, $owner_repo, $username ) = @_;
+
+    my $api_repo = $owner_repo =~ s{^https://github\.com/}{https://api.github.com/repos/}r;
+    my $tx = _get( "$api_repo/collaborators/$username/permission", $access_token );
+    my $code = $tx->result->code;
+
+    return { ok => 1, permission => $tx->result->json->{permission} } if $code == 200;
+    return { ok => 1, not_found => 1 } if $code == 404;
+    return { ok => 0 };
+}
+
 sub _trim_release {
     my ($release) = @_;
 

@@ -434,4 +434,50 @@ subtest 'fetch_changelog_html returns undef when neither file exists' => sub {
     is( KohaPluginStore::GitHub::fetch_changelog_html( 'token', 'https://github.com/dev/widget' ), undef );
 };
 
+subtest 'fetch_collaborator_permission returns the permission string on success' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get = sub {
+        my $res = Mojo::Message::Response->new;
+        $res->code(200);
+        $res->body( Mojo::JSON::encode_json( { permission => 'write', user => { login => 'someone' } } ) );
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    is_deeply(
+        KohaPluginStore::GitHub::fetch_collaborator_permission( 'token', 'https://github.com/dev/widget', 'someone' ),
+        { ok => 1, permission => 'write' }
+    );
+};
+
+subtest 'fetch_collaborator_permission reports not_found on a 404 (repo/user gone)' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get = sub {
+        my $res = Mojo::Message::Response->new;
+        $res->code(404);
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    is_deeply(
+        KohaPluginStore::GitHub::fetch_collaborator_permission( 'token', 'https://github.com/dev/widget', 'someone' ),
+        { ok => 1, not_found => 1 }
+    );
+};
+
+subtest 'fetch_collaborator_permission reports not ok on a rate-limit/error response, never guesses' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::_get = sub {
+        my $res = Mojo::Message::Response->new;
+        $res->code(403);
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    is_deeply(
+        KohaPluginStore::GitHub::fetch_collaborator_permission( 'token', 'https://github.com/dev/widget', 'someone' ),
+        { ok => 0 }
+    );
+};
+
 done_testing();
