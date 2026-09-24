@@ -350,4 +350,57 @@ subtest 'leaving "keep private" unchecked at submission creates the plugin as pu
     $t->get_ok('/logout');
 };
 
+subtest 'a second developer checking "keep private" while joining an already-claimed repo does not change that plugin\'s existing visibility' => sub {
+    reset_db();
+    my $original_owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'original', username => 'original' }
+    );
+    my $existing_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'hello-world',
+        {
+            repo_url     => 'https://github.com/octocat/Hello-World',
+            developer_id => $original_owner->id,
+            is_private   => 0,
+        }
+    );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $existing_plugin->id, developer_id => $original_owner->id, role => 'owner', granted_via => 'creator' }
+    );
+
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');    # logs in as mockdev -- a different developer than $original_owner
+    $t->app->config->{oauth_mock} = 0;
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *KohaPluginStore::GitHub::fetch_all_repos = sub {
+        return [ {
+            full_name   => 'octocat/Hello-World',
+            html_url    => 'https://github.com/octocat/Hello-World',
+            permissions => { push => 1 },
+        } ];
+    };
+    *KohaPluginStore::GitHub::fetch_release_by_tag = sub {
+        return {
+            tag_name => 'v2.0.0', name => 'v2.0.0', published_at => '2026-02-01T00:00:00Z',
+            author => { login => 'mockdev', avatar_url => 'https://example.com/a.png' },
+            assets => [ { name => 'plugin.kpz', browser_download_url => 'https://example.com/plugin.kpz' } ],
+        };
+    };
+
+    $t->post_ok(
+        '/new-plugin-confirm' => form => {
+            plugin_repo => 'https://github.com/octocat/Hello-World',
+            tag_name    => 'v2.0.0',
+            is_private  => 1,
+            csrf_token  => csrf_token($t),
+        }
+    )->status_is(302);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $existing_plugin->id } );
+    ok( !$reloaded->is_private, "the second submitter's checkbox did not change the existing plugin's visibility" );
+
+    $t->get_ok('/logout');
+};
+
 done_testing();
