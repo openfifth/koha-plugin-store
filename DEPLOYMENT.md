@@ -341,10 +341,14 @@ Three example unit files ship at the repo root — copy all three into
 `koha_plugin_store-reconcile-maintainers.timer.example` run
 `script/koha_plugin_store reconcile_maintainers` once a day — it re-checks every
 automatically-granted co-maintainer against GitHub's current permissions and revokes any that no
-longer have write access. Copy both to `/etc/systemd/system/` (dropping the `.example` suffix),
-adjust the same `User`/`Group`/`PERL5LIB`/`WorkingDirectory` values as the other units, then:
+longer have write access (a circuit breaker aborts the run with no revocations if the not_found
+rate looks systemic rather than incidental -- see the command's own POD). Copy both to
+`/etc/systemd/system/`, adjust the same `User`/`Group`/`PERL5LIB`/`WorkingDirectory` values as the
+other units, then:
 
 ```bash
+sudo cp koha_plugin_store-reconcile-maintainers.service.example /etc/systemd/system/koha-plugin-store-reconcile-maintainers.service
+sudo cp koha_plugin_store-reconcile-maintainers.timer.example /etc/systemd/system/koha-plugin-store-reconcile-maintainers.timer
 sudo systemctl daemon-reload
 sudo systemctl enable --now koha-plugin-store-reconcile-maintainers.timer
 ```

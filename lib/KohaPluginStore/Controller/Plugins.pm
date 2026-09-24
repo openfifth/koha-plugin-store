@@ -234,6 +234,22 @@ sub update_plugin ($c) {
 
     my %fields = map { $_ => $c->param($_) } qw(name description repo_url author issue_tracker_url);
 
+    # is_maintained_by (above) accepts both the plugin's true owner and any
+    # github_access-granted maintainer, but repo_url is special: it's what
+    # reconcile_maintainers re-checks a maintainer's own standing against, so
+    # a maintainer who could freely repoint it could aim it at a repo they
+    # personally control and make their own grant permanently unrevokable.
+    # Only the true owner (plugins.developer_id) may change it.
+    if (   defined $fields{repo_url}
+        && length $fields{repo_url}
+        && $fields{repo_url} ne $plugin->repo_url
+        && $plugin->developer_id != $c->session->{developer}->{id} )
+    {
+        $c->stash( %{ $c->_plugin_page_stash( $plugin, $plugin->latest_published_version // $plugin->latest_version ) } );
+        $c->stash( errors => ['Only the plugin owner can change the repository URL.'], form_values => \%fields );
+        return $c->render('plugins/show');
+    }
+
     for my $field (qw(name description repo_url author)) {
         next if defined $fields{$field} && length $fields{$field};
 
