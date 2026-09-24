@@ -150,6 +150,7 @@ sub startup ($self) {
     $r->post('/plugins/:slug/edit')->to('plugins#update_plugin');
     $r->post('/plugins/:slug/sync-releases')->requires( user_authenticated => 1 )->to('plugins#sync_releases_now');
     $r->post('/plugins/:slug/auto-sync')->requires( user_authenticated => 1 )->to('plugins#toggle_auto_sync');
+    $r->post('/plugins/:slug/private')->requires( user_authenticated => 1 )->to('plugins#toggle_private');
     $r->post('/new-plugin')->to('plugins#new_plugin');
     $r->post('/new-plugin/bulk')->to('plugins#bulk_import');
     $r->post('/new-plugin-confirm')->to('plugins#new_plugin_confirm');

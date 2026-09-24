@@ -326,4 +326,98 @@ subtest 'the manage page shows the auto-sync checkbox and sync-now button' => su
     $t->get_ok('/logout');
 };
 
+subtest 'a maintainer can toggle a plugin private' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/private' => form => { is_private => 1, csrf_token => csrf_token($t) } )
+      ->status_is(302);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    ok( $reloaded->is_private, 'the plugin is now private' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a maintainer can toggle a plugin back to public' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $owner->id, is_private => 1 }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/private' => form => { csrf_token => csrf_token($t) } )
+      ->status_is(302);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    ok( !$reloaded->is_private, 'the plugin is now public -- no is_private param sent matches true unchecked-checkbox behavior' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a non-maintainer cannot toggle a plugin private' => sub {
+    reset_db();
+    my $real_owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'real-owner', username => 'realowner' }
+    );
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');    # logs in as mockdev, NOT $real_owner
+    $t->app->config->{oauth_mock} = 0;
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $real_owner->id }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/private' => form => { is_private => 1, csrf_token => csrf_token($t) } )
+      ->status_is(401);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    ok( !$reloaded->is_private, 'unchanged' );
+
+    $t->get_ok('/logout');
+};
+
+subtest 'a co-maintainer (not the owner) can toggle a plugin private' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $maintainer_dev = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    my $real_owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->create(
+        { oauth_provider_key => 'github', provider_user_id => 'real-owner', username => 'realowner' }
+    );
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget', developer_id => $real_owner->id }
+    );
+    KohaPluginStore::Model::PluginMaintainer->new( pg => test_pg() )->grant(
+        { plugin_id => $plugin->id, developer_id => $maintainer_dev->id, role => 'maintainer', granted_via => 'github_access' }
+    );
+
+    $t->post_ok( '/plugins/' . $plugin->slug . '/private' => form => { is_private => 1, csrf_token => csrf_token($t) } )
+      ->status_is(302);
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    ok( $reloaded->is_private, 'the co-maintainer successfully made it private' );
+
+    $t->get_ok('/logout');
+};
+
 done_testing();

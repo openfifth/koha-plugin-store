@@ -250,6 +250,22 @@ sub toggle_auto_sync ($c) {
     return $c->redirect_to( '/plugins/' . $plugin->slug . '/manage' );
 }
 
+sub toggle_private ($c) {
+    my $slug = $c->param('slug');
+
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => $c->pg )->find( { slug => $slug } );
+    return $c->render( text => 'Plugin not found', status => 404 ) unless $plugin;
+    return $c->render( text => 'Unauthorized', status => 401 )
+        unless $c->session->{developer} && $plugin->is_maintained_by( $c->session->{developer}->{id} );
+
+    return $c->render( text => 'Invalid CSRF token', status => 403 )
+        if $c->validation->csrf_protect->has_error('csrf_token');
+
+    $plugin->update( { is_private => $c->param('is_private') ? 1 : 0 } );
+
+    return $c->redirect_to( '/plugins/' . $plugin->slug . '/manage' );
+}
+
 sub update_plugin ($c) {
     my $slug = $c->param('slug');
 

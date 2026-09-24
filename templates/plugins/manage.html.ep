@@ -16,6 +16,18 @@
 
 <h2>Manage releases &mdash; <%= $plugin->name %></h2>
 
+<%= form_for '/plugins/'.$plugin->slug.'/private' => (method => 'POST') => begin %>
+  %= csrf_field
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="checkbox" name="is_private" value="1"
+           id="is-private-checkbox" onchange="this.form.submit()"
+           <%= $plugin->is_private ? 'checked' : '' %>>
+    <label class="form-check-label" for="is-private-checkbox">
+      Keep this plugin private -- don't list it publicly
+    </label>
+  </div>
+<% end %>
+
 <%= form_for '/plugins/'.$plugin->slug.'/auto-sync' => (method => 'POST') => begin %>
   %= csrf_field
   <div class="form-check mb-2">

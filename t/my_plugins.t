@@ -69,4 +69,25 @@ subtest 'lists a plugin the developer maintains but does not own' => sub {
     $t->get_ok('/my-plugins')->status_is(200)->content_like(qr/Shared Widget/);
 };
 
+subtest 'a private plugin is badged as private in the my-plugins list' => sub {
+    reset_db();
+    $t->app->config->{oauth_mock} = 1;
+    $t->get_ok('/auth/github');
+    $t->app->config->{oauth_mock} = 0;
+
+    my $owner = KohaPluginStore::Model::Developer->new( pg => test_pg() )->find(
+        { oauth_provider_key => 'github', provider_user_id => 'mock' }
+    );
+    KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'secret-widget', { name => 'SecretWidget', repo_url => 'https://github.com/dev/secret-widget', developer_id => $owner->id, is_private => 1 }
+    );
+
+    $t->get_ok('/my-plugins')
+      ->status_is(200)
+      ->content_like(qr/SecretWidget/)
+      ->content_like(qr/Private/);
+
+    $t->get_ok('/logout');
+};
+
 done_testing();

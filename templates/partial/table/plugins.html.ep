@@ -25,6 +25,9 @@
       %= t td => $plugin->id
       <td>
         %= link_to $plugin->name => '/plugins/'.$plugin->slug
+        % if ($plugin->is_private) {
+        <span class="badge bg-secondary">Private</span>
+        % }
       </td>
       %= t td => $plugin->description
       %= t td => $plugin->author
