@@ -181,11 +181,12 @@
   </thead>
   <tbody>
     % for my $check (@$checks) {
-    <tr class="<%= $check->passed ? 'table-success' : 'table-danger' %>">
-      %= t td => $check->check_name
-      %= t td => ($check->required ? 'Required' : 'Advisory')
-      %= t td => ($check->passed ? 'Passed' : 'Failed')
-      %= t td => ($check->message || '')
+    % my $status_class = $check->passed ? 'text-success' : 'text-danger';
+    <tr>
+      %= t td => (class => $status_class) => $check->check_name
+      %= t td => (class => $status_class) => ($check->required ? 'Required' : 'Advisory')
+      %= t td => (class => $status_class) => ($check->passed ? 'Passed' : 'Failed')
+      %= t td => (class => $status_class) => ($check->message || '')
     </tr>
     % }
   </tbody>

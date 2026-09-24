@@ -128,8 +128,8 @@ subtest 'a changes_requested version (owner, nothing published yet) shows its ow
       ->content_like(qr/docs_presence/)
       ->content_like(qr/INCOMPLETE/)
       ->element_exists('a[href="/developers/checks"]')
-      ->element_exists('tr.table-danger')
-      ->element_exists('tr.table-success');
+      ->element_exists('td.text-danger')
+      ->element_exists('td.text-success');
 
     $t->get_ok('/logout');
 };
