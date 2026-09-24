@@ -181,3 +181,36 @@ ALTER TABLE plugins ADD COLUMN changelog_html TEXT;
 
 -- 9 down
 ALTER TABLE plugins DROP COLUMN changelog_html;
+
+-- 10 up
+CREATE TABLE organizations (
+    id               SERIAL PRIMARY KEY,
+    provider         TEXT NOT NULL,
+    provider_org_id  TEXT NOT NULL,
+    login            TEXT NOT NULL,
+    avatar_url       TEXT,
+    UNIQUE (provider, provider_org_id)
+);
+
+ALTER TABLE plugins ADD COLUMN organization_id INTEGER REFERENCES organizations(id);
+
+CREATE TABLE plugin_maintainers (
+    id               SERIAL PRIMARY KEY,
+    plugin_id        INTEGER NOT NULL REFERENCES plugins(id) ON DELETE CASCADE,
+    developer_id     INTEGER NOT NULL REFERENCES developers(id) ON DELETE CASCADE,
+    role             TEXT NOT NULL,
+    granted_via      TEXT NOT NULL,
+    granted_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_verified_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (plugin_id, developer_id)
+);
+
+INSERT INTO plugin_maintainers (plugin_id, developer_id, role, granted_via)
+SELECT id, developer_id, 'owner', 'creator'
+FROM plugins
+WHERE developer_id IS NOT NULL;
+
+-- 10 down
+DROP TABLE plugin_maintainers;
+ALTER TABLE plugins DROP COLUMN organization_id;
+DROP TABLE organizations;
