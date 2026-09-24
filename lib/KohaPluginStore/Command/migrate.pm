@@ -220,3 +220,9 @@ ALTER TABLE plugins ADD COLUMN auto_sync_releases BOOLEAN NOT NULL DEFAULT false
 
 -- 11 down
 ALTER TABLE plugins DROP COLUMN auto_sync_releases;
+
+-- 12 up
+ALTER TABLE plugins ADD COLUMN is_private BOOLEAN NOT NULL DEFAULT false;
+
+-- 12 down
+ALTER TABLE plugins DROP COLUMN is_private;

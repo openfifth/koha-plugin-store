@@ -458,4 +458,18 @@ subtest 'auto_sync_releases defaults to false and can be toggled via update' => 
     ok( $reloaded->auto_sync_releases, 'persisted to the database, not just the in-memory object' );
 };
 
+subtest 'is_private defaults to false and can be toggled via update' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { repo_url => 'https://github.com/dev/widget' }
+    );
+    ok( !$plugin->is_private, 'defaults to false' );
+
+    $plugin->update( { is_private => 1 } );
+    ok( $plugin->is_private, 'update flips it to true' );
+
+    my $reloaded = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
+    ok( $reloaded->is_private, 'persisted to the database, not just the in-memory object' );
+};
+
 done_testing();
