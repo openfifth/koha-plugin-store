@@ -160,11 +160,22 @@ subtest 'a private plugin never appears in /api/v1/plugins, even when it matches
             status => 'published', content_digest => 'private123',
         }
     );
+    my $public = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'telford-public-erp', { name => 'TelfordPublicERP', description => 'A public integration', developer_id => $developer->id }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        {
+            plugin_id => $public->id, version => '1.0.0', koha_min_version => '19.05',
+            status => 'published', content_digest => 'public123',
+        }
+    );
 
     $t->get_ok('/api/v1/plugins?koha_version=20.00&q=Telford')
       ->status_is(200)
-      ->header_is( 'X-Total-Count' => 0 );
-    is_deeply( $t->tx->res->json, [], 'the response body is an empty array, not just an empty count' );
+      ->header_is( 'X-Total-Count' => 1 );
+    my $body = $t->tx->res->json;
+    is( scalar @$body, 1, 'exactly one plugin returned' );
+    is( $body->[0]{name}, 'TelfordPublicERP', 'the public one, not the private one' );
 
     $t->get_ok( '/plugins/' . $private->slug )
       ->status_is(200)
