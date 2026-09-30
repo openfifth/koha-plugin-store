@@ -399,7 +399,7 @@ subtest 'author name links to the public author page' => sub {
       ->text_is('a[href="/authors/jane-doe"]' => 'Jane Doe');
 };
 
-subtest 'a changelog excerpt for the current version renders when it matches; falls back to a full-changelog link otherwise' => sub {
+subtest 'a changelog excerpt for the current version renders when it matches; falls back to a Changelog link in the Links box otherwise' => sub {
     reset_db();
     my $matching = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
         'widget-a', { name => 'WidgetA', repo_url => 'https://github.com/dev/widget-a', changelog_html => '<h2>1.0.0</h2><p>Added sparkle.</p>' }
@@ -420,7 +420,7 @@ subtest 'a changelog excerpt for the current version renders when it matches; fa
 
     $t->get_ok( '/plugins/' . $nonmatching->slug )
       ->status_is(200)
-      ->content_like(qr/Full changelog/)
+      ->element_exists('a[href="https://github.com/dev/widget-b/blob/HEAD/CHANGELOG.md"]')
       ->content_unlike(qr/Freeform notes/);
 };
 

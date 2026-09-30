@@ -50,31 +50,19 @@
     </div>
   </div>
 
-  % if ($changelog_excerpt) {
-  <div class="card mt-3">
-    <div class="card-body">
-      <h6 class="card-title">What's new in this version</h6>
-      <%== $changelog_excerpt %>
-    </div>
-  </div>
-  % } elsif ($plugin->changelog_html) {
-  <div class="card mt-3">
-    <div class="card-body">
-      <a href="<%= $plugin->repo_url %>" target="_blank" rel="noopener">Full changelog &#8599;</a>
-    </div>
-  </div>
-  % }
-
   <div class="card mt-3">
     <div class="card-body">
       <h6 class="card-title">Links</h6>
       <ul class="list-unstyled mb-0">
-        <li><i class='bx bxl-github'></i> <a href="<%= $plugin->repo_url %>" target="_blank" rel="noopener"><%= $plugin->repo_url %></a></li>
+        <li><i class='bx bxl-github'></i> <a href="<%= $plugin->repo_url %>" target="_blank" rel="noopener">GitHub</a></li>
         % if ($plugin->documentation_url) {
         <li><i class='bx bx-book'></i> <a href="<%= $plugin->documentation_url %>" target="_blank" rel="noopener">Documentation</a></li>
         % }
         % if ($plugin->issue_tracker_url) {
         <li><i class='bx bx-bug'></i> <a href="<%= $plugin->issue_tracker_url %>" target="_blank" rel="noopener">Issue tracker</a></li>
+        % }
+        % if ($plugin->changelog_html) {
+        <li><i class='bx bx-history'></i> <a href="<%= $plugin->repo_url %>/blob/HEAD/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></li>
         % }
       </ul>
     </div>
@@ -144,6 +132,15 @@
 
 % if ($plugin->description) {
 <p class="lead"><%= $plugin->description %></p>
+% }
+
+% if ($changelog_excerpt) {
+<div class="card mb-4 bg-warning-subtle border-warning-subtle">
+  <div class="card-body">
+    <h6 class="card-title">What's new in <%= $current_version->tag_name %></h6>
+    <%== $changelog_excerpt %>
+  </div>
+</div>
 % }
 
 % if (@$errors) {
