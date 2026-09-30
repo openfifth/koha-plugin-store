@@ -396,8 +396,8 @@ PERL
     *KohaPluginStore::GitHub::fetch_contributors           = sub { return [] };
     *KohaPluginStore::GitHub::fetch_tag_verification       = sub { return 0 };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files     = sub { return 1 };
-    *KohaPluginStore::GitHub::fetch_readme_html            = sub { return '<h1>Widget</h1><p>Docs.</p>' };
-    *KohaPluginStore::GitHub::fetch_changelog_html         = sub { return '<h2>[1.0.0] - 2026-01-01</h2><p>Initial release.</p>' };
+    *KohaPluginStore::GitHub::fetch_readme_markdown    = sub { return "# Widget\n\nDocs.\n" };
+    *KohaPluginStore::GitHub::fetch_changelog_markdown = sub { return "## [1.0.0] - 2026-01-01\n\nInitial release.\n" };
     *KohaPluginStore::Check::PerlSyntax::_call_broker = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
@@ -786,14 +786,14 @@ subtest 'successful processing fetches and stores the README HTML' => sub {
     };
     *KohaPluginStore::GitHub::fetch_contributors      = sub { return []; };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files = sub { return 0 };
-    *KohaPluginStore::GitHub::fetch_readme_html        = sub { return '<h1>Widget</h1>'; };
+    *KohaPluginStore::GitHub::fetch_readme_markdown = sub { return "# Widget\n"; };
     *KohaPluginStore::Check::PerlSyntax::_call_broker  = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
 
     my $reloaded_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
-    is( $reloaded_plugin->readme_html, '<h1>Widget</h1>', 'readme_html populated from the README fetch' );
+    is( $reloaded_plugin->readme_html, "<h1>Widget</h1>\n", 'readme_html populated from the README fetch, rendered via CommonMark and sanitized' );
 };
 
 subtest 'a failed README fetch does not fail processing and leaves any existing readme_html untouched' => sub {
@@ -819,7 +819,7 @@ subtest 'a failed README fetch does not fail processing and leaves any existing 
     };
     *KohaPluginStore::GitHub::fetch_contributors      = sub { return []; };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files = sub { return 0 };
-    *KohaPluginStore::GitHub::fetch_readme_html        = sub { die "network error\n" };
+    *KohaPluginStore::GitHub::fetch_readme_markdown = sub { die "network error\n" };
     *KohaPluginStore::Check::PerlSyntax::_call_broker  = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
@@ -855,15 +855,15 @@ subtest 'successful processing fetches and stores the changelog HTML' => sub {
     };
     *KohaPluginStore::GitHub::fetch_contributors       = sub { return []; };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files = sub { return 0 };
-    *KohaPluginStore::GitHub::fetch_readme_html        = sub { return undef };
-    *KohaPluginStore::GitHub::fetch_changelog_html     = sub { return '<h2>1.0.0</h2><p>Initial release.</p>'; };
+    *KohaPluginStore::GitHub::fetch_readme_markdown    = sub { return undef };
+    *KohaPluginStore::GitHub::fetch_changelog_markdown = sub { return "## 1.0.0\n\nInitial release.\n"; };
     *KohaPluginStore::Check::PerlSyntax::_call_broker  = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
     $t->app->minion->perform_jobs_in_foreground;
 
     my $reloaded_plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->find( { id => $plugin->id } );
-    is( $reloaded_plugin->changelog_html, '<h2>1.0.0</h2><p>Initial release.</p>', 'changelog_html populated from the fetch' );
+    is( $reloaded_plugin->changelog_html, "<h2>1.0.0</h2>\n<p>Initial release.</p>\n", 'changelog_html populated from the fetch, rendered via CommonMark and sanitized' );
 };
 
 subtest 'a failed changelog fetch does not fail processing and leaves any existing changelog_html untouched' => sub {
@@ -889,8 +889,8 @@ subtest 'a failed changelog fetch does not fail processing and leaves any existi
     };
     *KohaPluginStore::GitHub::fetch_contributors       = sub { return []; };
     *KohaPluginStore::GitHub::fetch_tag_has_test_files = sub { return 0 };
-    *KohaPluginStore::GitHub::fetch_readme_html        = sub { return undef };
-    *KohaPluginStore::GitHub::fetch_changelog_html     = sub { die "network error\n" };
+    *KohaPluginStore::GitHub::fetch_readme_markdown    = sub { return undef };
+    *KohaPluginStore::GitHub::fetch_changelog_markdown = sub { die "network error\n" };
     *KohaPluginStore::Check::PerlSyntax::_call_broker  = sub { return { passed => 1, message => undef } };
 
     $t->app->minion->enqueue( process_plugin_version => [ $version->id ] );
