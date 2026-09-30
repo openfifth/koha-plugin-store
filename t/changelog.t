@@ -72,4 +72,31 @@ subtest 'has_version_heading returns false on undef or empty input' => sub {
     ok( !KohaPluginStore::Changelog::has_version_heading('') );
 };
 
+subtest 'extracts a section from real CommonMark-rendered output (not GitHub-anchor-wrapped HTML)' => sub {
+    # This is real KohaPluginStore::Markdown::render() output for:
+    #   ## [1.1.0] - 2026-02-01
+    #
+    #   Added a widget.
+    #
+    #   ## [1.0.0] - 2026-01-01
+    #
+    #   Initial release.
+    # (verified separately) -- CommonMark's headings carry no GitHub anchor
+    # wrapper, unlike the fixtures above -- this confirms extract_section
+    # still works against that simpler shape without any code change.
+    my $html = "<h2>[1.1.0] - 2026-02-01</h2>\n<p>Added a widget.</p>\n"
+        . "<h2>[1.0.0] - 2026-01-01</h2>\n<p>Initial release.</p>\n";
+
+    my $section = KohaPluginStore::Changelog::extract_section( $html, 'v1.1.0' );
+    like( $section, qr/Added a widget\./, 'matched entry included' );
+    unlike( $section, qr/Initial release\./, 'older entry not included' );
+};
+
+subtest 'has_version_heading recognizes a real CommonMark-rendered heading' => sub {
+    ok(
+        KohaPluginStore::Changelog::has_version_heading("<h2>[1.2.0] - 2026-01-01</h2>\n<p>Notes.</p>\n"),
+        'CommonMark output (no GitHub anchor wrapper) is recognized'
+    );
+};
+
 done_testing();

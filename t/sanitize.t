@@ -59,4 +59,21 @@ subtest 'undef and empty string pass through unchanged' => sub {
     is( KohaPluginStore::Sanitize::html(''),    '' );
 };
 
+subtest 'scrubs a CommonMark-rendered raw-HTML centered badge (unsafe-mode output), stripping the disallowed align attribute but keeping the tag and the allowed img attributes' => sub {
+    # This is real KohaPluginStore::Markdown::render() output for:
+    #   <div align="center">
+    #   <img src="https://example.com/badge.png" alt="badge">
+    #   </div>
+    # (verified separately in t/markdown.t) -- fed through Sanitize::html here
+    # to confirm the existing allowlist still behaves correctly once GitHub's
+    # renderer is no longer the thing producing this HTML.
+    my $html = qq{<div align="center">\n<img src="https://example.com/badge.png" alt="badge">\n</div>\n};
+
+    is(
+        KohaPluginStore::Sanitize::html($html),
+        qq{<div>\n<img src="https://example.com/badge.png" alt="badge">\n</div>\n},
+        'div\'s disallowed align attribute is dropped (div\'s rule only permits id/class), img is kept as-is'
+    );
+};
+
 done_testing();
