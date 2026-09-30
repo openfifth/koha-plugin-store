@@ -21,15 +21,19 @@ sub run ($self, @args) {
 
     my $updated = 0;
     for my $row (@$rows) {
-        my $readme_md    = eval { KohaPluginStore::GitHub::fetch_readme_markdown( $token, $row->{repo_url} ) };
-        my $changelog_md = eval { KohaPluginStore::GitHub::fetch_changelog_markdown( $token, $row->{repo_url} ) };
-
-        my $readme_html =
+        # Each field's fetch, render, and sanitize are wrapped in one eval --
+        # not just the fetch -- so a single plugin's malformed content (e.g.
+        # invalid UTF-8, which Markdown::render's OPT_VALIDATE_UTF8 makes
+        # CommonMark throw on) can't abort the whole run; that field is just
+        # left undef, same as ProcessPluginVersion.pm's own per-field guard.
+        my $readme_html = eval {
+            my $readme_md = KohaPluginStore::GitHub::fetch_readme_markdown( $token, $row->{repo_url} );
             defined $readme_md ? KohaPluginStore::Sanitize::html( KohaPluginStore::Markdown::render($readme_md) ) : undef;
-        my $changelog_html =
-            defined $changelog_md
-            ? KohaPluginStore::Sanitize::html( KohaPluginStore::Markdown::render($changelog_md) )
-            : undef;
+        };
+        my $changelog_html = eval {
+            my $changelog_md = KohaPluginStore::GitHub::fetch_changelog_markdown( $token, $row->{repo_url} );
+            defined $changelog_md ? KohaPluginStore::Sanitize::html( KohaPluginStore::Markdown::render($changelog_md) ) : undef;
+        };
 
         next unless defined $readme_html || defined $changelog_html;
 
