@@ -36,10 +36,11 @@ CommonMark implementation, so GitHub's renderer is no longer a trust dependency 
 - **Module boundary: new `KohaPluginStore::Markdown` module.** Keeps `GitHub.pm` as
   pure fetch (returns raw markdown strings), `Sanitize.pm` as pure scrub (unchanged),
   and this new module as the single markdown→HTML rendering seam.
-- **Backfill: one-off script.** The 2 plugins already in the store have
-  `plugin_versions` rows with HTML rendered by the old GitHub pipeline. A one-shot
-  script re-runs fetch→render→sanitize for all existing rows post-deploy, rather than
-  waiting for their next natural release to pick up the new pipeline.
+- **Backfill: one-off command.** The 2 plugins already in the store have `plugins`
+  rows (`readme_html`/`changelog_html` are columns on `plugins`, not
+  `plugin_versions`) with HTML rendered by the old GitHub pipeline. A one-shot
+  command re-runs fetch→render→sanitize for all existing `plugins` rows post-deploy,
+  rather than waiting for their next natural release to pick up the new pipeline.
 
 ## Architecture / data flow
 
@@ -104,10 +105,14 @@ CHANGELOG, same URLs as today, only the `Accept` header changes.
   CommonMark-rendered fixture**, not a rewrite, unless testing turns up a real
   mismatch.
 
-- **`script/backfill_markdown_rendering.pl`** (new): one-shot, run manually post-deploy
-  (not scheduled). Iterates existing `plugin_versions` rows and re-runs
-  fetch→render→sanitize in place, so already-stored HTML doesn't lag behind the new
-  renderer until each plugin's next release.
+- **`KohaPluginStore::Command::backfill_markdown_rendering`** (new, following the
+  project's existing `Mojolicious::Command` pattern under
+  `lib/KohaPluginStore/Command/`, same shape as the existing
+  `backfill_koha_versions` command): one-shot, run manually post-deploy via
+  `script/koha_plugin_store backfill_markdown_rendering` (not scheduled). Iterates
+  existing `plugins` rows and re-runs fetch→render→sanitize in place, so
+  already-stored HTML doesn't lag behind the new renderer until each plugin's next
+  release.
 
 ## Error handling
 
@@ -135,10 +140,11 @@ today.
   `extract_section` against the new, simpler heading shape.
 - `ProcessPluginVersion`'s existing test file — update mocks from `fetch_*_html` to
   `fetch_*_markdown`.
-- Manual validation — before running `script/backfill_markdown_rendering.pl` against
-  the shared dev DB, dry-run a diff of old-vs-new rendered HTML for the 2 live plugins
-  first (per the project's existing shared-test-DB caution — this DSN is shared live
-  state across worktrees, not an isolated test fixture).
+- Manual validation — before running `script/koha_plugin_store
+  backfill_markdown_rendering` against the shared dev DB, dry-run a diff of
+  old-vs-new rendered HTML for the 2 live plugins first (per the project's existing
+  shared-test-DB caution — this DSN is shared live state across worktrees, not an
+  isolated test fixture).
 
 ## Workflow note
 
