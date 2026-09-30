@@ -330,6 +330,24 @@ subtest 'latest_published_version ignores a newer non-published version' => sub 
     is( $latest->tag_name, 'v1', "the submitted v2 is skipped in favour of the published v1" );
 };
 
+subtest 'latest_published_version follows date_released, not row id' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'Widget' } );
+
+    # v2 is created (and so gets the higher id) before v1 is reprocessed/resubmitted
+    # later -- simulates a resync bumping an older release's row without it becoming
+    # the newest actual release.
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, version => '2.0.0', tag_name => 'v2', status => 'published', date_released => '2026-01-01T00:00:00Z' }
+    );
+    KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+        { plugin_id => $plugin->id, version => '1.0.0', tag_name => 'v1', status => 'published', date_released => '2025-01-01T00:00:00Z' }
+    );
+
+    my $latest = $plugin->latest_published_version;
+    is( $latest->tag_name, 'v2', 'the more recently released v2 wins despite v1 having the higher id' );
+};
+
 subtest 'search_compatible and count_compatible filter by certification_tier' => sub {
     reset_db();
     my $certified = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create( { name => 'Certified' } );

@@ -215,6 +215,39 @@ subtest 'owner: dropdown links every version, including drafts; edit control is 
     $t->get_ok('/logout');
 };
 
+subtest 'dropdown lists releases newest-to-oldest by date_released and is not truncated by the default row limit of 10' => sub {
+    reset_db();
+    my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(
+        'widget', { name => 'Widget', repo_url => 'https://github.com/dev/widget' }
+    );
+    for my $n ( 1 .. 12 ) {    # 12 versions, two over search()'s default row limit of 10
+        KohaPluginStore::Model::PluginVersion->new( pg => test_pg() )->create(
+            {
+                plugin_id     => $plugin->id,
+                tag_name      => "v1.$n.0",
+                status        => 'published',
+                date_released => sprintf( '2026-01-%02dT00:00:00Z', $n ),
+            }
+        );
+    }
+
+    my $content = $t->get_ok( '/plugins/' . $plugin->slug )->status_is(200)->tx->res->body;
+
+    # Isolate the dropdown-menu list itself -- the version switcher's toggle
+    # button also renders the current tag_name, ahead of the list, which
+    # would otherwise dominate a plain index() search on the whole page.
+    my ($dropdown) = $content =~ m{(<ul class="dropdown-menu".*?</ul>)}s;
+
+    ok(
+        index( $dropdown, 'v1.1.0' ) > -1 && index( $dropdown, 'v1.12.0' ) > -1,
+        'oldest and newest releases both appear -- not truncated to the default limit of 10'
+    );
+    ok(
+        index( $dropdown, 'v1.12.0' ) < index( $dropdown, 'v1.1.0' ),
+        'the most recently released version (v1.12.0) is listed before the oldest (v1.1.0)'
+    );
+};
+
 subtest 'a plugin with zero published versions renders inline at the bare URL and hides its draft from the public' => sub {
     reset_db();
     my $plugin = KohaPluginStore::Model::Plugin->new( pg => test_pg() )->create_with_unique_slug(

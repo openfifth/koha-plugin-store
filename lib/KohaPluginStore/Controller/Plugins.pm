@@ -111,8 +111,14 @@ sub refresh_repos {
 sub _plugin_page_stash {
     my ( $c, $plugin, $current_version ) = @_;
 
+    # Newest release first, by actual release date rather than row id -- see
+    # KohaPluginStore::Model::Plugin::latest_published_version for why id
+    # ordering doesn't track release recency. limit is overridden for the
+    # same reason as the ReviewCheck search below: search()'s
+    # default_query_params caps at 10, which would silently drop older
+    # versions from the switcher for any plugin with more than 10 releases.
     my @versions = KohaPluginStore::Model::PluginVersion->new( pg => $c->pg )->search(
-        { plugin_id => $plugin->id }, { order_by => { -desc => 'id' } }
+        { plugin_id => $plugin->id }, { order_by => { -desc => 'date_released' }, limit => 1000 }
     );
     my @contributors = KohaPluginStore::Model::PluginContributor->new( pg => $c->pg )->search(
         { plugin_id => $plugin->id }, { order_by => { -desc => 'contributions_count' } }

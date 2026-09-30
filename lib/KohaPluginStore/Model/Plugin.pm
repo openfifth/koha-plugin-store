@@ -33,11 +33,20 @@ sub latest_version {
     return $version;
 }
 
+# Unlike latest_version, this is the release a plugin's page should default
+# to showing, so it's ordered by date_released (the tagged release's actual
+# publish date, set once at submission time from GitHub's own published_at --
+# see Controller::Plugins) rather than id: a version can be reprocessed after
+# newer ones already exist (bumping its id) without becoming the newest
+# release. Matches the ordering PluginVersion::for_plugin_ids already uses
+# for the public discovery API.
 sub latest_published_version {
     my ($self) = @_;
 
-    my ($version) = KohaPluginStore::Model::PluginVersion->new( pg => $self->pg )
-      ->search( { plugin_id => $self->id, status => 'published' }, { order_by => { -desc => 'id' }, limit => 1 } );
+    my ($version) = KohaPluginStore::Model::PluginVersion->new( pg => $self->pg )->search(
+        { plugin_id => $self->id, status => 'published' },
+        { order_by => { -desc => 'date_released' }, limit => 1 }
+    );
     return $version;
 }
 
