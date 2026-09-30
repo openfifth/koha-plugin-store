@@ -133,39 +133,42 @@ sub fetch_contributors {
     ];
 }
 
-sub fetch_readme_html {
+sub fetch_readme_markdown {
     my ( $access_token, $owner_repo ) = @_;
 
     my $api_repo = $owner_repo =~ s{^https://github\.com/}{https://api.github.com/repos/}r;
-    my $tx = _get_readme( "$api_repo/readme", $access_token );
+    my $tx = _get_raw_markdown( "$api_repo/readme", $access_token );
 
     return unless $tx->result->code == 200;
 
     return $tx->result->body;
 }
 
-# Test seam, separate from _get: the README endpoint's pre-rendered-HTML Accept
-# header is unique to this call, and the response body is used as-is (not
-# ->json-decoded like every other _get call).
-sub _get_readme {
+# Test seam, separate from _get: the README/changelog endpoints' raw-markdown
+# Accept header is unique to this call, and the response body is used as-is
+# (not ->json-decoded like every other _get call). We fetch raw markdown and
+# render it ourselves (see KohaPluginStore::Markdown) rather than trusting
+# GitHub's own rendering -- see
+# docs/superpowers/specs/2026-09-30-markdown-rendering-design.md.
+sub _get_raw_markdown {
     my ( $url, $access_token ) = @_;
 
     return Mojo::UserAgent->new->get(
-        $url => { Accept => 'application/vnd.github.html+json', _auth_header($access_token) }
+        $url => { Accept => 'application/vnd.github.raw+json', _auth_header($access_token) }
     );
 }
 
 # Tries CHANGELOG.md first (the more common convention), then CHANGES.md. Reuses
-# _get_readme's pre-rendered-HTML Accept header via GitHub's Contents API, which
-# (unlike the README-specific /readme endpoint) renders *any* markdown file at a
-# given path to HTML when asked for the same media type.
-sub fetch_changelog_html {
+# _get_raw_markdown's raw-markdown Accept header via GitHub's Contents API, which
+# (unlike the README-specific /readme endpoint) returns *any* file at a given
+# path when asked for the same media type.
+sub fetch_changelog_markdown {
     my ( $access_token, $owner_repo ) = @_;
 
     my $api_repo = $owner_repo =~ s{^https://github\.com/}{https://api.github.com/repos/}r;
 
     for my $filename (qw(CHANGELOG.md CHANGES.md)) {
-        my $tx = _get_readme( "$api_repo/contents/$filename", $access_token );
+        my $tx = _get_raw_markdown( "$api_repo/contents/$filename", $access_token );
         return $tx->result->body if $tx->result->code == 200;
     }
 

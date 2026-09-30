@@ -7,7 +7,7 @@ sub check_name         { 'changelog_format' }
 sub required            { 0 }
 sub gates_certification { 1 }
 
-# $context->{changelog_html} is whatever KohaPluginStore::GitHub::fetch_changelog_html
+# $context->{changelog_html} is whatever KohaPluginStore::GitHub::fetch_changelog_markdown
 # found (CHANGELOG.md, falling back to CHANGES.md) -- already fetched and
 # sanitized by Task::ProcessPluginVersion before checks run, so this doesn't
 # make its own GitHub API call. Not a full Keep a Changelog / Common Changelog

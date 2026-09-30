@@ -6,7 +6,7 @@ sub check_name         { 'readme_presence' }
 sub required            { 0 }
 sub gates_certification { 1 }
 
-# $context->{readme_html} is whatever KohaPluginStore::GitHub::fetch_readme_html
+# $context->{readme_html} is whatever KohaPluginStore::GitHub::fetch_readme_markdown
 # found via GitHub's own README detection (README.md, README.rst, bare README,
 # ...) -- already fetched and sanitized by Task::ProcessPluginVersion before
 # checks run, so this doesn't make its own GitHub API call.

@@ -333,84 +333,84 @@ subtest 'fetch_tag_has_test_files requires a tag_name but not a token' => sub {
     );
 };
 
-subtest 'fetch_readme_html returns the raw HTML body on success' => sub {
+subtest 'fetch_readme_markdown returns the raw markdown body on success' => sub {
     no strict 'refs';
     no warnings 'redefine';
-    *KohaPluginStore::GitHub::_get_readme = sub {
+    *KohaPluginStore::GitHub::_get_raw_markdown = sub {
         my $res = Mojo::Message::Response->new;
         $res->code(200);
-        $res->body('<h1>Widget</h1><p>Docs.</p>');
+        $res->body("# Widget\n\nDocs.\n");
         return bless { result => $res }, 'FakeTx';
     };
 
     is(
-        KohaPluginStore::GitHub::fetch_readme_html( 'token', 'https://github.com/dev/widget' ),
-        '<h1>Widget</h1><p>Docs.</p>',
-        'raw pre-rendered HTML returned as-is, not JSON-decoded'
+        KohaPluginStore::GitHub::fetch_readme_markdown( 'token', 'https://github.com/dev/widget' ),
+        "# Widget\n\nDocs.\n",
+        'raw markdown returned as-is, not JSON-decoded'
     );
 };
 
-subtest 'fetch_readme_html returns undef on a non-200 response (no README, rate-limited, ...)' => sub {
+subtest 'fetch_readme_markdown returns undef on a non-200 response (no README, rate-limited, ...)' => sub {
     no strict 'refs';
     no warnings 'redefine';
-    *KohaPluginStore::GitHub::_get_readme = sub {
+    *KohaPluginStore::GitHub::_get_raw_markdown = sub {
         my $res = Mojo::Message::Response->new;
         $res->code(404);
         return bless { result => $res }, 'FakeTx';
     };
 
-    is( KohaPluginStore::GitHub::fetch_readme_html( 'token', 'https://github.com/dev/widget' ), undef, 'undef, not a die' );
+    is( KohaPluginStore::GitHub::fetch_readme_markdown( 'token', 'https://github.com/dev/widget' ), undef, 'undef, not a die' );
 };
 
-subtest 'fetch_readme_html still makes a request with no token configured' => sub {
+subtest 'fetch_readme_markdown still makes a request with no token configured' => sub {
     no strict 'refs';
     no warnings 'redefine';
     my @seen_args;
-    *KohaPluginStore::GitHub::_get_readme = sub { push @seen_args, [@_]; return _fake_tx(); };
+    *KohaPluginStore::GitHub::_get_raw_markdown = sub { push @seen_args, [@_]; return _fake_tx(); };
 
-    KohaPluginStore::GitHub::fetch_readme_html( undef, 'https://github.com/a/b' );
+    KohaPluginStore::GitHub::fetch_readme_markdown( undef, 'https://github.com/a/b' );
     is( scalar @seen_args, 1, 'the request was made' );
     is( $seen_args[0][1], undef, 'with no token' );
 };
 
-subtest 'fetch_changelog_html tries CHANGELOG.md first and returns its HTML body on success' => sub {
+subtest 'fetch_changelog_markdown tries CHANGELOG.md first and returns its raw markdown body on success' => sub {
     no strict 'refs';
     no warnings 'redefine';
     my @seen_paths;
-    *KohaPluginStore::GitHub::_get_readme = sub {
+    *KohaPluginStore::GitHub::_get_raw_markdown = sub {
         my ($url) = @_;
         push @seen_paths, $url;
         my $res = Mojo::Message::Response->new;
         $res->code(200);
-        $res->body('<h2>1.0.0</h2><p>Initial release.</p>');
+        $res->body("## 1.0.0\n\nInitial release.\n");
         return bless { result => $res }, 'FakeTx';
     };
 
     is(
-        KohaPluginStore::GitHub::fetch_changelog_html( 'token', 'https://github.com/dev/widget' ),
-        '<h2>1.0.0</h2><p>Initial release.</p>',
-        'raw pre-rendered HTML returned as-is'
+        KohaPluginStore::GitHub::fetch_changelog_markdown( 'token', 'https://github.com/dev/widget' ),
+        "## 1.0.0\n\nInitial release.\n",
+        'raw markdown returned as-is'
     );
     is( $seen_paths[0], 'https://api.github.com/repos/dev/widget/contents/CHANGELOG.md', 'CHANGELOG.md tried first' );
     is( scalar @seen_paths, 1, 'stops after the first successful path' );
 };
 
-subtest 'fetch_changelog_html falls back to CHANGES.md when CHANGELOG.md is missing' => sub {
+subtest 'fetch_changelog_markdown falls back to CHANGES.md when CHANGELOG.md is missing' => sub {
     no strict 'refs';
     no warnings 'redefine';
     my @seen_paths;
-    *KohaPluginStore::GitHub::_get_readme = sub {
+    *KohaPluginStore::GitHub::_get_raw_markdown = sub {
         my ($url) = @_;
         push @seen_paths, $url;
         my $res = Mojo::Message::Response->new;
         $res->code( $url =~ /CHANGES\.md/ ? 200 : 404 );
-        $res->body('<h2>1.0.0</h2>') if $url =~ /CHANGES\.md/;
+        $res->body("## 1.0.0\n") if $url =~ /CHANGES\.md/;
         return bless { result => $res }, 'FakeTx';
     };
 
     is(
-        KohaPluginStore::GitHub::fetch_changelog_html( 'token', 'https://github.com/dev/widget' ),
-        '<h2>1.0.0</h2>'
+        KohaPluginStore::GitHub::fetch_changelog_markdown( 'token', 'https://github.com/dev/widget' ),
+        "## 1.0.0\n"
     );
     is_deeply(
         \@seen_paths,
@@ -422,16 +422,16 @@ subtest 'fetch_changelog_html falls back to CHANGES.md when CHANGELOG.md is miss
     );
 };
 
-subtest 'fetch_changelog_html returns undef when neither file exists' => sub {
+subtest 'fetch_changelog_markdown returns undef when neither file exists' => sub {
     no strict 'refs';
     no warnings 'redefine';
-    *KohaPluginStore::GitHub::_get_readme = sub {
+    *KohaPluginStore::GitHub::_get_raw_markdown = sub {
         my $res = Mojo::Message::Response->new;
         $res->code(404);
         return bless { result => $res }, 'FakeTx';
     };
 
-    is( KohaPluginStore::GitHub::fetch_changelog_html( 'token', 'https://github.com/dev/widget' ), undef );
+    is( KohaPluginStore::GitHub::fetch_changelog_markdown( 'token', 'https://github.com/dev/widget' ), undef );
 };
 
 subtest 'fetch_collaborator_permission returns the permission string on success' => sub {
