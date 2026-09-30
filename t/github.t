@@ -2,6 +2,7 @@ use Mojo::Base -strict;
 use Test::More;
 use Mojo::JSON qw(encode_json);
 use Mojo::Message::Response;
+use Encode qw(encode_utf8);
 
 use KohaPluginStore::GitHub;
 
@@ -362,6 +363,29 @@ subtest 'fetch_readme_markdown returns undef on a non-200 response (no README, r
     is( KohaPluginStore::GitHub::fetch_readme_markdown( 'token', 'https://github.com/dev/widget' ), undef, 'undef, not a die' );
 };
 
+subtest 'fetch_readme_markdown decodes non-ASCII UTF-8 bytes into a proper Perl character string' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+
+    # $res->body(...) is set to the *raw UTF-8 bytes* for "caf\x{e9}", exactly
+    # as they'd arrive over the wire in a real HTTP response with no charset
+    # in Content-Type -- Mojo::Message::Response defaults to UTF-8 in that
+    # case. Regression test for the double-encoding ("mojibake") bug: using
+    # ->body here instead of ->text would return those undecoded bytes, which
+    # KohaPluginStore::Markdown::render (expecting a character string) would
+    # then upgrade as if it were latin-1, corrupting the text.
+    *KohaPluginStore::GitHub::_get_raw_markdown = sub {
+        my $res = Mojo::Message::Response->new;
+        $res->code(200);
+        $res->body( encode_utf8("# Caf\x{e9}\n") );
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    my $markdown = KohaPluginStore::GitHub::fetch_readme_markdown( 'token', 'https://github.com/dev/widget' );
+    is( $markdown, "# Caf\x{e9}\n", 'returns the correctly-decoded character string, not double-encoded bytes' );
+    ok( utf8::is_utf8($markdown), 'the returned string carries the UTF8 flag (a character string, not raw bytes)' );
+};
+
 subtest 'fetch_readme_markdown still makes a request with no token configured' => sub {
     no strict 'refs';
     no warnings 'redefine';
@@ -420,6 +444,23 @@ subtest 'fetch_changelog_markdown falls back to CHANGES.md when CHANGELOG.md is 
         ],
         'both paths tried, in order'
     );
+};
+
+subtest 'fetch_changelog_markdown decodes non-ASCII UTF-8 bytes into a proper Perl character string' => sub {
+    no strict 'refs';
+    no warnings 'redefine';
+
+    # Same regression as fetch_readme_markdown's equivalent test above.
+    *KohaPluginStore::GitHub::_get_raw_markdown = sub {
+        my $res = Mojo::Message::Response->new;
+        $res->code(200);
+        $res->body( encode_utf8("## 1.0.0\n\nThanks, \x{1f389} r\x{e9}sum\x{e9}!\n") );
+        return bless { result => $res }, 'FakeTx';
+    };
+
+    my $markdown = KohaPluginStore::GitHub::fetch_changelog_markdown( 'token', 'https://github.com/dev/widget' );
+    is( $markdown, "## 1.0.0\n\nThanks, \x{1f389} r\x{e9}sum\x{e9}!\n", 'returns the correctly-decoded character string' );
+    ok( utf8::is_utf8($markdown), 'the returned string carries the UTF8 flag' );
 };
 
 subtest 'fetch_changelog_markdown returns undef when neither file exists' => sub {

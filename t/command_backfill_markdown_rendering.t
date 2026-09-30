@@ -39,11 +39,13 @@ no warnings 'redefine';
     return undef;
 };
 
-# Simulates a render-stage exception (e.g. CommonMark throwing on invalid
-# UTF-8, per Markdown.pm's OPT_VALIDATE_UTF8) for exactly the "Broken"
-# plugin's markdown, while behaving normally for every other input -- this
-# exercises the eval scope actually catching a failure past the fetch stage,
-# not just a fetch that returns undef.
+# Simulates a render-stage exception (e.g. a bug in a future CommonMark
+# upgrade, or some other die past the fetch stage -- NOT invalid UTF-8:
+# Markdown.pm's OPT_VALIDATE_UTF8 replaces invalid bytes with U+FFFD and
+# returns normally, it does not make CommonMark throw) for exactly the
+# "Broken" plugin's markdown, while behaving normally for every other input --
+# this exercises the eval scope actually catching a failure past the fetch
+# stage, not just a fetch that returns undef.
 my $real_render = \&KohaPluginStore::Markdown::render;
 *KohaPluginStore::Markdown::render = sub {
     my ($markdown) = @_;

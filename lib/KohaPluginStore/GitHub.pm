@@ -141,7 +141,12 @@ sub fetch_readme_markdown {
 
     return unless $tx->result->code == 200;
 
-    return $tx->result->body;
+    # ->text (not ->body): decodes the response body to a proper Perl
+    # character string using its charset (falling back to UTF-8), so
+    # non-ASCII markdown doesn't get double-encoded when it later reaches
+    # KohaPluginStore::Markdown::render (which operates on character strings,
+    # not raw bytes). ->body would return undecoded bytes here.
+    return $tx->result->text;
 }
 
 # Test seam, separate from _get: the README/changelog endpoints' raw-markdown
@@ -169,7 +174,9 @@ sub fetch_changelog_markdown {
 
     for my $filename (qw(CHANGELOG.md CHANGES.md)) {
         my $tx = _get_raw_markdown( "$api_repo/contents/$filename", $access_token );
-        return $tx->result->body if $tx->result->code == 200;
+
+        # ->text, not ->body -- see fetch_readme_markdown's comment above.
+        return $tx->result->text if $tx->result->code == 200;
     }
 
     return;
