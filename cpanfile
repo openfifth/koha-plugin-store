@@ -15,6 +15,11 @@ requires 'File::Slurp';
 # Sanitizes GitHub-rendered README/changelog HTML before it's stored --
 # see KohaPluginStore::Sanitize.
 requires 'HTML::Scrubber';
+# Renders README/CHANGELOG markdown to HTML ourselves rather than trusting
+# GitHub's own rendering pipeline -- see KohaPluginStore::Markdown and
+# docs/superpowers/specs/2026-09-30-markdown-rendering-design.md. Needs the
+# system libcmark-dev package to build (see DEPLOYMENT.md/Dockerfile).
+requires 'CommonMark';
 # Used directly by ProcessPluginVersion's metadata parser and the
 # DependencyAllowlist/HardcodedCredentials checks to safely inspect
 # submitted plugin source without executing it. It's also a transitive

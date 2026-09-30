@@ -16,7 +16,7 @@ On the **app/worker host**:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y perl build-essential libpq-dev libssl-dev zlib1g-dev git cpanminus
+sudo apt-get install -y perl build-essential libpq-dev libssl-dev zlib1g-dev libcmark-dev git cpanminus
 ```
 
 - `build-essential`, `libpq-dev`, `libssl-dev`, `zlib1g-dev` — compile
@@ -26,6 +26,11 @@ sudo apt-get install -y perl build-essential libpq-dev libssl-dev zlib1g-dev git
   `debian:bookworm-slim` container with nothing else installed — dropping
   any of these produces a linker or configure failure (missing `-lssl`,
   missing `-lz`, or missing `libpq-fe.h`, respectively).
+- `libcmark-dev` — C headers and shared library the `CommonMark` Perl module
+  (used to render README/CHANGELOG markdown, see `KohaPluginStore::Markdown`)
+  builds against. Confirmed present in Debian 12's own repos (package
+  `libcmark-dev`, version `0.30.2-6` at time of writing) — no third-party
+  repo needed.
 - `git` — the app itself doesn't shell out to git, but `cpanm`/`carton`
   need it for a couple of dependencies distributed as git checkouts, and
   it's how you'll be deploying this repo in the first place.

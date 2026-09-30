@@ -91,6 +91,15 @@ DISTRIBUTIONS
       ExtUtils::MakeMaker 0
       Storable 0
       perl 5.008001
+  CommonMark-0.310100
+    pathname: N/NW/NWELLNHOF/CommonMark-0.310100.tar.gz
+    provides:
+      CommonMark 0.310100
+      CommonMark::Node 0.310100
+    requirements:
+      Devel::CheckLib 0
+      ExtUtils::MakeMaker 0
+      perl 5.008
   Config-Tiny-2.30
     pathname: R/RS/RSAVAGE/Config-Tiny-2.30.tgz
     provides:
@@ -280,6 +289,16 @@ DISTRIBUTIONS
       perl 5.008
       strict 0
       warnings 0
+  Devel-CheckLib-1.16
+    pathname: M/MA/MATTN/Devel-CheckLib-1.16.tar.gz
+    provides:
+      Devel::CheckLib 1.16
+    requirements:
+      Exporter 0
+      ExtUtils::MakeMaker 0
+      File::Spec 0
+      File::Temp 0.16
+      perl 5.004050
   Devel-StackTrace-2.05
     pathname: D/DR/DROLSKY/Devel-StackTrace-2.05.tar.gz
     provides:
