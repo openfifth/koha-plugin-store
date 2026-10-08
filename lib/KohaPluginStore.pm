@@ -45,6 +45,29 @@ sub startup ($self) {
         }
     );
 
+    # Optional: when `canonical_host` is configured, redirect any request that
+    # arrived under a different Host to the same path+query on the canonical
+    # one (used while migrating from an old hostname -- both names stay served,
+    # by the same cert, until the old one is retired). 301 for GET/HEAD; 308
+    # for anything else so a POST keeps its method and body. Plain-http
+    # requests aren't covered: nothing listens on port 80 in the standard
+    # deployment. Read per request, not at startup, so it's a no-op when
+    # unset and testable without a conf file.
+    $self->hook(
+        before_dispatch => sub {
+            my $c         = shift;
+            my $canonical = $c->app->config->{canonical_host} or return;
+            my $url       = $c->req->url->to_abs;
+            return if lc( $url->host // '' ) eq lc $canonical;
+
+            my $target = $url->clone->scheme('https')->host($canonical)->port(undef);
+            my $code   = $c->req->method =~ /^(?:GET|HEAD)$/ ? 301 : 308;
+            $c->res->code($code);
+            $c->res->headers->location( $target->to_string );
+            $c->rendered($code);
+        }
+    );
+
     # Validate signing_key_path configuration if present
     if ( my $key_path = $self->config->{signing_key_path} ) {
         unless ( -e $key_path && -r $key_path ) {

@@ -219,6 +219,15 @@ starting the systemd units.
      otherwise) — make sure you're actually serving over HTTPS (see the TLS
      step below) before relying on that.
 
+   - `canonical_host` — optional. If the store is reachable under more than
+     one hostname (e.g. while migrating to a new one), set this to the one
+     you want to keep and every request under another `Host` gets a
+     redirect to the same path and query there (301 for GET/HEAD, 308 for
+     anything else). Both hostnames still need to be on the TLS cert (see
+     the TLS step below), and note that a GitHub OAuth App only allows one
+     callback URL, so `oauth_providers` must point at the canonical host.
+     Plain `http://` requests aren't redirected: nothing listens on port 80.
+
    `koha_plugin_store.conf` holds a GitHub PAT, an OAuth client secret, your
    Postgres password, and the session secret — lock it down:
    ```bash

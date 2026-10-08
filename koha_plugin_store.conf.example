@@ -21,6 +21,11 @@
   #   perl -MMojo::Util=b64_encode -e 'print b64_encode(pack("Q*", map { rand(2**64) } 1..4))'
   # secrets => ['YOUR_RANDOM_SECRET_HERE'],
 
+  # Optional: redirect requests arriving under any other Host to this one
+  # (same path and query), e.g. while migrating from an old hostname that's
+  # still served by the same cert. Leave unset to serve every Host as-is.
+  # canonical_host => 'plugins.koha-community.org',
+
   # OAuth providers for developer login. 'github' is a built-in provider name
   # recognised by Mojolicious::Plugin::OAuth2 -- register an OAuth App at
   # https://github.com/settings/developers to get a client_id/client_secret.
