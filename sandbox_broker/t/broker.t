@@ -18,6 +18,20 @@ subtest 'a minimum_version that cannot be resolved to a tag fails clearly, witho
     )->status_is(422)->json_like( '/error' => qr/Could not resolve/ );
 };
 
+subtest '_resolve_tag maps every accepted version shape to a tag that exists upstream' => sub {
+    my %expected = (
+        '23.11'        => 'v23.11.00',
+        '23.11+'       => 'v23.11.00',
+        '23.11.05'     => 'v23.11.05',
+        '23.11.05.003' => 'v23.11.05',
+        '22.11.00.000' => 'v22.11.00',
+        '23.5'         => 'v23.05.00',
+    );
+    is( SandboxBroker::_resolve_tag($_), $expected{$_}, "'$_' resolves to $expected{$_}" ) for sort keys %expected;
+    ok( !defined SandboxBroker::_resolve_tag('not-a-version'), 'garbage does not resolve' );
+    ok( !defined SandboxBroker::_resolve_tag(undef),           'undef does not resolve' );
+};
+
 subtest 'no .pm files means an automatic pass, without touching Docker' => sub {
     my $t = Test::Mojo->new('SandboxBroker');
 

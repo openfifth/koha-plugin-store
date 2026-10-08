@@ -38,9 +38,17 @@ sub run ($self, $extract_dir, $metadata, $context) {
 
 sub _resolve_tag {
     my ($minimum_version) = @_;
-    return unless $minimum_version;
-    return "v$minimum_version" if $minimum_version =~ /^\d+\.\d+(\.\d+)?$/;
-    return;
+    return unless defined $minimum_version && length $minimum_version;
+
+    # Same separators/rules as KohaPluginStore::Version::normalize, so any
+    # version the pipeline accepts ('23.11', '23.11+', '23.11.05.003') resolves
+    # to a release tag that exists upstream. Koha's tags are always three-part
+    # ('v23.11.00') -- a bare 'v23.11' doesn't exist, so pad to three segments.
+    my @parts = split /[.+:~-]/, $minimum_version;
+    return if !@parts || @parts > 4 || grep { !/^\d+$/ } @parts;
+
+    push @parts, 0 while @parts < 3;
+    return sprintf( 'v%02d.%02d.%02d', @parts[ 0 .. 2 ] );
 }
 
 # Test seam: overridden in tests to avoid a real broker call. A connection
